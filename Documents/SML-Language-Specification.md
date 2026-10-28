@@ -124,7 +124,7 @@ Core guarantees preservation of the CIM, **not** the full XML Infoset including 
 | `name = value`, `name(...) = value` | Inline-text element |
 | `.name value` | Attribute declaration |
 | `= value` | Text item |
-| `end`, `end name` | Close open element (or plain `end` for a block) |
+| `end`, `end name` | Close open element (plain `end` also ends a block that names no delimiter) |
 | `# ...` | SML-source-only comment |
 | `@...` | Core directive or explicitly enabled extension |
 
@@ -181,7 +181,7 @@ title = My Document
 label(lang=en) = Hello
 ```
 
-An inline-text element closes itself once the value is read. It MUST NOT receive a subsequent body statement or closing `end`. A block value may be used inline; the block's `end` terminates the block and implicitly the element:
+An inline-text element closes itself once the value is read. It MUST NOT receive a subsequent body statement or closing `end`. A block value may be used inline; the block's delimiter line terminates the block and implicitly the element:
 
 ```sml
 message = |
@@ -239,7 +239,7 @@ An inline attribute list must parse fully as inline attributes; malformed syntax
 Every value is read the same way, whichever statement carries it. Leading and trailing spaces and tabs around the value are discarded; they are formatting, never data. What remains is classified as follows:
 
 - If it starts with `"`, it MUST be exactly one syntactically valid quoted string, and the value is the decoded content of that string. Anything else that starts with `"` is a syntax error; to represent literal leading quotation marks, quote the whole value.
-- If it is exactly one of the block markers `|`, `|+`, or `|-`, it opens a multiline block (§7).
+- If it is exactly a block marker (`|`, `|+`, or `|-`, optionally followed directly by a delimiter name such as `|EOF`), it opens a multiline block (§7).
 - Otherwise it is a **raw value**: its characters are taken literally, including any spaces or tabs between its first and last non-whitespace characters.
 
 Whitespace at the start or end of a value is therefore data only inside a quoted string. A quoted string cannot span lines; use `\n` for line breaks.
@@ -275,11 +275,13 @@ The text is `Hello, world!`: successive text items concatenate with **no implici
 title = Hello
 ```
 
-Requires a separator between the element opener and `=`. The value is read as described in §6.3, so values with significant leading/trailing spaces use a quoted string. If an inline value is a block marker, its block's `end` closes the block and the inline element as noted above.
+Requires a separator between the element opener and `=`. The value is read as described in §6.3, so values with significant leading/trailing spaces use a quoted string. If an inline value is a block marker, its block's delimiter line closes the block and the inline element as noted above.
 
 ## 7. Multiline values
 
-The markers `|`, `|+`, and `|-` are reserved as complete value tokens. They may follow `.attribute`, `=`, `name =`, `@comment`, or `@cdata`.
+A block marker is `|`, `|+`, or `|-`, optionally followed directly by a **delimiter name**: `|EOF`, `|+EOF`, `|-EOF`. Markers are reserved as complete value tokens and may follow `.attribute`, `=`, `name =`, `@comment`, or `@cdata`. A block ends at the first line that consists of its delimiter. The default delimiter is `end`, so `|end` is the same as `|`.
+
+A delimiter name starts with an ASCII letter or `_`, continues with ASCII letters, digits, or `_`, and is case-sensitive. A value consisting of `|`, an optional sign, and such a name is therefore a block marker, not raw text; quote it to represent it literally (`.cmd "|grep"`).
 
 ```sml
 paragraph = |
@@ -293,28 +295,43 @@ The value is `First line.\n  Indented second line.\nThird line.`.
 
 ### 7.1 Normative block algorithm
 
-1. After a marker, collect subsequent physical lines up to the first line that, after trimming leading and trailing spaces/tabs, is exactly `end`. The `end` line is not content.
+1. After a marker, collect subsequent physical lines up to the first line that, after trimming leading and trailing spaces/tabs, is exactly the block's delimiter: the name given in the marker, or `end` if it gives none. The delimiter line is not content.
 2. Identify nonblank content lines (a blank content line consists only of spaces/tabs or is zero length).
 3. Compute the longest common **character prefix of horizontal whitespace** among nonblank content lines. If there are no nonblank lines, the common prefix is empty.
 4. Remove that exact prefix from every nonblank content line. Convert each blank content line into an empty line.
 5. Join lines with LF. No LF is implicitly appended merely because there is a physical line before the terminator.
-6. `|` returns this joined result unchanged. `|+` removes any trailing LF and then appends exactly one LF. `|-` removes all trailing LF characters.
+6. A marker without a sign (`|`, `|EOF`) returns this joined result unchanged. A marker with `+` removes any trailing LF and then appends exactly one LF. A marker with `-` removes all trailing LF characters.
 
 Tabs are literal characters in the prefix algorithm, not visual columns. Formatters SHOULD discourage mixing tabs and spaces in blocks.
 
 Because trailing spaces and tabs are removed from every line before the block is read (§4), no content line ends in whitespace, and a line containing only whitespace is already empty. A value whose lines must end in whitespace is written as a quoted string instead of a block.
 
-If there are zero content lines: `|` and `|-` yield `""`, while `|+` yields `"\n"`. If there are only blank content lines, their line boundaries follow the join and chomping rules above.
+If there are zero content lines, a marker without a sign or with `-` yields `""`, while a marker with `+` yields `"\n"`. If there are only blank content lines, their line boundaries follow the join and chomping rules above.
 
-### 7.2 Literal terminator collisions
+### 7.2 Choosing a delimiter
 
-Because the delimiter line is recognized independent of indentation, a line consisting only of `end` cannot be placed directly in a block. Use quoted `\n` escapes or multiple text items instead:
+The delimiter line is recognized independent of indentation, so a block cannot contain a line that consists of its own delimiter. Text with lines that consist of `end`, such as Ruby, Lua, or Julia code or SML source, names another delimiter:
+
+```sml
+script
+  .language lua
+  @cdata |LUA
+    function check(x)
+      if x then
+        return true
+      end
+    end
+  LUA
+end
+```
+
+Inside this block, `end` lines are content; only a line consisting of `LUA` ends it. Quoted `\n` escapes remain available for short values:
 
 ```sml
 value = "first\nend\nlast"
 ```
 
-Blocks cannot nest. An unterminated block is an error. A future extension MAY add arbitrary-delimiter or length-delimited blocks.
+Blocks cannot nest. An unterminated block is an error (`SML1501`); its diagnostic SHOULD name the delimiter the parser was looking for. A future extension MAY add length-delimited blocks.
 
 ## 8. Comments, processing instructions, CDATA hints
 
@@ -447,11 +464,14 @@ XMLComment      ::= '@comment' [ HSpace Value ] EOL ;
 CDATA           ::= '@cdata' [ HSpace Value ] EOL ;
 PI              ::= '@pi' HSpace NCName [ HSpace ( RawValue | QuotedValue ) ] EOL ;
 Value           ::= RawValue | QuotedValue | BlockValue ;
-BlockValue      ::= ( '|' | '|+' | '|-' ) EOL
-                    { BlockLine } 'end' EOL ;
+BlockValue      ::= BlockMarker EOL
+                    { BlockLine } BlockTerminator EOL ;
+BlockMarker     ::= '|' [ '+' | '-' ] [ Delimiter ] ;
+BlockTerminator ::= Delimiter ;  (* the marker's delimiter, or 'end' if it names none *)
+Delimiter       ::= ( AsciiLetter | '_' ) { AsciiLetter | AsciiDigit | '_' } ;
 ```
 
-**Disambiguation rules:** a line is recognized by its first nonindentation token. A valid opener ending in `/` is self-closing. An opener followed by whitespace, `=`, then a value is inline text. Dot and at-sign prefixes are reserved. A line that attempts but fails reserved syntax is invalid rather than reinterpreted as an arbitrary name. A block's `end` has priority over all other interpretations. The named element terminator must match the *lexical* QName of the opener, even when different prefixes could denote the same expanded name.
+**Disambiguation rules:** a line is recognized by its first nonindentation token. A valid opener ending in `/` is self-closing. An opener followed by whitespace, `=`, then a value is inline text. Dot and at-sign prefixes are reserved. A line that attempts but fails reserved syntax is invalid rather than reinterpreted as an arbitrary name. Inside a block, its delimiter line has priority over all other interpretations. The named element terminator must match the *lexical* QName of the opener, even when different prefixes could denote the same expanded name.
 
 The grammar shown is normative at statement-structure level; individual character validity and the treatment of inline whitespace are governed by the lexical prose. A machine-readable lexer/parser grammar should be delivered with the reference implementation and validated against all conformance vectors.
 
@@ -665,6 +685,8 @@ A formatter MAY preserve source attribute order; otherwise it SHOULD impose a st
 
 Because raw values lose leading and trailing whitespace (§6.3), a writer or formatter MUST quote any value that begins or ends with a space or tab, and MUST NOT write as a block any text whose lines end in whitespace (§7.1).
 
+When a writer uses a block, it writes a marker without a delimiter name unless some content line, ignoring indentation, is exactly `end`. It then names the first of `END`, `END2`, `END3`, … that no content line equals. The choice depends only on the value, which keeps formatting idempotent.
+
 ## 17. Worked examples
 
 ### 17.1 Configuration
@@ -853,6 +875,12 @@ Tests should live in portable UTF-8 files with expected CIM results or expected 
 | SML-T118 | Block marker followed by trailing whitespace | Opens a block |
 | SML-T119 | Trailing whitespace on block content lines | Removed |
 | SML-T120 | Quoted value after several spaces (`.v   "x"`) | Quoted value `x` |
+| SML-T121 | Block with a delimiter name containing `end` lines | `end` lines are content |
+| SML-T122 | `\|end` | Same as `\|` |
+| SML-T123 | `\|+EOF`, `\|-EOF` | Same chomping as `\|+`, `\|-` |
+| SML-T124 | Delimiter case (`\|EOF` followed by a line `eof`) | Line is content; matching is case-sensitive |
+| SML-T125 | `.cmd \|grep` / `.cmd "\|grep"` | Opens a block / literal text |
+| SML-T126 | Unterminated block with a delimiter name | SML1501 naming the delimiter |
 
 ### 18.3 Namespaces
 
@@ -982,12 +1010,12 @@ The reference implementation SHOULD prioritize a streaming parser and layer the 
 This consolidated specification explicitly resolves the most important disagreements from exploratory drafts:
 
 - Self-closing elements MUST carry all attributes inline; dot attributes cannot follow `/`.
-- An inline-text element has no additional `end`, except that a multiline block necessarily ends with its own `end` marker.
+- An inline-text element has no additional `end`, except that a multiline block necessarily ends with its own delimiter line.
 - Declaration sections finish at the first content item; namespace declarations may resolve the declaring opener retroactively.
 - Consecutive text statements do not insert newlines.
 - Raw values discard leading and trailing whitespace, keep internal whitespace, and do not decode XML entity syntax; whitespace at the edge of a value is data only inside quotes.
 - `|`, `|+`, and `|-` have deterministic common-prefix and terminal-LF behavior, including empty and all-blank blocks.
-- Literal block-delimiter collisions are handled with quoted/escaped values, not indentation heuristics.
+- Text containing lines that equal the default delimiter `end` uses a block with a named delimiter (`|EOF`), not indentation heuristics or escapes; `|` followed by a name is therefore never raw text.
 - Prefix spelling is not the semantic identity of a namespaced node; the expanded name is.
 - Information-preserving XML import retains whitespace-only text.
 - Extensions are opt-in and cannot redefine Core syntax.
