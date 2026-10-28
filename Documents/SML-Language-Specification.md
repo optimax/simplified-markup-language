@@ -105,6 +105,7 @@ Core guarantees preservation of the CIM, **not** the full XML Infoset including 
 - Source encoding MUST be UTF-8; a UTF-8 BOM MAY occur.
 - Invalid UTF-8 is a fatal error.
 - Source line endings CRLF and CR are normalized to LF before lexical parsing. Explicit `\r` escapes may still encode carriage returns in values.
+- After line-ending normalization, trailing spaces and tabs are removed from every physical line, including lines inside block values. Whitespace at the end of a source line is therefore never data; a value that must end in whitespace is quoted (§6.3).
 - Unicode normalization (NFC/NFD) is not performed.
 - Physical lines normally contain one statement.
 - Leading spaces/tabs preceding ordinary statements are ignored. In a block they are handled by the block algorithm.
@@ -207,19 +208,19 @@ The start-element event cannot be emitted with resolved names until the declarat
 
 ### 6.1 Dot attributes
 
-The syntax is `.QName`, optionally followed by one space or tab and its complete value. The *first* separating horizontal whitespace character is discarded; all remaining characters are data.
+The syntax is `.QName`, optionally followed by horizontal whitespace and the value. The whitespace separates the name from the value and is not data; the value itself is read as described in §6.3.
 
 ```sml
 item
-  .id 123
-  .description A value with many spaces, punctuation & symbols
-  .path C:\Program Files\MyApp\config.xml
+  .id          123
+  .description A value with spaces, punctuation & symbols
+  .path        C:\Program Files\MyApp\config.xml
   .empty
-  .leading  Starts with one space
+  .leading     " Starts with one space"
 end
 ```
 
-`.empty` means the empty string. Trailing whitespace in raw values is significant. In unquoted values, backslashes and XML-like entity strings are literal characters; `&lt;` means the five characters `&lt;`, not `<`.
+`.empty` means the empty string. Aligning values in columns, as above, does not change them: `.id` is `123`. Whitespace inside a raw value is kept, so `.path` keeps the space in `Program Files`. In unquoted values, backslashes and XML-like entity strings are literal characters; `&lt;` means the five characters `&lt;`, not `<`.
 
 ### 6.2 Inline attributes
 
@@ -233,9 +234,15 @@ Comma separates attributes; `=` separates the name from the value. Spaces around
 
 An inline attribute list must parse fully as inline attributes; malformed syntax MUST NOT be silently reinterpreted as a different element name.
 
-### 6.3 Raw and quoted value discrimination
+### 6.3 Raw and quoted values
 
-To prevent leading-quote ambiguity, a value is interpreted as a **quoted token** only if it starts with `"` and consists of one syntactically valid quoted string followed only by permitted surrounding formatting whitespace. A value that starts with `"` but does not form a complete quoted token is a syntax error; quote it properly to represent literal leading quotation marks. Other values are raw unless they are one of the exact block markers.
+Every value is read the same way, whichever statement carries it. Leading and trailing spaces and tabs around the value are discarded; they are formatting, never data. What remains is classified as follows:
+
+- If it starts with `"`, it MUST be exactly one syntactically valid quoted string, and the value is the decoded content of that string. Anything else that starts with `"` is a syntax error; to represent literal leading quotation marks, quote the whole value.
+- If it is exactly one of the block markers `|`, `|+`, or `|-`, it opens a multiline block (§7).
+- Otherwise it is a **raw value**: its characters are taken literally, including any spaces or tabs between its first and last non-whitespace characters.
+
+Whitespace at the start or end of a value is therefore data only inside a quoted string. A quoted string cannot span lines; use `\n` for line breaks.
 
 In quoted strings these escapes are recognized: `\\`, `\"`, `\n`, `\r`, `\t`, `\u{HEX}` (valid Unicode scalar). Unknown escapes, surrogate code points, and XML-forbidden characters are errors. Raw values do not process backslashes.
 
@@ -251,16 +258,16 @@ end
 
 ### 6.4 Text items
 
-`=`, optionally followed by one separating space/tab and the value, represents text:
+`=`, optionally followed by whitespace and a value, represents text:
 
 ```sml
 message
   = Hello,
-  =  world!
+  = " world!"
 end
 ```
 
-The text is `Hello, world!`: successive text items concatenate with **no implicit newline**. Use quoted `\n` or a multiline block for explicit newlines. `=` alone means empty text.
+The text is `Hello, world!`: successive text items concatenate with **no implicit space or newline**. A space at the edge of a text item is kept only inside quotes, as in `" world!"`. Use quoted `\n` or a multiline block for explicit newlines. `=` alone means empty text.
 
 ### 6.5 Inline text
 
@@ -268,7 +275,7 @@ The text is `Hello, world!`: successive text items concatenate with **no implici
 title = Hello
 ```
 
-Requires a separator between the element opener and `=`. For values with significant leading/trailing spaces use a quoted string. If an inline value is a block marker, its block's `end` closes the block and the inline element as noted above.
+Requires a separator between the element opener and `=`. The value is read as described in §6.3, so values with significant leading/trailing spaces use a quoted string. If an inline value is a block marker, its block's `end` closes the block and the inline element as noted above.
 
 ## 7. Multiline values
 
@@ -294,6 +301,8 @@ The value is `First line.\n  Indented second line.\nThird line.`.
 6. `|` returns this joined result unchanged. `|+` removes any trailing LF and then appends exactly one LF. `|-` removes all trailing LF characters.
 
 Tabs are literal characters in the prefix algorithm, not visual columns. Formatters SHOULD discourage mixing tabs and spaces in blocks.
+
+Because trailing spaces and tabs are removed from every line before the block is read (§4), no content line ends in whitespace, and a line containing only whitespace is already empty. A value whose lines must end in whitespace is written as a quoted string instead of a block.
 
 If there are zero content lines: `|` and `|-` yield `""`, while `|+` yields `"\n"`. If there are only blank content lines, their line boundaries follow the join and chomping rules above.
 
@@ -323,7 +332,7 @@ A line beginning with `#` (after optional indentation) is an SML source comment,
 end
 ```
 
-XML comments cannot contain `--` or end with `-`; violations are errors.
+XML comments cannot contain `--` or end with `-`; violations are errors. Like any value, the comment text loses leading and trailing whitespace unless quoted, so the XML comment `<!-- note -->` is written `@comment " note "`.
 
 ### 8.3 Processing instructions
 
@@ -331,7 +340,7 @@ XML comments cannot contain `--` or end with `-`; violations are errors.
 @pi xml-stylesheet type="text/xsl" href="style.xsl"
 ```
 
-The PI target is the first valid XML Name token after `@pi`; all characters after its separating whitespace form raw PI data. The target `xml` (any case) is reserved, and PI data must not contain `?>`. Processing instructions are retained in document order.
+The PI target is the first valid XML Name token after `@pi`; the rest of the line forms the PI data, read as a raw or quoted value (§6.3). A block marker is not recognized here. XML PI data can end in whitespace (`<?target data ?>`), so such data is quoted: `@pi target "data "`. The target `xml` (any case) is reserved, and PI data must not contain `?>`. Processing instructions are retained in document order.
 
 ### 8.4 CDATA
 
@@ -436,7 +445,7 @@ Namespace       ::= '@ns' HSpace [ NCName HSpace ] Value EOL ;
 Text            ::= '=' [ HSpace Value ] EOL ;
 XMLComment      ::= '@comment' [ HSpace Value ] EOL ;
 CDATA           ::= '@cdata' [ HSpace Value ] EOL ;
-PI              ::= '@pi' HSpace NCName [ HSpace RawValue ] EOL ;
+PI              ::= '@pi' HSpace NCName [ HSpace ( RawValue | QuotedValue ) ] EOL ;
 Value           ::= RawValue | QuotedValue | BlockValue ;
 BlockValue      ::= ( '|' | '|+' | '|-' ) EOL
                     { BlockLine } 'end' EOL ;
@@ -654,6 +663,8 @@ A formatter MUST preserve CIM semantics. Recommended canonical profile:
 
 A formatter MAY preserve source attribute order; otherwise it SHOULD impose a stable sort by expanded name. It MUST not omit whitespace-only text merely for aesthetics. The formatter MUST be idempotent: `Format(Format(s)) == Format(s)`.
 
+Because raw values lose leading and trailing whitespace (§6.3), a writer or formatter MUST quote any value that begins or ends with a space or tab, and MUST NOT write as a block any text whose lines end in whitespace (§7.1).
+
 ## 17. Worked examples
 
 ### 17.1 Configuration
@@ -708,9 +719,9 @@ end
 
 ```sml
 paragraph
-  = This is
+  = "This is "
   bold = important
-  =  information.
+  = " information."
 end
 ```
 
@@ -823,8 +834,8 @@ Tests should live in portable UTF-8 files with expected CIM results or expected 
 | ID | Case | Required expectation |
 |---|---|---|
 | SML-T101 | Adjacent `=` lines | Concatenate without newline |
-| SML-T102 | Two spaces after `.name` | One leading value space |
-| SML-T103 | Trailing attribute whitespace | Preserved |
+| SML-T102 | Extra spaces after `.name` | Not part of the value |
+| SML-T103 | Trailing whitespace after a raw value | Discarded |
 | SML-T104 | Quoted padded value | Exact value |
 | SML-T105 | Common block indentation | Stripped |
 | SML-T106 | Relative indentation | Preserved |
@@ -838,6 +849,10 @@ Tests should live in portable UTF-8 files with expected CIM results or expected 
 | SML-T114 | CRLF source | Equivalent after line normalization |
 | SML-T115 | Empty multiline block | Empty value |
 | SML-T116 | Block of blank lines | Defined join/chomp behavior |
+| SML-T117 | Dot-attribute values aligned in columns | Alignment not part of the values |
+| SML-T118 | Block marker followed by trailing whitespace | Opens a block |
+| SML-T119 | Trailing whitespace on block content lines | Removed |
+| SML-T120 | Quoted value after several spaces (`.v   "x"`) | Quoted value `x` |
 
 ### 18.3 Namespaces
 
@@ -970,7 +985,7 @@ This consolidated specification explicitly resolves the most important disagreem
 - An inline-text element has no additional `end`, except that a multiline block necessarily ends with its own `end` marker.
 - Declaration sections finish at the first content item; namespace declarations may resolve the declaring opener retroactively.
 - Consecutive text statements do not insert newlines.
-- Raw values preserve spaces after the single mandatory separator and do not decode XML entity syntax.
+- Raw values discard leading and trailing whitespace, keep internal whitespace, and do not decode XML entity syntax; whitespace at the edge of a value is data only inside quotes.
 - `|`, `|+`, and `|-` have deterministic common-prefix and terminal-LF behavior, including empty and all-blank blocks.
 - Literal block-delimiter collisions are handled with quoted/escaped values, not indentation heuristics.
 - Prefix spelling is not the semantic identity of a namespaced node; the expanded name is.
