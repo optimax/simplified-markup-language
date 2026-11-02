@@ -4,7 +4,7 @@ SML is a plain-text notation for SVG and other XML that is easy to read and edit
 
 This repository contains the SML specification, `smlxml` (a two-way command-line converter in C#), and a Python reference prototype with conformance, fuzz, and differential tests.
 
-> **Status:** SML 1.0-SVG-3 is a proposed specification, not yet final. The name and the `.sml` extension are provisional, because both are already used by Standard ML and by W3C's Service Modeling Language.
+> **Status:** SML 1.0-SVG-4 is a proposed specification, not yet final. The name and the `.sml` extension are provisional, because both are already used by Standard ML and by W3C's Service Modeling Language.
 
 ## Example
 
@@ -23,7 +23,7 @@ An SVG file:
 The same document in SML, as `smlxml` writes it:
 
 ```text
-@sml 1.0-SVG-3
+@sml 1.0-SVG-4
 @indent 2
 svg(xmlns=http://www.w3.org/2000/svg, viewBox=0 0 120 80)
   @comment " A rounded badge with a label "
@@ -55,7 +55,7 @@ SML also has vertical attributes, multiline literal blocks for long paths, CSS, 
 
 | Path | Contents |
 |---|---|
-| [`Documents/SML-Language-Specification.md`](Documents/SML-Language-Specification.md) | The specification, revision 1.0-SVG-3 |
+| [`Documents/SML-Language-Specification.md`](Documents/SML-Language-Specification.md) | The specification, revision 1.0-SVG-4 |
 | [`Documents/sml-vs-kdl-vs-ndl.md`](Documents/sml-vs-kdl-vs-ndl.md) | Design study comparing SML with KDL and NDL for hand-editable SVG |
 | [`Documents/SML-Spec-Review-Claude.md`](Documents/SML-Spec-Review-Claude.md) | Review of the previous revision, 1.0-SVG-2 |
 | [`Source/Sml/`](Source/Sml/) | C# library: SML reader, canonical writer, XML importer and exporter |

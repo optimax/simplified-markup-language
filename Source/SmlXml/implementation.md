@@ -7,7 +7,8 @@
 - Input file names may contain wildcards.
 - Run without arguments, it shows the usage.
 - Every run starts with this banner on standard output, followed by a blank line:
-  `smlxml 1.0.0 (SML 1.0-SVG-3)`, `Copyright (c) 2026 Optimax Technologies, Inc.`, `Freely distributed under MIT license.`
+  `smlxml 1.0.0 (SML 1.0-SVG-4)`, `Copyright (c) 2026 Optimax Technologies, Inc.`, `Freely distributed under MIT license.`
+  The SML version in it is `SmlReader.Version`, the revision the reader implements.
 - `--output` accepts a `*` pattern, so that `smlxml *.svg` followed by `smlxml -o *.out.svg *.sml` leaves `name.sml` and `name.out.svg` beside each `name.svg`.
 - `--profile` converts XML to SML with an SML profile, which defines blocks for path `d`, polyline `points`, and other SVG values that are more readable one item per line. The `svg` profile ships with `smlxml`.
 - `--verbose` writes every attribute and namespace declaration on its own line, never in a `name(...)` list.

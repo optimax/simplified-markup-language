@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Differential test between the two implementations of SML 1.0-SVG-3: the Python prototype
+"""Differential test between the two implementations of SML 1.0-SVG-4: the Python prototype
 (sml_prototype.py) and the C# converter (Source/SmlXml, smlxml).
 
 Uses fuzz_roundtrip.Generator to create random documents, then checks that:

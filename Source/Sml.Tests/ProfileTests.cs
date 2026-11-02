@@ -158,7 +158,7 @@ public class ProfileTests
     {
         SmlDocument doc = Xml("<svg xmlns='http://www.w3.org/2000/svg'><path d='M 0 0 L 1 1 Z' fill='red'/></svg>");
         Assert.Equal("""
-            @sml 1.0-SVG-3
+            @sml 1.0-SVG-4
             svg(xmlns=http://www.w3.org/2000/svg)
               path
                 .d "M 0 0 "
@@ -175,22 +175,22 @@ public class ProfileTests
     public void ReflowsIntoAliasBlocksDeclaredOnTheRoot()
     {
         SmlDocument doc = Xml("<svg xmlns='http://www.w3.org/2000/svg'><path d='M 0 0 L 1 1 Z' fill='red'/></svg>");
-        Assert.Equal("""
+        Assert.Equal(""""
             # Readable conversion (SML §3.2), not strict: one item per line in d
-            @sml 1.0-SVG-3
+            @sml 1.0-SVG-4
             svg(xmlns=http://www.w3.org/2000/svg)
               @block path d .d
               path
-                d |
+                d """
                   M 0 0
                   L 1 1
                   Z
-                end
+                """
                 .fill red
               end
             end
 
-            """.ReplaceLineEndings("\n"), SmlWriter.Write(doc, Svg, reflow: true));
+            """".ReplaceLineEndings("\n"), SmlWriter.Write(doc, Svg, reflow: true));
     }
 
     [Fact]
@@ -199,7 +199,7 @@ public class ProfileTests
         SmlDocument doc = Xml("<s:svg xmlns:s='http://www.w3.org/2000/svg'><s:polygon points='0,0&#10;1,1'/></s:svg>");
         string sml = SmlWriter.Write(doc, Svg);
         Assert.Contains("  @block s:polygon points .points\n", sml);
-        Assert.Contains("    points |\n      0,0\n      1,1\n    end\n", sml);
+        Assert.Contains("    points \"\"\"\n      0,0\n      1,1\n    \"\"\"\n", sml);
         Assert.Null(DocumentComparer.FirstDifference(doc, SmlReader.Read(sml)));
     }
 
@@ -209,7 +209,7 @@ public class ProfileTests
         SmlDocument doc = Xml("<doc><svg xmlns='http://www.w3.org/2000/svg'><path d='M 0 0&#10;L 1 1'/></svg></doc>");
         string sml = SmlWriter.Write(doc, Svg);
         Assert.DoesNotContain("@block", sml);
-        Assert.Contains("      .d |\n", sml);
+        Assert.Contains("      .d \"\"\"\n", sml);
         Assert.Null(DocumentComparer.FirstDifference(doc, SmlReader.Read(sml)));
     }
 

@@ -1,9 +1,9 @@
-@sml 1.0-SVG-3
+@sml 1.0-SVG-4
 svg(xmlns=http://www.w3.org/2000/svg)
-  style = |
+  style = """
     .a { fill: #f00; }
     #b:hover { opacity: .5; }
-  end
+  """
   rect
     .class a
     .height 30

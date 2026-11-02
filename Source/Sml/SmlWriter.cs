@@ -314,7 +314,8 @@ public sealed class SmlWriter
         return depth == 0;
     }
 
-    /// <summary>The terminator to write a value as a block (§7), or null if a block cannot reproduce it.</summary>
+    /// <summary>The marker to write a value as a block (§7): the shortest run of three or more quotation marks
+    /// that no payload line equals, or null if a block cannot reproduce the value.</summary>
     public static string? BlockTag(string value)
     {
         if (!value.Contains('\n') || value.Contains('\r') || value.EnumerateRunes().Any(XmlRules.NeedsEscape))
@@ -325,12 +326,10 @@ public sealed class SmlWriter
         if (SmlReader.DedentBlock(lines) != value)
             return null;
         var stripped = lines.Select(XmlRules.StripSpacesAndTabs).ToHashSet(StringComparer.Ordinal);
-        if (!stripped.Contains("end"))
-            return "end";
-        string tag = "EOT";
-        for (int n = 1; stripped.Contains(tag); n++)
-            tag = $"EOT{n}";
-        return tag;
+        string marker = "\"\"\"";
+        while (stripped.Contains(marker))
+            marker += '"';
+        return marker;
     }
 
     private static List<string> SplitSegments(List<string> units)
@@ -395,13 +394,13 @@ public sealed class SmlWriter
         _out.AddRange(segments.Skip(1).Select(segment => ind + "  \"" + segment + "\""));
     }
 
-    /// <summary>Writes prefix and a value as a block (§7) ended by tag; depth is the statement's.</summary>
-    private void Block(string prefix, string value, string tag, int depth)
+    /// <summary>Writes prefix and a value as a block (§7) opened and closed by marker; depth is the statement's.</summary>
+    private void Block(string prefix, string value, string marker, int depth)
     {
         string ind = Indentation(depth), inner = ind + "  ";
-        _out.Add(prefix + " |" + (tag == "end" ? "" : tag));
+        _out.Add(prefix + " " + marker);
         _out.AddRange(value.Split('\n').Select(line => line.Length == 0 ? "" : inner + line));
-        _out.Add(ind + tag);
+        _out.Add(ind + marker);
     }
 
     private void Misc(SmlNode item, int depth)

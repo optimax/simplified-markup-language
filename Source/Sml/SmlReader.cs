@@ -3,10 +3,19 @@ using System.Text.RegularExpressions;
 
 namespace Sml;
 
-/// <summary>Reads SML 1.0-SVG-3 (specification §§4–13) into the information model.</summary>
+/// <summary>Reads SML 1.0-SVG-4 (specification §§4–13) into the information model.</summary>
 public sealed partial class SmlReader
 {
-    public const string Version = "1.0-SVG-3";
+    public const string Version = "1.0-SVG-4";
+
+    private const string ObsoleteBlock = "blocks are written \"\"\" since SML 1.0-SVG-4; '|' no longer starts a block";
+
+    /// <summary>Whether s is a block marker (§7): three or more quotation marks and nothing else.</summary>
+    public static bool IsBlockMarker(string s) => s.Length >= 3 && s.All(c => c == '"');
+
+    /// <summary>Whether s is a 1.0-SVG-3 block marker, '|' or '|' and an NCName, which is now reported.</summary>
+    private static bool IsObsoleteMarker(string s) =>
+        s.Length > 0 && s[0] == '|' && (s.Length == 1 || XmlRules.IsNCName(s[1..]));
 
     private static readonly UTF8Encoding StrictUtf8 = new(encoderShouldEmitUTF8Identifier: false, throwOnInvalidBytes: true);
 
@@ -142,9 +151,9 @@ public sealed partial class SmlReader
             int j = nameEnd;
             while (j < s.Length && s[j] is ' ' or '\t')
                 j++;
-            if (j < s.Length && s[j] == '|')
+            if (j < s.Length && IsBlockMarker(s[j..]))
             {
-                AliasInvocation(s[..nameEnd], s[(j + 1)..], ln);
+                AliasInvocation(s[..nameEnd], s[j..], ln);
                 return;
             }
         }
@@ -211,50 +220,43 @@ public sealed partial class SmlReader
         return value;
     }
 
-    /// <summary>Parses the value part of a statement. For a block, the returned value is its terminator.</summary>
+    /// <summary>Parses the value part of a statement. For a block, the returned value is its marker.</summary>
     private static (ValueKind Kind, string Value) ParseValueTail(string rest, int ln, bool allowBlock = true)
     {
         if (rest.Length == 0)
             return (ValueKind.Empty, "");
-        string marker;
-        if (rest[0] == '|')
-        {
-            marker = rest;
-        }
-        else if (rest[0] is ' ' or '\t')
-        {
-            string v = rest.TrimStart(' ', '\t');
-            if (v[0] == '"')
-                return (ValueKind.Quoted, ParseQuotedWhole(v, ln));
-            if (v[0] != '|')
-                return (ValueKind.Raw, XmlRules.CheckChars(v, ln));
-            marker = v;
-        }
+        string v;
+        if (rest[0] is ' ' or '\t')
+            v = rest.TrimStart(' ', '\t');
+        else if (IsBlockMarker(rest) || rest[0] == '|')
+            v = rest;       // the space before a block marker is optional (§6.2)
         else
-        {
             throw new SmlException("expected a space before the value", ln);
+        if (IsBlockMarker(v))
+        {
+            if (!allowBlock)
+                throw new SmlException("this value cannot be a block", ln);
+            return (ValueKind.Block, v);
         }
-        if (!allowBlock)
-            throw new SmlException("this value cannot be a block; quote values that begin with '|'", ln);
-        string tag = marker[1..];
-        if (tag.Length == 0)
-            return (ValueKind.Block, "end");
-        if (XmlRules.IsNCName(tag) && tag != "end")
-            return (ValueKind.Block, tag);
-        throw new SmlException($"invalid block marker '{marker}'; quote values that begin with '|'", ln);
+        if (v[0] == '"')
+            return (ValueKind.Quoted, ParseQuotedWhole(v, ln));
+        if (v[0] == '|')
+            throw new SmlException(IsObsoleteMarker(v) ? ObsoleteBlock : "a raw value cannot begin with '|'; quote it", ln);
+        return (ValueKind.Raw, XmlRules.CheckChars(v, ln));
     }
 
-    private string ReadBlock(string tag, int ln)
+    /// <summary>Reads a block's payload up to the line that repeats its marker (§7).</summary>
+    private string ReadBlock(string marker, int ln)
     {
         var payload = new List<string>();
         while (_index < _lines.Length)
         {
             string raw = _lines[_index++];
-            if (XmlRules.StripSpacesAndTabs(raw) == tag)
+            if (XmlRules.StripSpacesAndTabs(raw) == marker)
                 return XmlRules.CheckChars(DedentBlock(payload), ln);
             payload.Add(raw);
         }
-        throw new SmlException($"unterminated block (expected a line '{tag}')", ln);
+        throw new SmlException($"unterminated block (expected a line {marker})", ln);
     }
 
     private string ValueOf(ValueKind kind, string value, int ln) => kind == ValueKind.Block ? ReadBlock(value, ln) : value;
@@ -482,19 +484,15 @@ public sealed partial class SmlReader
             _pending = new Pending(more => node.Data += more);
     }
 
-    private void AliasInvocation(string alias, string tag, int ln)
+    private void AliasInvocation(string alias, string marker, int ln)
     {
         Frame f = DeclarationFrame(ln, "alias invocation");
-        if (tag.Length == 0)
-            tag = "end";
-        else if (!XmlRules.IsNCName(tag) || tag == "end")
-            throw new SmlException($"invalid block marker |{tag}", ln);
         string? target = null;
         for (int k = _stack.Count - 1; k >= 0 && target is null; k--)
             _stack[k].Aliases.TryGetValue((f.Element.Name, alias), out target);
         if (target is null)
             throw new SmlException($"no active alias '{alias}' for element '{f.Lexical}'", ln);
-        SetAttribute(f, target, ReadBlock(tag, ln), ln);
+        SetAttribute(f, target, ReadBlock(marker, ln), ln);
     }
 
     private void ElementStatement(string s, int ln)
@@ -509,6 +507,8 @@ public sealed partial class SmlReader
         if (pos < s.Length && s[pos] == '(')
             (inline, pos) = ParseInlineList(s, pos, ln);
         string rest = s[pos..];
+        if (IsObsoleteMarker(rest.TrimStart(' ', '\t')))
+            throw new SmlException(ObsoleteBlock, ln);
         if (rest.Length == 0)
         {
             OpenElement(qname, inline, "open", ln);
@@ -604,7 +604,7 @@ public sealed partial class SmlReader
             throw new SmlException($"malformed directive '{s}'", ln);
         string name = m.Groups[1].Value;
         string rest = s[m.Length..];
-        if (rest.Length > 0 && rest[0] is not (' ' or '\t' or '|'))
+        if (rest.Length > 0 && rest[0] is not (' ' or '\t' or '|') && !IsBlockMarker(rest))
             throw new SmlException($"expected a space after @{name}", ln);
         if (name.Contains(':'))
         {

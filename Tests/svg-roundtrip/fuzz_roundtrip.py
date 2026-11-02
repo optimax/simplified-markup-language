@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Fuzz and differential tests for the SML 1.0-SVG-3 prototype (sml_prototype.py).
+"""Fuzz and differential tests for the SML 1.0-SVG-4 prototype (sml_prototype.py).
 
 Three campaigns, all seeded and reproducible:
 
@@ -7,7 +7,7 @@ Three campaigns, all seeded and reproducible:
    stable canonical SML, and match lxml's independent view of the exported XML (element tree,
    namespace scopes, prolog/epilog, standalone, DOCTYPE identifiers).
    Each document is also written by VariantWriter in randomly chosen equivalent, non-canonical
-   SML (aliases, quoting, continuation lines, custom terminators, end QName, comments), and the
+   SML (aliases, quoting, continuation lines, longer block markers, end QName, comments), and the
    reader must produce the same document from it.
 2. SML mutations: random edits to canonical and variant SML. The reader must reject them with
    SmlError, or accept a document that round-trips and exports XML that lxml accepts. Nothing
@@ -49,7 +49,7 @@ PREFIXES = ['a', 'b', 'p', 'svg', 'x-y', 'n.1', 'é']
 LOCALS = ['g', 'rect', 'text', 'tspan', 'end', 'data', 'style', 'path', 'x-1', 'a.b', 'é', '中文', 'Item_2']
 ATTR_LOCALS = ['id', 'd', 'x', 'style', 'class', 'data-a', 'end', 'k', 'é']
 WORDS = ['1', 'none', 'url(#a)', 'translate(10,20)', 'M 0 0 L 10 10', '#4477cc', 'a,b', 'x)y', '(',
-         'end', 'EOT', '|', '|x', '"q"', "it's", '', ' ', 'a  b', '\\n', 'end path', '@ns x', '# not a comment']
+         'end', '"""', '|', '|x', '"q"', "it's", '', ' ', 'a  b', '\\n', 'end path', '@ns x', '# not a comment']
 CHARS = list('aZ0 \t\n\r"\'\\|(),#=&<>]-./:;@`~{}') + [
     'é', '😀', '\u2028', '\u2029', '\u0085', '\ufeff', '\u200d', '\u00a0', '\u007f', '\u00ad',
     'end', ']]>', '--', '?>', '\\u{41}']
@@ -59,7 +59,7 @@ SYSIDS = ['svg11.dtd', 'http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd', 'a"b'
 UNITS = ['  ', '    ', '\t', ' ', '   ']
 
 SML_TOKENS = ['|', '"', '\\', '(', ')', ',', '=', '.', '@', '#', ' ', '\t', '\n', 'end', '/', ':',
-              'x', '|EOT', '\\u{', '@ns ', '@block g x .y\n', '@noindent\n', '@indent 2\n', 'xmlns=',
+              'x', '"""', '""""', '\\u{', '@ns ', '@block g x .y\n', '@noindent\n', '@indent 2\n', 'xmlns=',
               '\r', '\ufeff', 'end g\n', '@element end\n', '"\n']
 # Inserted right after a quote character: targets value constraints at value edges
 # (leading/trailing whitespace, CR, '-' and '--' in comments, '?>' in PIs).
@@ -87,7 +87,7 @@ class Generator:
         if kind < 0.85:
             lines = []
             for _ in range(r.randint(2, 4)):
-                line = r.choice(WORDS + ['end', 'EOT', 'x y'])
+                line = r.choice(WORDS + ['end', '"""', '""""', 'x y'])
                 lines.append(r.choice(['', '', '  ', '\t']) + line + r.choice(['', '', ' ']))
             return '\n'.join(lines)
         if kind < 0.95:
@@ -380,7 +380,7 @@ class VariantWriter:
     def write(self) -> str:
         d, r = self.doc, self.r
         if r.random() < 0.5:
-            self.emit(r.choice(['@sml 1.0-SVG-3', '@sml 1.0']))
+            self.emit(r.choice(['@sml 1.0-SVG-4', '@sml 1.0']))
         if d.standalone:
             self.emit('@standalone ' + d.standalone)
         for item in d.prolog:
@@ -419,13 +419,12 @@ class VariantWriter:
                 self.out.append(ind + r.choice(['  ', '    ', '']) + '"' + seg + '"')
         else:
             stripped = {S.strip_ht(x) for x in v.split('\n')}
-            if tag == 'end' and r.random() < 0.4 and 'EOT' not in stripped:
-                tag = 'EOT'
-            marker = '|' + ('' if tag == 'end' else tag)
+            longer = tag + '"' * r.randint(1, 2)
+            marker = longer if r.random() < 0.3 and longer not in stripped else tag
             self.emit(head + r.choice([' ', '', '  ']) + marker)
             pad = ind + r.choice(['  ', '    ', '\t', ' '])
             self.out.extend(pad + x if x else r.choice(['', '']) for x in v.split('\n'))
-            self.out.append(ind + r.choice(['', '  ', '\t']) + tag)
+            self.out.append(ind + r.choice(['', '  ', '\t']) + marker)
 
     def misc(self, item, ind: str) -> None:
         if isinstance(item, S.Comment):

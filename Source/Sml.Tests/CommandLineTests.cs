@@ -27,7 +27,7 @@ public sealed class CommandLineTests : IDisposable
         var (code, output, _) = Run(PathOf("drawing.svg"));
         Assert.Equal(CommandLine.Success, code);
         Assert.Contains("drawing.sml", output);
-        Assert.Equal("@sml 1.0-SVG-3\nsvg(xmlns=http://www.w3.org/2000/svg)\n  rect(width=1)/\nend\n", File.ReadAllText(PathOf("drawing.sml")));
+        Assert.Equal("@sml 1.0-SVG-4\nsvg(xmlns=http://www.w3.org/2000/svg)\n  rect(width=1)/\nend\n", File.ReadAllText(PathOf("drawing.sml")));
     }
 
     [Fact]
@@ -51,7 +51,7 @@ public sealed class CommandLineTests : IDisposable
         Assert.Contains("already exists; use --force", error);
         Assert.Equal("# hand-edited\n", File.ReadAllText(PathOf("drawing.sml")));
         Assert.Equal(CommandLine.Success, Run("--force", PathOf("drawing.svg")).Code);
-        Assert.StartsWith("@sml 1.0-SVG-3", File.ReadAllText(PathOf("drawing.sml")));
+        Assert.StartsWith("@sml 1.0-SVG-4", File.ReadAllText(PathOf("drawing.sml")));
     }
 
     [Fact]
@@ -103,12 +103,12 @@ public sealed class CommandLineTests : IDisposable
     public void ShowsHelpAndVersion()
     {
         Assert.Contains("Usage: smlxml", Run("--help").Out);
-        Assert.Contains("SML 1.0-SVG-3", Run("--version").Out);
+        Assert.Contains("SML 1.0-SVG-4", Run("--version").Out);
         Assert.Equal(Run("--version"), Run("-v"));
     }
 
     private const string Banner =
-        "smlxml 1.0.0 (SML 1.0-SVG-3)\nCopyright (c) 2026 Optimax Technologies, Inc.\nFreely distributed under MIT license.\n\n";
+        "smlxml 1.0.0 (SML 1.0-SVG-4)\nCopyright (c) 2026 Optimax Technologies, Inc.\nFreely distributed under MIT license.\n\n";
 
     [Fact]
     public void VersionPrintsExactlyTheBanner() => Assert.Equal(Banner, Run("-v").Out.ReplaceLineEndings("\n"));
@@ -314,7 +314,7 @@ public sealed class CommandLineTests : IDisposable
         string reflowed = File.ReadAllText(PathOf("drawing.sml"));
         Assert.StartsWith("# Readable conversion", reflowed);
         Assert.Contains("  @block path d .d\n", reflowed);
-        Assert.Contains("    d |\n      M 0 0\n      L 1 1\n    end\n", reflowed);
+        Assert.Contains("    d \"\"\"\n      M 0 0\n      L 1 1\n    \"\"\"\n", reflowed);
     }
 
     [Fact]
@@ -324,7 +324,7 @@ public sealed class CommandLineTests : IDisposable
         File.WriteAllText(PathOf("data.xml"), "<r v=\"1 2\"/>");
         File.WriteAllText(PathOf("other.sml"), "r(v=3)/\n");
         Assert.Equal(CommandLine.Success, Run("-p", PathOf("mine.smlprofile"), PathOf("data.xml"), PathOf("other.sml")).Code);
-        Assert.Equal("@sml 1.0-SVG-3\nr\n  .v \"1 \"\n    \"2\"\nend\n", File.ReadAllText(PathOf("data.sml")));
+        Assert.Equal("@sml 1.0-SVG-4\nr\n  .v \"1 \"\n    \"2\"\nend\n", File.ReadAllText(PathOf("data.sml")));
         Assert.Equal("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<r v=\"3\"/>\n", File.ReadAllText(PathOf("other.xml")));
     }
 
@@ -348,11 +348,11 @@ public sealed class CommandLineTests : IDisposable
     {
         File.WriteAllText(PathOf("drawing.svg"), SvgXml);
         Assert.Equal(CommandLine.Success, Run("--verbose", PathOf("drawing.svg")).Code);
-        Assert.Equal("@sml 1.0-SVG-3\nsvg\n  @ns http://www.w3.org/2000/svg\n  rect\n    .width 1\n  end\nend\n",
+        Assert.Equal("@sml 1.0-SVG-4\nsvg\n  @ns http://www.w3.org/2000/svg\n  rect\n    .width 1\n  end\nend\n",
             File.ReadAllText(PathOf("drawing.sml")));
         File.WriteAllText(PathOf("path.svg"), PathXml);
         Assert.Equal(CommandLine.Success, Run("--verbose", "-p", "svg", "-r", PathOf("path.svg")).Code);
-        Assert.Contains("svg\n  @ns http://www.w3.org/2000/svg\n  @block path d .d\n  path\n    d |\n", File.ReadAllText(PathOf("path.sml")));
+        Assert.Contains("svg\n  @ns http://www.w3.org/2000/svg\n  @block path d .d\n  path\n    d \"\"\"\n", File.ReadAllText(PathOf("path.sml")));
         Assert.Contains("--verbose", Run("--help").Out);
     }
 }

@@ -32,7 +32,7 @@ public class ReaderTests
     [Fact]
     public void CP02_LineEndings()
     {
-        const string lf = "g\n  .a 1\n  = |\n    x\n    y\n  end\nend\n";
+        const string lf = "g\n  .a 1\n  = \"\"\"\n    x\n    y\n  \"\"\"\nend\n";
         Same(lf.Replace("\n", "\r\n"), lf);
         Same(lf.Replace("\n", "\r"), lf);
     }
@@ -81,12 +81,13 @@ public class ReaderTests
     }
 
     [Fact]
-    public void CP08_CP09_BlockTerminators()
+    public void CP08_CP09_BlockMarkers()
     {
-        Assert.Equal("end path", Root("g\n  .a |\n    end path\n  end\nend\n").Attributes["a"]);
-        Assert.Equal("x\nend", Root("g\n  .a |EOT\n    x\n    end\n  EOT\nend\n").Attributes["a"]);
-        Rejects("g\n  .a |end\n    x\n  end\nend\n");
-        Rejects("g\n  .a |1x\n    x\n  1x\nend\n");
+        Assert.Equal("end path\nend", Root("g\n  .a \"\"\"\n    end path\n    end\n  \"\"\"\nend\n").Attributes["a"]);
+        Assert.Equal("x\n\"\"\"", Root("g\n  .a \"\"\"\"\n    x\n    \"\"\"\n  \"\"\"\"\nend\n").Attributes["a"]);
+        Rejects("g\n  .a \"\"\"\"\n    x\n  \"\"\"\nend\n", "unterminated block");
+        Assert.Equal("", Root("g\n  .a \"\"\nend\n").Attributes["a"]);
+        Rejects("g\n  .a \"\"\"x\nend\n");
     }
 
     [Fact]
@@ -124,9 +125,9 @@ public class ReaderTests
     [Fact]
     public void CP14_BlockDedentation()
     {
-        Assert.Equal("a\n\n  b\n\nc", Root("g\n  .a |\n    a\n\n      b\n   \t  \n    c\n  end\nend\n").Attributes["a"]);
-        Assert.Equal("\ta\n  b", Root("g\n  .a |\n\ta\n  b\n  end\nend\n").Attributes["a"]);
-        Assert.Equal("", Root("g\n  .a |\n  end\nend\n").Attributes["a"]);
+        Assert.Equal("a\n\n  b\n\nc", Root("g\n  .a \"\"\"\n    a\n\n      b\n   \t  \n    c\n  \"\"\"\nend\n").Attributes["a"]);
+        Assert.Equal("\ta\n  b", Root("g\n  .a \"\"\"\n\ta\n  b\n  \"\"\"\nend\n").Attributes["a"]);
+        Assert.Equal("", Root("g\n  .a \"\"\"\n  \"\"\"\nend\n").Attributes["a"]);
     }
 
     [Fact]
@@ -149,9 +150,10 @@ public class ReaderTests
     [Fact]
     public void CP20_VersionHeader()
     {
-        Rejects("@comment x\n@sml 1.0-SVG-3\ng/\n", "first statement");
+        Rejects("@comment x\n@sml 1.0-SVG-4\ng/\n", "first statement");
         Rejects("@sml 1.0-SVG-2\ng/\n", "unsupported draft");
-        Root("# note\n@sml 1.0-SVG-3\ng/\n");
+        Rejects("@sml 1.0-SVG-3\ng/\n", "unsupported draft");
+        Root("# note\n@sml 1.0-SVG-4\ng/\n");
         Root("@sml 1.0\ng/\n");
     }
 
@@ -159,7 +161,7 @@ public class ReaderTests
     public void CP21_CP22_Extensions()
     {
         Rejects("@use geo 1.0\ng/\n", "not implemented");
-        Same("@use geo 1.0 optional\n@geo:grid 10\ng\n  .a 1\n  @geo:hint |\n    x\n  end\n  .b 2\nend\n",
+        Same("@use geo 1.0 optional\n@geo:grid 10\ng\n  .a 1\n  @geo:hint \"\"\"\n    x\n  \"\"\"\n  .b 2\nend\n",
              "g\n  .a 1\n  .b 2\nend\n");
     }
 
@@ -170,7 +172,7 @@ public class ReaderTests
         [
             "svg(xmlns=http://www.w3.org/2000/svg, width=10, d=x)\n  path(d=M0 0)/\nend\n",
             "svg\n  @ns http://www.w3.org/2000/svg\n  .d \"x\"\n  .width 10\n  path\n    .d M0 0\n  end\nend svg\n",
-            "# c\nsvg\n  @ns \"http://www.w3.org/2000/svg\"\n  @block path p .d\n  .width \"1\"\n    \"0\"\n  .d x\n  path\n    p |\n      M0 0\n    end\n  end\nend\n",
+            "# c\nsvg\n  @ns \"http://www.w3.org/2000/svg\"\n  @block path p .d\n  .width \"1\"\n    \"0\"\n  .d x\n  path\n    p \"\"\"\n      M0 0\n    \"\"\"\n  end\nend\n",
         ];
         Assert.Single(variants.Select(v => SmlWriter.Write(SmlReader.Read(v))).Distinct());
     }
@@ -178,7 +180,7 @@ public class ReaderTests
     [Fact]
     public void CP24_CanonicalWriterIsIdempotent()
     {
-        const string source = "@indent 2\nsvg(xmlns=http://www.w3.org/2000/svg)\n  text\n    @noindent\n    tspan = A\n    = \" B\"\n  end\n  style = |EOT\n    a\n    end\n  EOT\nend\n";
+        const string source = "@indent 2\nsvg(xmlns=http://www.w3.org/2000/svg)\n  text\n    @noindent\n    tspan = A\n    = \" B\"\n  end\n  style = \"\"\"\"\n    a\n    \"\"\"\n    end\n  \"\"\"\"\nend\n";
         string once = SmlWriter.Write(SmlReader.Read(source));
         Assert.Equal(once, SmlWriter.Write(SmlReader.Read(once)));
     }
@@ -186,21 +188,21 @@ public class ReaderTests
     [Fact]
     public void SV34_SV37_AliasesOnlyWithMarker()
     {
-        ElementNode svg = Root($"svg\n  @ns {Svg}\n  @block path data .d\n  path\n    data |\n      M 0 0\n    end\n  end\nend\n");
+        ElementNode svg = Root($"svg\n  @ns {Svg}\n  @block path data .d\n  path\n    data \"\"\"\n      M 0 0\n    \"\"\"\n  end\nend\n");
         ElementNode path = (ElementNode)svg.Children[0];
         Assert.Equal(new ExpandedName(Svg, "path"), path.Name);
         Assert.Equal("M 0 0", path.Attributes["d"]);
-        ElementNode g = Root("g\n  @block g data .d\n  data |\n    v\n  end\n  data\n    = child\n  end\nend\n");
+        ElementNode g = Root("g\n  @block g data .d\n  data \"\"\"\n    v\n  \"\"\"\n  data\n    = child\n  end\nend\n");
         Assert.Equal("v", g.Attributes["d"]);
         Assert.Equal("data", ((ElementNode)g.Children[0]).QualifiedName);
-        Rejects("g\n  data |\n    v\n  end\nend\n", "no active alias");
+        Rejects("g\n  data \"\"\"\n    v\n  \"\"\"\nend\n", "no active alias");
         Rejects("g\n  @block g data = .d\nend\n", "no longer valid");
     }
 
     [Fact]
     public void SV53_SV55_LinesAreTrimmed()
     {
-        ElementNode g = Root($"g  \n  @ns {Svg}   \n  .x   value   \n  .q \"y\"   \n  .d |  \n    v\n  end\nend\n");
+        ElementNode g = Root($"g  \n  @ns {Svg}   \n  .x   value   \n  .q \"y\"   \n  .d \"\"\"  \n    v\n  \"\"\"\nend\n");
         Assert.Equal(Svg, g.NamespaceDeclarations[""]);
         Assert.Equal("value", g.Attributes["x"]);
         Assert.Equal("y", g.Attributes["q"]);
@@ -236,9 +238,12 @@ public class ReaderTests
     [Fact]
     public void SV71_SV72_BlockMarkers()
     {
-        Same("g\n  .d|\n    v\n  end\nend\n", "g\n  .d |\n    v\n  end\nend\n");
-        Assert.Equal("v", Root("g\n  .d|EOT\n    v\n  EOT\nend\n").Attributes["d"]);
-        Rejects("g\n  .d |x y\nend\n", "invalid block marker");
+        Same("g\n  .d\"\"\"\n    v\n  \"\"\"\nend\n", "g\n  .d \"\"\"\n    v\n  \"\"\"\nend\n");
+        Same("g\n  @block g x .y\n  x\"\"\"\n    v\n  \"\"\"\nend\n", "g\n  .y \"\"\"\n    v\n  \"\"\"\nend\n");
+        foreach (string marker in new[] { "|", " |", "|EOT", " |EOT" })
+            Rejects($"g\n  .d{marker}\n    v\n  end\nend\n", "no longer starts a block");
+        Rejects("g\n  @block g x .y\n  x |\n    v\n  end\nend\n", "no longer starts a block");
+        Rejects("g\n  .d |x y\nend\n", "cannot begin with '|'");
     }
 
     [Fact]

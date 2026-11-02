@@ -17,7 +17,7 @@ public class WriterOptionsTests
             + "<path d='M213.3 204.8q0-.9 1-1c1-.1 1 .5 1 1s-.4 1-1 1a1 1 0 0 1-1-1m15.8 1.9q.1-1 1-1t1.1 1q0 .9-1 1a1 1 0 0 1-1-1'"
             + " fill='#fff'/><text x='5'>Hi</text><title>T</title><g/></svg>");
         Assert.Equal("""
-            @sml 1.0-SVG-3
+            @sml 1.0-SVG-4
             svg
               @ns http://www.w3.org/2000/svg
               @ns x urn:x
@@ -49,21 +49,21 @@ public class WriterOptionsTests
     {
         SmlProfile profile = SmlProfile.Parse("@layout * .transform functions\n@block g t .transform\n");
         SmlDocument doc = Xml("<g transform='scale(2)'><g transform='translate(1,2) rotate(3)'/></g>");
-        Assert.Equal("""
+        Assert.Equal(""""
             # Readable conversion (SML §3.2), not strict: one item per line in transform
-            @sml 1.0-SVG-3
+            @sml 1.0-SVG-4
             g
               @block g t .transform
               .transform scale(2)
               g
-                t |
+                t """
                   translate(1,2)
                   rotate(3)
-                end
+                """
               end
             end
 
-            """.ReplaceLineEndings("\n"),
+            """".ReplaceLineEndings("\n"),
             SmlWriter.Write(doc, new SmlWriterOptions { Profile = profile, Reflow = true, VerticalAttributes = true }));
     }
 

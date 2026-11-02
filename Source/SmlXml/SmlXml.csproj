@@ -11,7 +11,7 @@
     <Company>Optimax Technologies, Inc.</Company>
     <Copyright>Copyright (c) 2026 Optimax Technologies, Inc.</Copyright>
     <Product>smlxml</Product>
-    <Description>Two-way converter between SML 1.0-SVG-3 and XML/SVG.</Description>
+    <Description>Two-way converter between SML 1.0-SVG-4 and XML/SVG.</Description>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <InvariantGlobalization>true</InvariantGlobalization>
     <!-- The code is CPU-neutral even in the 32- and 64-bit publishes; only the smlxml.exe launcher differs. -->

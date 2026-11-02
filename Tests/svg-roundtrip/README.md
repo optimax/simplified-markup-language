@@ -6,7 +6,7 @@ The script rewrites the fixture files, runs every check, and exits with status 1
 
 | Path | Contents |
 |---|---|
-| `sml_prototype.py` | Prototype for SML 1.0-SVG-3: SML reader, canonical writer (§14.2), expat-based XML importer, XML exporter, and the strict-profile comparison |
+| `sml_prototype.py` | Prototype for SML 1.0-SVG-4: SML reader, canonical writer (§14.2), expat-based XML importer, XML exporter, and the strict-profile comparison |
 | `build_and_test.py` | The harness and the fixture definitions it writes to `corpus/` and `corpus-negative/` |
 | `test_sml_core.py` | CP-1–CP-24 and the SML-only SV fixtures of the specification's §15 |
 | `fuzz_roundtrip.py` | Seeded fuzz and differential tests (see below); findings are shrunk and saved to `results/fuzz-findings/` |
@@ -26,7 +26,7 @@ Each positive fixture goes through these checks:
 
 Every harness run also includes a fixed-seed pass of `fuzz_roundtrip.py`:
 
-- **Generated documents.** Random valid documents, with tricky names, namespaces, characters, long values, and pretty-printed whitespace, must survive SML and XML round trips and give stable canonical SML. Each is also written in randomly chosen, equivalent non-canonical SML (aliases, quoting, continuation lines, custom terminators, `end QName`, comments), which must read back to the same document. lxml must agree with the model on the exported XML.
+- **Generated documents.** Random valid documents, with tricky names, namespaces, characters, long values, and pretty-printed whitespace, must survive SML and XML round trips and give stable canonical SML. Each is also written in randomly chosen, equivalent non-canonical SML (aliases, quoting, continuation lines, longer block markers such as `""""`, `end QName`, comments), which must read back to the same document. lxml must agree with the model on the exported XML.
 - **SML mutants.** Random edits to valid SML must be rejected with `SmlError`, or accepted as a document that round-trips and exports XML that lxml accepts. The reader must never crash.
 - **XML mutants.** Random edits to valid XML go to both the prototype importer (expat) and lxml (libxml2), which must agree. The exceptions are constructs the importer rejects on purpose, and three understood divergences between the two parsers, which are counted rather than failed: namespace URI validation, XML 1.0 5th-edition name characters, and malformed version numbers.
 

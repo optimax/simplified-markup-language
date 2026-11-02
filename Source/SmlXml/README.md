@@ -1,6 +1,6 @@
 # smlxml
 
-Converts between SML 1.0-SVG-3 and XML/SVG, in both directions, without losing information.
+Converts between SML 1.0-SVG-4 and XML/SVG, in both directions, without losing information.
 
 ```text
 smlxml [options] <file>...
@@ -85,15 +85,15 @@ end
 
 ```text
 # Readable conversion (SML §3.2), not strict: one item per line in d
-@sml 1.0-SVG-3
+@sml 1.0-SVG-4
 svg(xmlns=http://www.w3.org/2000/svg)
   @block path d .d
   path
-    d |
+    d """
       M 20 60
       L 60 20
       Z
-    end
+    """
   end
 end
 ```
@@ -125,7 +125,7 @@ A profile is a UTF-8 text file with one statement per line; blank lines and line
 | Statement | Meaning |
 |---|---|
 | `@ns [prefix] URI` | Binds a prefix, or the default namespace, for the names that follow. All `@ns` lines come first. |
-| `@block element alias .attribute` | An alias, as in SML (§8): a block for this attribute of this element is written `alias \|` instead of `.attribute \|`. The aliases used are declared on the root element, so an alias is used only where the root's namespace declarations can name its element. |
+| `@block element alias .attribute` | An alias, as in SML (§8): a block for this attribute of this element is written `alias """` instead of `.attribute """`. The aliases used are declared on the root element, so an alias is used only where the root's namespace declarations can name its element. |
 | `@layout element .attribute layout` | How the attribute's values divide into items (§3.2): `path`, `numbers N` (N numbers per item), `declarations`, `functions`, or `list` (`;`-separated). The element `*` means any element without a layout of its own for that attribute. |
 
 A mistake in a profile is reported as `file(line): error: message` before any file is converted.

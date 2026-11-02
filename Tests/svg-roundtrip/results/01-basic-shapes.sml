@@ -1,4 +1,4 @@
-@sml 1.0-SVG-3
+@sml 1.0-SVG-4
 svg(xmlns=http://www.w3.org/2000/svg, height=200, viewBox=0 0 400 200, width=400)
   rect(fill=#4477cc, height=60, width=50, x=10, y=20)/
   circle(cx=100, cy=70, r=30)/

@@ -1,4 +1,4 @@
-@sml 1.0-SVG-3
+@sml 1.0-SVG-4
 @standalone no
 @indent 2
 @doctype svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd"

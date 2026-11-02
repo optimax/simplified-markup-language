@@ -5,7 +5,7 @@
 #
 # Statements:
 #   @ns [prefix] URI                    a namespace for the names below; all @ns lines come first
-#   @block element alias .attribute     an alias (SML §8): "alias |" is written instead of ".attribute |"
+#   @block element alias .attribute     an alias (SML §8): alias """ is written instead of .attribute """
 #   @layout element .attribute kind     how the attribute's values divide into items: path, numbers N,
 #                                       declarations, functions, or list; the element * is any element
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""SML 1.0-SVG-3 prototype: reader, canonical writer, XML importer/exporter, and comparison.
+"""SML 1.0-SVG-4 prototype: reader, canonical writer, XML importer/exporter, and comparison.
 
 This is a prototype written to exercise Documents/SML-Language-Specification.md. It implements
 the Core syntax, the strict profile's information model, and the canonical form (§14.2), but it
@@ -15,7 +15,7 @@ import re
 import unicodedata
 import xml.parsers.expat as expat
 
-SML_VERSION = '1.0-SVG-3'
+SML_VERSION = '1.0-SVG-4'
 XML_NS = 'http://www.w3.org/XML/1998/namespace'
 XMLNS_NS = 'http://www.w3.org/2000/xmlns/'
 BASE_NS = {'xml': XML_NS}
@@ -109,7 +109,10 @@ NAME = rf'[:{_NSC}][:{_NC}]*'
 NCNAME_RE = re.compile(NCNAME)
 QNAME_RE = re.compile(QNAME)
 NAME_RE = re.compile(NAME)
-ALIAS_RE = re.compile(rf'({NCNAME})[ \t]*\|(.*)')
+ALIAS_RE = re.compile(rf'({NCNAME})[ \t]*("{{3,}})')
+BLOCK_MARKER_RE = re.compile(r'"{3,}')
+OLD_BLOCK_RE = re.compile(rf'\|({NCNAME})?')   # a 1.0-SVG-3 block marker
+OBSOLETE_BLOCK = 'blocks are written """ since SML 1.0-SVG-4; \'|\' no longer starts a block'
 DIRECTIVE_RE = re.compile(r'@([^\s|"]+)')
 UESC_RE = re.compile(r'\{([0-9A-Fa-f]{1,6})\}')
 PUBID_RE = re.compile(r"[ \r\na-zA-Z0-9\-'()+,./:=?;!*#@$_%]*")
@@ -379,38 +382,35 @@ class SmlReader:
         return value
 
     def parse_value_tail(self, rest: str, ln: int, allow_block: bool = True):
-        """Returns (kind, value): 'empty', 'raw', 'quoted', or ('block', tag)."""
+        """Returns (kind, value): 'empty', 'raw', 'quoted', or 'block' with its marker."""
         if rest == '':
             return 'empty', ''
-        if rest[0] == '|':
-            marker = rest
-        elif rest[0] in ' \t':
+        if rest[0] in ' \t':
             v = rest.lstrip(' \t')
-            if v[0] == '"':
-                return 'quoted', self.parse_quoted_whole(v, ln)
-            if v[0] != '|':
-                return 'raw', check_chars(v, ln)
-            marker = v
+        elif BLOCK_MARKER_RE.fullmatch(rest) or rest[0] == '|':
+            v = rest        # the space before a block marker is optional (§6.2)
         else:
             raise SmlError('expected a space before the value', ln)
-        if not allow_block:
-            raise SmlError("this value cannot be a block; quote values that begin with '|'", ln)
-        tag = marker[1:]
-        if tag == '':
-            return 'block', 'end'
-        if is_ncname(tag) and tag != 'end':
-            return 'block', tag
-        raise SmlError(f"invalid block marker {marker!r}; quote values that begin with '|'", ln)
+        if BLOCK_MARKER_RE.fullmatch(v):
+            if not allow_block:
+                raise SmlError('this value cannot be a block', ln)
+            return 'block', v
+        if v[0] == '"':
+            return 'quoted', self.parse_quoted_whole(v, ln)
+        if v[0] == '|':
+            raise SmlError(OBSOLETE_BLOCK if OLD_BLOCK_RE.fullmatch(v) else "a raw value cannot begin with '|'; quote it", ln)
+        return 'raw', check_chars(v, ln)
 
-    def read_block(self, tag: str, ln: int) -> str:
+    def read_block(self, marker: str, ln: int) -> str:
+        """Reads a block's payload up to the line that repeats its marker (§7)."""
         payload = []
         while self.i < len(self.lines):
             raw = self.lines[self.i]
             self.i += 1
-            if strip_ht(raw) == tag:
+            if strip_ht(raw) == marker:
                 return check_chars(dedent_block(payload), ln)
             payload.append(raw)
-        raise SmlError(f'unterminated block (expected a line {tag!r})', ln)
+        raise SmlError(f'unterminated block (expected a line {marker})', ln)
 
     def value_of(self, kind, value, ln):
         """Turns a parse_value_tail result into a string, reading a block if needed."""
@@ -565,12 +565,8 @@ class SmlReader:
         if kind == 'quoted':
             self.pending = _Pending(lambda more, t=node: setattr(t, 'data', t.data + more))
 
-    def st_alias(self, alias: str, tag: str, ln: int) -> None:
+    def st_alias(self, alias: str, marker: str, ln: int) -> None:
         f = self.decl_frame(ln, 'alias invocation')
-        if tag == '':
-            tag = 'end'
-        elif not is_ncname(tag) or tag == 'end':
-            raise SmlError(f'invalid block marker |{tag}', ln)
         target = None
         for scope in reversed(self.stack):
             target = scope.aliases.get((f.el.expanded, alias))
@@ -578,7 +574,7 @@ class SmlReader:
                 break
         if target is None:
             raise SmlError(f'no active alias {alias!r} for element {f.lexical!r}', ln)
-        self.set_attr(f, target, self.read_block(tag, ln), ln)
+        self.set_attr(f, target, self.read_block(marker, ln), ln)
 
     def st_element(self, s: str, ln: int) -> None:
         m = QNAME_RE.match(s)
@@ -591,6 +587,8 @@ class SmlReader:
         if pos < len(s) and s[pos] == '(':
             inline, pos = self.parse_inline_list(s, pos, ln)
         rest = s[pos:]
+        if OLD_BLOCK_RE.fullmatch(rest.lstrip(' \t')):
+            raise SmlError(OBSOLETE_BLOCK, ln)
         if rest == '':
             self.open_element(qname, inline, 'open', ln)
         elif rest == '/':
@@ -661,7 +659,7 @@ class SmlReader:
         if not m:
             raise SmlError(f'malformed directive {s!r}', ln)
         name, rest = m.group(1), s[m.end():]
-        if rest and rest[0] not in ' \t|':
+        if rest and rest[0] not in ' \t|' and not BLOCK_MARKER_RE.fullmatch(rest):
             raise SmlError(f'expected a space after @{name}', ln)
         if ':' in name:
             return self.st_extension(name, rest, ln)
@@ -927,7 +925,8 @@ def raw_inline_ok(value: str) -> bool:
 
 
 def block_tag(value: str) -> str | None:
-    """The terminator to write value as a block (§7), or None if a block cannot reproduce it."""
+    """The marker to write value as a block (§7): the shortest run of three or more quotation marks that no
+    payload line equals, or None if a block cannot reproduce the value."""
     if '\n' not in value or '\r' in value or any(needs_escape(c) for c in value):
         return None
     lines = value.split('\n')
@@ -936,13 +935,10 @@ def block_tag(value: str) -> str | None:
     if dedent_block(lines) != value:
         return None
     stripped = {strip_ht(ln) for ln in lines}
-    if 'end' not in stripped:
-        return 'end'
-    tag, n = 'EOT', 0
-    while tag in stripped:
-        n += 1
-        tag = f'EOT{n}'
-    return tag
+    marker = '"""'
+    while marker in stripped:
+        marker += '"'
+    return marker
 
 
 def split_segments(units: list[str]) -> list[str]:
@@ -994,7 +990,7 @@ class SmlWriter:
             return
         tag = block_tag(value) if allow_block else None
         if tag is not None:
-            self.out.append(prefix + ' |' + ('' if tag == 'end' else tag))
+            self.out.append(prefix + ' ' + tag)
             inner = ind + '  '
             self.out.extend(inner + ln if ln else '' for ln in value.split('\n'))
             self.out.append(ind + tag)
