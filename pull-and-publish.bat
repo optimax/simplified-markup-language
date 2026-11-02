@@ -47,5 +47,5 @@ exit /b 1
 
 rem Keeps the window open when the script was started by double-clicking it in Explorer.
 :pause_if_double_clicked
-echo "%cmdcmdline%" | find /i "%SCRIPT%" >nul && pause
+echo "%cmdcmdline%" | find /i "%SCRIPT%" >nul && timeout 10
 exit /b 0
