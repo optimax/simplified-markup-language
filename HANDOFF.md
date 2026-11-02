@@ -22,7 +22,7 @@ Provide `smlxml`, a two-way SML ↔ XML/SVG command-line converter in C# on .NET
   - With `--verbose`, it writes every attribute and namespace declaration on its own line.
 
   Behavior and requirements are in `Source/SmlXml/implementation.md`, usage and the profile format in `Source/SmlXml/README.md`.
-- **`Source/Sml.Tests`** has 1,904 xUnit tests:
+- **`Source/Sml.Tests`** has 1,911 xUnit tests:
   - the corpus, compared byte for byte with the Python reference output;
   - both round trips;
   - the negative corpus;
@@ -37,20 +37,19 @@ Provide `smlxml`, a two-way SML ↔ XML/SVG command-line converter in C# on .NET
 - **`README.md`** at the root introduces the project on GitHub. It assumes a public repository under the MIT license.
 - Solution-wide environment, conventions, decisions, and traps are in `implementation.md`.
 
-## Files changed in the last task (reflow separates path parameters)
+## Files changed in the last task (reflow spaces number lists)
 
 - `Source/Sml/ValueLayout.cs`:
-  - `SpacePathCommand` now also separates parameters written together: `a.75.75 0 01-.69-.35` becomes `a .75 .75 0 0 1 -.69 -.35`;
-  - new `PathParameters` reads numbers as long as possible and arc flags as single characters;
-  - `SpaceLetterAndCommas` is the fallback for items that aren't path parameters.
-- `Source/Sml.Tests/ProfileTests.cs`: `SpacesPathCommands`.
-- The tests and `Source/SmlXml/README.md` now expect the `svg` profile's path alias `data`, which the user renamed from `d` in `svg.smlprofile`.
-- `Documents/SML-Language-Specification.md` §3.2 and `Source/SmlXml/README.md` describe the rule.
+  - `Reflow` spaces `numbers` items, such as points and color matrices, with the new `SpaceNumbers`: `10,20` becomes `10, 20`, and `1-2` becomes `1 -2`;
+  - path commands keep their spacing (`SpacePathCommand`);
+  - both share `SpaceParameters` and `Parameters`, which read numbers as long as possible and arc flags as single characters.
+- `Source/Sml.Tests/ProfileTests.cs`: `SpacesNumbers`, and the reflow expectations.
+- `Documents/SML-Language-Specification.md` §3.2, `Source/SmlXml/README.md`, and `Source/SmlXml/svg.smlprofile` (comment) describe the rule.
 
 ## Build and test results
 
 - `dotnet build SimplifiedMarkupLanguage.slnx -c Release`: 0 warnings, 0 errors.
-- `dotnet test`: 1,904/1,904 passed, including the byte-for-byte comparison with the regenerated Python reference SML.
+- `dotnet test`: 1,911/1,911 passed, including the byte-for-byte comparison with the regenerated Python reference SML.
 - `fuzz_roundtrip.py --docs 2000 --seed 7`: 0 findings (only the known parser divergences).
 - `crosscheck_csharp.py` seeds 1–3 after the 1.0-SVG-4 change (3,000 documents, 12,000 SML mutants): 0 differences.
 - `smlxml --verbose` over a copy of `Tests/svg-corpus`: the Python prototype read all 495 accepted files back equal to their originals.

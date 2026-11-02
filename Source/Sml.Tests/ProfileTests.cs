@@ -91,12 +91,14 @@ public class ProfileTests
     public void ReflowsOneItemPerLineOnlyWhenThatIsClean()
     {
         Assert.Equal("M 20 60\nL 60 20\nZ", ValueLayout.Reflow("M 20 60 L 60 20 Z", PathData));
-        Assert.Equal("1,2\n3,4", ValueLayout.Reflow("1,2,3,4", Pairs));
+        Assert.Equal("1, 2\n3, 4", ValueLayout.Reflow("1,2,3,4", Pairs));
         Assert.Equal("M 0 0\nL 1 1", ValueLayout.Reflow("M0 0L1 1", PathData));
         Assert.Equal("M 10, 20\nL 30, -40\nc 1, 2 3, 4 5, 6\nz", ValueLayout.Reflow("M10,20L30,-40c1,2 3,4 5,6z", PathData));
         Assert.Equal("M 0 0,\nL 1, 1", ValueLayout.Reflow("M 0 0,L 1, 1", PathData));
         Assert.Equal("a .5 .5 0 0 0 -1 0\nZ", ValueLayout.Reflow("a.5.5 0 0 0-1 0Z", PathData));
-        Assert.Equal("10,20\n30,40", ValueLayout.Reflow("10,20 30,40", Pairs));   // only path commands are spaced
+        Assert.Equal("10, 20\n30, 40", ValueLayout.Reflow("10,20 30,40", Pairs));
+        Assert.Equal("1 -2\n-3.5 .5", ValueLayout.Reflow("1-2-3.5.5", Pairs));
+        Assert.Equal("1 0 0 0 0\n0 1 0 0 0", ValueLayout.Reflow("1 0 0 0 0 0 1 0 0 0", new Layout(LayoutKind.Numbers, 5)));
         Assert.Null(ValueLayout.Reflow("M 0 0", PathData));             // a single item
         Assert.Null(ValueLayout.Reflow("M 0\t0 L 1 1", PathData));      // TAB inside an item
         Assert.Null(ValueLayout.Segments("rotate(45)", Functions));
@@ -117,6 +119,17 @@ public class ProfileTests
     [InlineData("L1e 2", "L 1e 2")]                     // not path numbers: only the letter and commas are spaced
     public void SpacesPathCommands(string command, string expected) =>
         Assert.Equal(expected, ValueLayout.SpacePathCommand(command));
+
+    [Theory]
+    [InlineData("10,20", "10, 20")]
+    [InlineData("10, 20", "10, 20")]
+    [InlineData("1-2", "1 -2")]
+    [InlineData(".5.5", ".5 .5")]
+    [InlineData("1e2,-3", "1e2, -3")]
+    [InlineData("1 0 0 0 0", "1 0 0 0 0")]
+    [InlineData("a,b", "a,b")]                          // not numbers: unchanged
+    public void SpacesNumbers(string numbers, string expected) =>
+        Assert.Equal(expected, ValueLayout.SpaceNumbers(numbers));
 
     // ---------------------------------------------------------------------------------------------
     // Profile format

@@ -62,7 +62,8 @@ public static class ValueLayout
 
     /// <summary>The value with its items joined by LF, one item per line (§3.2), or null if the layout does not
     /// apply: the value does not have the layout's form, has fewer than two items, or an item contains TAB, LF,
-    /// or CR. Path commands are also spaced (<see cref="SpacePathCommand"/>).</summary>
+    /// or CR. Path commands and numbers are also spaced (<see cref="SpacePathCommand"/>,
+    /// <see cref="SpaceNumbers"/>).</summary>
     public static string? Reflow(string value, Layout layout)
     {
         List<(int Start, int End)>? items = Items(value, layout);
@@ -73,6 +74,8 @@ public static class ValueLayout
             return null;
         if (layout.Kind == LayoutKind.Path)
             texts = texts.ConvertAll(SpacePathCommand);
+        else if (layout.Kind == LayoutKind.Numbers)
+            texts = texts.ConvertAll(SpaceNumbers);
         return string.Join('\n', texts);
     }
 
@@ -81,46 +84,56 @@ public static class ValueLayout
     /// "a.5.5 0 01-1 0" becomes "a .5 .5 0 0 1 -1 0". Parameters are read as path data reads them: numbers each as
     /// long as possible, and an arc's two flags as single characters, so a space only goes where the path already
     /// has a boundary.</summary>
-    public static string SpacePathCommand(string command)
+    public static string SpacePathCommand(string command) =>
+        SpaceParameters(command, 1, arc: command[0] is 'a' or 'A')
+            ?? SpaceLetterAndCommas(command);    // not path parameters after all: space only the safe places
+
+    /// <summary>Numbers spaced for reading (§3.2), as path parameters are: a space after each comma and between two
+    /// numbers written together, wherever there is none and more follows. "10,20" becomes "10, 20", and "1-2"
+    /// becomes "1 -2". Text that is not numbers is returned unchanged.</summary>
+    public static string SpaceNumbers(string numbers) => SpaceParameters(numbers, 0, arc: false) ?? numbers;
+
+    /// <summary>The text with its parameters from position start on spaced, or null if after start it has anything
+    /// but parameters, spaces, and single commas.</summary>
+    private static string? SpaceParameters(string text, int start, bool arc)
     {
-        List<(int Start, int End)>? parameters = PathParameters(command);
+        List<(int Start, int End)>? parameters = Parameters(text, start, arc);
         if (parameters is null)
-            return SpaceLetterAndCommas(command);    // not path parameters after all: space only the safe places
-        var result = new System.Text.StringBuilder(command.Length + 16);
-        result.Append(command[0]);
-        int previous = 1;
-        foreach (var (start, end) in parameters)
+            return null;
+        var result = new System.Text.StringBuilder(text.Length + 16);
+        result.Append(text, 0, start);
+        int previous = start;
+        foreach (var (from, to) in parameters)
         {
-            result.Append(command, previous, start - previous);    // the separator: spaces and at most one comma
-            if (result[^1] != ' ')
+            result.Append(text, previous, from - previous);    // the separator: spaces and at most one comma
+            if (result.Length > 0 && result[^1] != ' ')
                 result.Append(' ');
-            result.Append(command, start, end - start);
-            previous = end;
+            result.Append(text, from, to - from);
+            previous = to;
         }
-        result.Append(command, previous, command.Length - previous);
+        result.Append(text, previous, text.Length - previous);
         return result.ToString();
     }
 
-    /// <summary>The parameters of a path command, or null if it has anything but parameters, spaces, and single
-    /// commas after its letter. In an arc command, the 4th and 5th of every 7 parameters are flags: one character,
-    /// 0 or 1.</summary>
-    private static List<(int Start, int End)>? PathParameters(string command)
+    /// <summary>The parameters of text from position start on, or null if it has anything but parameters, spaces,
+    /// and single commas there. Numbers are each as long as possible; with arc, the 4th and 5th of every 7
+    /// parameters are an arc command's flags: one character, 0 or 1.</summary>
+    private static List<(int Start, int End)>? Parameters(string text, int start, bool arc)
     {
-        bool arc = command[0] is 'a' or 'A';
         var parameters = new List<(int Start, int End)>();
-        int i = 1;
+        int i = start;
         while (true)
         {
             int commas = 0;
-            for (; i < command.Length && command[i] is ' ' or ','; i++)
-                commas += command[i] == ',' ? 1 : 0;
+            for (; i < text.Length && text[i] is ' ' or ','; i++)
+                commas += text[i] == ',' ? 1 : 0;
             if (commas > 1)
                 return null;
-            if (i == command.Length)
+            if (i == text.Length)
                 return parameters;
             int end = arc && parameters.Count % 7 is 3 or 4
-                ? (command[i] is '0' or '1' ? i + 1 : i)
-                : ScanNumber(command, i);
+                ? (text[i] is '0' or '1' ? i + 1 : i)
+                : ScanNumber(text, i);
             if (end == i)
                 return null;
             parameters.Add((i, end));

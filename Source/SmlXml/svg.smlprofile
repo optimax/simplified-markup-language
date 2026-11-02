@@ -23,7 +23,7 @@
 @block textPath path .path
 @layout textPath .path path
 
-# Point lists: one x,y pair per line.
+# Point lists: one x, y pair per line; --reflow also spaces it, as in 10, 20.
 @block polyline points .points
 @layout polyline .points numbers 2
 @block polygon points .points
