@@ -1,25 +1,12 @@
-@sml 1.0
-svg
-  @ns "http://www.w3.org/2000/svg"
-  @ns dc "http://purl.org/dc/elements/1.1/"
-  @ns app "urn:app"
+@sml 1.0-SVG-3
+svg(xmlns=http://www.w3.org/2000/svg, xmlns:app=urn:app, xmlns:dc=http://purl.org/dc/elements/1.1/)
   metadata
-    dc:title
-      = "Drawing"
-    end
-    app:object
-      @ns other "urn:other"
-      .app:kind "vector"
-      .other:key "v"
-      app:child
-      end
+    dc:title = Drawing
+    app:object(xmlns:other=urn:other, app:kind=vector, other:key=v)
+      app:child/
     end
   end
-  g
-    .id "layer1"
-    rect
-      .width "1"
-      .height "2"
-    end
+  g(id=layer1)
+    rect(height=2, width=1)/
   end
 end

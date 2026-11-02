@@ -1,11 +1,11 @@
-@sml 1.0
-svg
-  @ns "http://www.w3.org/2000/svg"
-  text
-    = "Zażółć 😀 & <test> café"
-  end
+@sml 1.0-SVG-3
+svg(xmlns=http://www.w3.org/2000/svg)
+  text = Zażółć 😀 & <test> café
   metadata
-    .note "A\tB\nC"
     .data "\"quote\""
+    .note |
+      A	B
+      C
+    end
   end
 end

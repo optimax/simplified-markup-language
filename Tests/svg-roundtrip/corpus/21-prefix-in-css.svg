@@ -1,0 +1,1 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:app="urn:app"><style>@namespace app url(urn:app); app|marker { fill: red; }</style><g app:ref="app:item" app:type="app:layer"/></svg>

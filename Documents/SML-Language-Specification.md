@@ -853,7 +853,7 @@ The canonical form is a function of the document alone: canonical writers MUST p
 2. **Prolog.** `@sml 1.0-SVG-3`, then `@standalone` if recorded, then `@indent` if chosen (rule 9), then the prolog comments, PIs, and `@doctype` in document order. The epilog follows the root in document order.
 3. **Indentation.** Two spaces per element depth. Block payload lines and continuation lines are indented one level deeper than their statement; a block terminator is at the statement's level.
 4. **Order.** Namespace declarations come first: the default namespace, then prefixes in ascending code-point order. Then attributes: those without a namespace by local name, then namespaced ones by namespace URI and then local name, all in ascending code-point order. This is the attribute order of Canonical XML.
-5. **Inline or vertical.** An element's namespace declarations and attributes are written inline, as one list, when every value is representable as a raw inline value (§6.3) under rule 7 and the opener line is at most 100 code points including indentation. Otherwise all are vertical: `@ns` lines, then `.attribute` lines.
+5. **Inline or vertical.** An element's namespace declarations and attributes are written inline, as one list, when every value is representable as a raw inline value (§6.3) under rule 7, and the indentation, element name, and inline list together are at most 100 code points long. Otherwise all are vertical: `@ns` lines, then `.attribute` lines.
 6. **Element form.** For an element with an inline list, or with no declarations or attributes: `name/` if it has no content; `name = value` if its only content is one text node. Otherwise the normal form with `end`. An element named `end` is always written `@element end` in the normal form.
 7. **Value form.** Each value is written in the first form that applies:
    1. **Raw:** §6.2 allows it, it contains none of TAB, CR, LF, or the characters §4 says to escape, and the statement line is at most 100 code points.
@@ -871,7 +871,14 @@ SVG XML writers MUST encode character data and attribute values according to XML
 
 The tests are in two groups: **SV** fixtures, which exercise XML↔SML conversion under the strict profile, and **CP** fixtures (§15.1), which exercise the SML reader and writers alone and need no XML.
 
-The prototype's 18-fixture SVG corpus (SV-1–SV-18, the earlier RT-1 subset) is maintained outside this document and is the initial positive baseline. It MUST be published with the conformance suite before any conformance claim is made. The following fixtures are also mandatory:
+The fixtures are in this repository under `Tests/svg-roundtrip/`:
+
+- `corpus/` holds the 18-fixture baseline corpus (SV-1–SV-18, the earlier RT-1 subset) and the XML fixtures below. A file's numeric prefix is its SV number; for example, `66-doctype-public.svg` is SV-66.
+- `corpus-negative/` holds inputs that a strict importer must reject.
+- `test_sml_core.py` holds the CP fixtures (§15.1) and the SV fixtures that need only SML.
+- `build_and_test.py` runs all of them against the prototype in `sml_prototype.py` and writes `results/REPORT.md`.
+
+The following fixtures are mandatory in addition to the baseline corpus:
 
 | ID | Fixture | Required assertion |
 |---|---|---|
@@ -970,7 +977,7 @@ Reject—not drop—unsupported input. Rendering comparisons are useful suppleme
 | CP-23 | Documents equal in information but differing in attribute order, quoting, inline/vertical form, aliases, `end QName`, and comments | Canonical writer output byte-identical |
 | CP-24 | Canonical writer applied to its own output | Byte-identical (idempotent) |
 
-The prototype's 18/18 result establishes only an earlier restricted **RT-1 element-tree** subset. The SV-33–SV-76 and CP-1–CP-24 tests are **specified but have not been executed against a conforming implementation**. It does **not** certify this revision's full syntax, document-level information, or SVG-safe prefix rules. A new independent conformant SML parser and XML converter are needed before claiming verified full round-trip conformance.
+The prototype in `Tests/svg-roundtrip/sml_prototype.py` implements this revision's Core syntax, the strict profile, and the canonical form, and `results/REPORT.md` records its current results. Two fixtures are not executed because the prototype does not implement the feature: SV-49 (writer-generated aliases) and SV-65 (readable import). The prototype was written alongside this revision and has not been validated independently. Its results are therefore evidence for the design, **not** certification. An independent conforming SML parser and XML converter are needed before claiming verified full round-trip conformance.
 
 ## 16. Worked edge cases
 
@@ -1121,7 +1128,7 @@ The comment's surrounding spaces are data, so it is quoted. The DOCTYPE is prese
 This revision addresses the design-level issues identified in review so far. It cannot guarantee the absence of further design issues or of implementation bugs before a reference parser, differential XML comparison suite, and fuzzing exist. In particular:
 
 - The language name and file extension collide with Standard ML and with W3C's Service Modeling Language; a final name is still to be chosen.
-- The 18-fixture baseline corpus (SV-1–SV-18) must be published with the conformance suite (§15).
+- SV-49 (writer-generated aliases) and SV-65 (readable import) are not yet executed, because the prototype implements neither feature (§15).
 
 - The Core `@block` feature requires parser/conformance tests for namespace resolution, declaration ordering, alias shadowing, real-child collisions, duplicate target attributes, and exact multiline value decoding. No implementation-level certification is claimed yet.
 - A production lexer needs an executable definition of the full Unicode `QName`/`Name` productions and detailed diagnostics for malformed compact syntax.

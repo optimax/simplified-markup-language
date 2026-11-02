@@ -1,140 +1,562 @@
 {
-  "profile": "SVG-RTCP 1.0 draft",
+  "profile": "SVG-RTCP 1.0 draft, RT-2 with prefix preservation (strict profile of SML 1.0-SVG-3)",
   "date": "2026-11-02",
-  "method": "lxml XML baseline + narrow generated-SML subset prototype; no KDL parser",
+  "method": "expat-based importer and SML 1.0-SVG-3 prototype reader/canonical writer; lxml used as an independent element-tree cross-check; no KDL parser",
   "caveats": [
-    "SML prototype is NOT an SML 1.0 general parser",
-    "Top-level XML processing instructions/comments not checked by subtree comparison",
-    "XML source lexical differences not compared",
-    "No visual rendering comparison",
-    "No KDL translation run"
+    "The SML reader and writer are a prototype, not an independently validated conforming implementation.",
+    "The lxml cross-check covers the root element tree (RT-1); prolog/epilog, DOCTYPE, standalone, and prefix/declaration checks rely on the prototype importer alone.",
+    "No visual rendering comparison.",
+    "No KDL translation run.",
+    "Not executed: SV-49 (writer-generated aliases) and SV-65 (readable import profile); neither is implemented by the prototype."
   ],
   "results": [
     {
       "id": "01-basic-shapes",
       "xml_baseline": "PASS",
-      "sml_prototype": "PASS",
+      "lxml_crosscheck": "PASS",
+      "sml_round_trip": "PASS",
+      "xml_reimport": "PASS",
+      "stable": "PASS",
       "kdl_2_0": "NOT_RUN",
       "notes": []
     },
     {
       "id": "02-path-exact",
       "xml_baseline": "PASS",
-      "sml_prototype": "PASS",
+      "lxml_crosscheck": "PASS",
+      "sml_round_trip": "PASS",
+      "xml_reimport": "PASS",
+      "stable": "PASS",
       "kdl_2_0": "NOT_RUN",
       "notes": []
     },
     {
       "id": "03-text-mixed",
       "xml_baseline": "PASS",
-      "sml_prototype": "PASS",
+      "lxml_crosscheck": "PASS",
+      "sml_round_trip": "PASS",
+      "xml_reimport": "PASS",
+      "stable": "PASS",
       "kdl_2_0": "NOT_RUN",
       "notes": []
     },
     {
       "id": "04-whitespace",
       "xml_baseline": "PASS",
-      "sml_prototype": "PASS",
+      "lxml_crosscheck": "PASS",
+      "sml_round_trip": "PASS",
+      "xml_reimport": "PASS",
+      "stable": "PASS",
       "kdl_2_0": "NOT_RUN",
       "notes": []
     },
     {
       "id": "05-namespaces",
       "xml_baseline": "PASS",
-      "sml_prototype": "PASS",
+      "lxml_crosscheck": "PASS",
+      "sml_round_trip": "PASS",
+      "xml_reimport": "PASS",
+      "stable": "PASS",
       "kdl_2_0": "NOT_RUN",
       "notes": []
     },
     {
       "id": "06-prefix-shadow",
       "xml_baseline": "PASS",
-      "sml_prototype": "PASS",
+      "lxml_crosscheck": "PASS",
+      "sml_round_trip": "PASS",
+      "xml_reimport": "PASS",
+      "stable": "PASS",
       "kdl_2_0": "NOT_RUN",
       "notes": []
     },
     {
       "id": "07-definitions-references",
       "xml_baseline": "PASS",
-      "sml_prototype": "PASS",
+      "lxml_crosscheck": "PASS",
+      "sml_round_trip": "PASS",
+      "xml_reimport": "PASS",
+      "stable": "PASS",
       "kdl_2_0": "NOT_RUN",
       "notes": []
     },
     {
       "id": "08-styles-css",
       "xml_baseline": "PASS",
-      "sml_prototype": "PASS",
+      "lxml_crosscheck": "PASS",
+      "sml_round_trip": "PASS",
+      "xml_reimport": "PASS",
+      "stable": "PASS",
       "kdl_2_0": "NOT_RUN",
       "notes": []
     },
     {
       "id": "09-transforms",
       "xml_baseline": "PASS",
-      "sml_prototype": "PASS",
+      "lxml_crosscheck": "PASS",
+      "sml_round_trip": "PASS",
+      "xml_reimport": "PASS",
+      "stable": "PASS",
       "kdl_2_0": "NOT_RUN",
       "notes": []
     },
     {
       "id": "10-foreign-object",
       "xml_baseline": "PASS",
-      "sml_prototype": "PASS",
+      "lxml_crosscheck": "PASS",
+      "sml_round_trip": "PASS",
+      "xml_reimport": "PASS",
+      "stable": "PASS",
       "kdl_2_0": "NOT_RUN",
       "notes": []
     },
     {
       "id": "11-comments-pi",
       "xml_baseline": "PASS",
-      "sml_prototype": "PASS",
+      "lxml_crosscheck": "PASS",
+      "sml_round_trip": "PASS",
+      "xml_reimport": "PASS",
+      "stable": "PASS",
       "kdl_2_0": "NOT_RUN",
       "notes": []
     },
     {
       "id": "12-unicode-entities",
       "xml_baseline": "PASS",
-      "sml_prototype": "PASS",
+      "lxml_crosscheck": "PASS",
+      "sml_round_trip": "PASS",
+      "xml_reimport": "PASS",
+      "stable": "PASS",
       "kdl_2_0": "NOT_RUN",
       "notes": []
     },
     {
       "id": "13-images-href",
       "xml_baseline": "PASS",
-      "sml_prototype": "PASS",
+      "lxml_crosscheck": "PASS",
+      "sml_round_trip": "PASS",
+      "xml_reimport": "PASS",
+      "stable": "PASS",
       "kdl_2_0": "NOT_RUN",
       "notes": []
     },
     {
       "id": "14-metadata-vendor",
       "xml_baseline": "PASS",
-      "sml_prototype": "PASS",
+      "lxml_crosscheck": "PASS",
+      "sml_round_trip": "PASS",
+      "xml_reimport": "PASS",
+      "stable": "PASS",
       "kdl_2_0": "NOT_RUN",
       "notes": []
     },
     {
       "id": "15-svg-cdata",
       "xml_baseline": "PASS",
-      "sml_prototype": "PASS",
+      "lxml_crosscheck": "PASS",
+      "sml_round_trip": "PASS",
+      "xml_reimport": "PASS",
+      "stable": "PASS",
       "kdl_2_0": "NOT_RUN",
       "notes": []
     },
     {
       "id": "16-attribute-order",
       "xml_baseline": "PASS",
-      "sml_prototype": "PASS",
+      "lxml_crosscheck": "PASS",
+      "sml_round_trip": "PASS",
+      "xml_reimport": "PASS",
+      "stable": "PASS",
       "kdl_2_0": "NOT_RUN",
       "notes": []
     },
     {
       "id": "17-empty-and-siblings",
       "xml_baseline": "PASS",
-      "sml_prototype": "PASS",
+      "lxml_crosscheck": "PASS",
+      "sml_round_trip": "PASS",
+      "xml_reimport": "PASS",
+      "stable": "PASS",
       "kdl_2_0": "NOT_RUN",
       "notes": []
     },
     {
       "id": "18-whitespace-control",
       "xml_baseline": "PASS",
-      "sml_prototype": "PASS",
+      "lxml_crosscheck": "PASS",
+      "sml_round_trip": "PASS",
+      "xml_reimport": "PASS",
+      "stable": "PASS",
+      "kdl_2_0": "NOT_RUN",
+      "notes": []
+    },
+    {
+      "id": "19-prolog-epilog",
+      "xml_baseline": "PASS",
+      "lxml_crosscheck": "PASS",
+      "sml_round_trip": "PASS",
+      "xml_reimport": "PASS",
+      "stable": "PASS",
+      "kdl_2_0": "NOT_RUN",
+      "notes": []
+    },
+    {
+      "id": "20-unused-namespace",
+      "xml_baseline": "PASS",
+      "lxml_crosscheck": "PASS",
+      "sml_round_trip": "PASS",
+      "xml_reimport": "PASS",
+      "stable": "PASS",
+      "kdl_2_0": "NOT_RUN",
+      "notes": []
+    },
+    {
+      "id": "21-prefix-in-css",
+      "xml_baseline": "PASS",
+      "lxml_crosscheck": "PASS",
+      "sml_round_trip": "PASS",
+      "xml_reimport": "PASS",
+      "stable": "PASS",
+      "kdl_2_0": "NOT_RUN",
+      "notes": []
+    },
+    {
+      "id": "22-default-ns-undeclaration",
+      "xml_baseline": "PASS",
+      "lxml_crosscheck": "PASS",
+      "sml_round_trip": "PASS",
+      "xml_reimport": "PASS",
+      "stable": "PASS",
+      "kdl_2_0": "NOT_RUN",
+      "notes": []
+    },
+    {
+      "id": "23-text-cr-lf-tab",
+      "xml_baseline": "PASS",
+      "lxml_crosscheck": "PASS",
+      "sml_round_trip": "PASS",
+      "xml_reimport": "PASS",
+      "stable": "PASS",
+      "kdl_2_0": "NOT_RUN",
+      "notes": []
+    },
+    {
+      "id": "24-attribute-cr-lf-tab",
+      "xml_baseline": "PASS",
+      "lxml_crosscheck": "PASS",
+      "sml_round_trip": "PASS",
+      "xml_reimport": "PASS",
+      "stable": "PASS",
+      "kdl_2_0": "NOT_RUN",
+      "notes": []
+    },
+    {
+      "id": "25-end-element",
+      "xml_baseline": "PASS",
+      "lxml_crosscheck": "PASS",
+      "sml_round_trip": "PASS",
+      "xml_reimport": "PASS",
+      "stable": "PASS",
+      "kdl_2_0": "NOT_RUN",
+      "notes": []
+    },
+    {
+      "id": "26-style-end-line",
+      "xml_baseline": "PASS",
+      "lxml_crosscheck": "PASS",
+      "sml_round_trip": "PASS",
+      "xml_reimport": "PASS",
+      "stable": "PASS",
+      "kdl_2_0": "NOT_RUN",
+      "notes": []
+    },
+    {
+      "id": "27-ns-on-empty-element",
+      "xml_baseline": "PASS",
+      "lxml_crosscheck": "PASS",
+      "sml_round_trip": "PASS",
+      "xml_reimport": "PASS",
+      "stable": "PASS",
+      "kdl_2_0": "NOT_RUN",
+      "notes": []
+    },
+    {
+      "id": "29-nested-foreign-prefixes",
+      "xml_baseline": "PASS",
+      "lxml_crosscheck": "PASS",
+      "sml_round_trip": "PASS",
+      "xml_reimport": "PASS",
+      "stable": "PASS",
+      "kdl_2_0": "NOT_RUN",
+      "notes": []
+    },
+    {
+      "id": "30a-standalone-no",
+      "xml_baseline": "PASS",
+      "lxml_crosscheck": "PASS",
+      "sml_round_trip": "PASS",
+      "xml_reimport": "PASS",
+      "stable": "PASS",
+      "kdl_2_0": "NOT_RUN",
+      "notes": []
+    },
+    {
+      "id": "30b-standalone-yes",
+      "xml_baseline": "PASS",
+      "lxml_crosscheck": "PASS",
+      "sml_round_trip": "PASS",
+      "xml_reimport": "PASS",
+      "stable": "PASS",
+      "kdl_2_0": "NOT_RUN",
+      "notes": []
+    },
+    {
+      "id": "32-multiple-prefixes",
+      "xml_baseline": "PASS",
+      "lxml_crosscheck": "PASS",
+      "sml_round_trip": "PASS",
+      "xml_reimport": "PASS",
+      "stable": "PASS",
+      "kdl_2_0": "NOT_RUN",
+      "notes": []
+    },
+    {
+      "id": "59-pi-trailing-space",
+      "xml_baseline": "PASS",
+      "lxml_crosscheck": "PASS",
+      "sml_round_trip": "PASS",
+      "xml_reimport": "PASS",
+      "stable": "PASS",
+      "kdl_2_0": "NOT_RUN",
+      "notes": []
+    },
+    {
+      "id": "60a-indent-2",
+      "xml_baseline": "PASS",
+      "lxml_crosscheck": "PASS",
+      "sml_round_trip": "PASS",
+      "xml_reimport": "PASS",
+      "stable": "PASS",
+      "kdl_2_0": "NOT_RUN",
+      "notes": []
+    },
+    {
+      "id": "60b-indent-4",
+      "xml_baseline": "PASS",
+      "lxml_crosscheck": "PASS",
+      "sml_round_trip": "PASS",
+      "xml_reimport": "PASS",
+      "stable": "PASS",
+      "kdl_2_0": "NOT_RUN",
+      "notes": []
+    },
+    {
+      "id": "60c-indent-tab",
+      "xml_baseline": "PASS",
+      "lxml_crosscheck": "PASS",
+      "sml_round_trip": "PASS",
+      "xml_reimport": "PASS",
+      "stable": "PASS",
+      "kdl_2_0": "NOT_RUN",
+      "notes": []
+    },
+    {
+      "id": "61-mixed-content-indent",
+      "xml_baseline": "PASS",
+      "lxml_crosscheck": "PASS",
+      "sml_round_trip": "PASS",
+      "xml_reimport": "PASS",
+      "stable": "PASS",
+      "kdl_2_0": "NOT_RUN",
+      "notes": []
+    },
+    {
+      "id": "62-minified-in-indented",
+      "xml_baseline": "PASS",
+      "lxml_crosscheck": "PASS",
+      "sml_round_trip": "PASS",
+      "xml_reimport": "PASS",
+      "stable": "PASS",
+      "kdl_2_0": "NOT_RUN",
+      "notes": []
+    },
+    {
+      "id": "63-irregular-indent",
+      "xml_baseline": "PASS",
+      "lxml_crosscheck": "PASS",
+      "sml_round_trip": "PASS",
+      "xml_reimport": "PASS",
+      "stable": "PASS",
+      "kdl_2_0": "NOT_RUN",
+      "notes": []
+    },
+    {
+      "id": "66-doctype-public",
+      "xml_baseline": "PASS",
+      "lxml_crosscheck": "PASS",
+      "sml_round_trip": "PASS",
+      "xml_reimport": "PASS",
+      "stable": "PASS",
+      "kdl_2_0": "NOT_RUN",
+      "notes": []
+    },
+    {
+      "id": "67a-doctype-system",
+      "xml_baseline": "PASS",
+      "lxml_crosscheck": "PASS",
+      "sml_round_trip": "PASS",
+      "xml_reimport": "PASS",
+      "stable": "PASS",
+      "kdl_2_0": "NOT_RUN",
+      "notes": []
+    },
+    {
+      "id": "67b-doctype-bare",
+      "xml_baseline": "PASS",
+      "lxml_crosscheck": "PASS",
+      "sml_round_trip": "PASS",
+      "xml_reimport": "PASS",
+      "stable": "PASS",
+      "kdl_2_0": "NOT_RUN",
+      "notes": []
+    },
+    {
+      "id": "68-doctype-between-comments",
+      "xml_baseline": "PASS",
+      "lxml_crosscheck": "PASS",
+      "sml_round_trip": "PASS",
+      "xml_reimport": "PASS",
+      "stable": "PASS",
+      "kdl_2_0": "NOT_RUN",
+      "notes": []
+    },
+    {
+      "id": "73-cdata-end-marker",
+      "xml_baseline": "PASS",
+      "lxml_crosscheck": "PASS",
+      "sml_round_trip": "PASS",
+      "xml_reimport": "PASS",
+      "stable": "PASS",
+      "kdl_2_0": "NOT_RUN",
+      "notes": []
+    },
+    {
+      "id": "74-root-default-undeclared",
+      "xml_baseline": "PASS",
+      "lxml_crosscheck": "PASS",
+      "sml_round_trip": "PASS",
+      "xml_reimport": "PASS",
+      "stable": "PASS",
+      "kdl_2_0": "NOT_RUN",
+      "notes": []
+    },
+    {
+      "id": "75-explicit-xml-prefix",
+      "xml_baseline": "PASS",
+      "lxml_crosscheck": "PASS",
+      "sml_round_trip": "PASS",
+      "xml_reimport": "PASS",
+      "stable": "PASS",
+      "kdl_2_0": "NOT_RUN",
+      "notes": []
+    },
+    {
+      "id": "X1-long-values",
+      "xml_baseline": "PASS",
+      "lxml_crosscheck": "PASS",
+      "sml_round_trip": "PASS",
+      "xml_reimport": "PASS",
+      "stable": "PASS",
+      "kdl_2_0": "NOT_RUN",
+      "notes": []
+    },
+    {
+      "id": "X2-inline-parens",
+      "xml_baseline": "PASS",
+      "lxml_crosscheck": "PASS",
+      "sml_round_trip": "PASS",
+      "xml_reimport": "PASS",
+      "stable": "PASS",
       "kdl_2_0": "NOT_RUN",
       "notes": []
     }
-  ]
+  ],
+  "negative_results": [
+    {
+      "id": "28a-internal-subset",
+      "expected": "REJECT",
+      "result": "REJECTED",
+      "notes": [
+        "UNSUPPORTED_XML_INFORMATION: line 1: DTD internal subsets are not supported"
+      ]
+    },
+    {
+      "id": "28b-empty-internal-subset",
+      "expected": "REJECT",
+      "result": "REJECTED",
+      "notes": [
+        "UNSUPPORTED_XML_INFORMATION: line 1: DTD internal subsets are not supported"
+      ]
+    },
+    {
+      "id": "28c-external-entity",
+      "expected": "REJECT",
+      "result": "REJECTED",
+      "notes": [
+        "UNSUPPORTED_XML_INFORMATION: line 1: DTD internal subsets are not supported"
+      ]
+    },
+    {
+      "id": "57-pi-colon-target",
+      "expected": "REJECT",
+      "result": "REJECTED",
+      "notes": [
+        "XML_ERROR: line 1: invalid PI target 'a:b' (PI targets are NCNames)"
+      ]
+    },
+    {
+      "id": "69-undeclared-entity",
+      "expected": "REJECT",
+      "result": "REJECTED",
+      "notes": [
+        "UNSUPPORTED_XML_INFORMATION: line 1: reference to an undeclared entity"
+      ]
+    },
+    {
+      "id": "N1-xml-1-1",
+      "expected": "REJECT",
+      "result": "REJECTED",
+      "notes": [
+        "UNSUPPORTED_XML_INFORMATION: line 1: XML 1.1 is not supported"
+      ]
+    },
+    {
+      "id": "N2-unbound-prefix",
+      "expected": "REJECT",
+      "result": "REJECTED",
+      "notes": [
+        "XML_ERROR: line 1: prefix 'p' is not bound"
+      ]
+    },
+    {
+      "id": "N3-duplicate-expanded-attribute",
+      "expected": "REJECT",
+      "result": "REJECTED",
+      "notes": [
+        "XML_ERROR: line 1: duplicate expanded attribute name 'b:k'"
+      ]
+    },
+    {
+      "id": "N4-malformed",
+      "expected": "REJECT",
+      "result": "REJECTED",
+      "notes": [
+        "XML_ERROR: line 1: malformed XML: mismatched tag"
+      ]
+    }
+  ],
+  "unit_tests": {
+    "run": 54,
+    "failed": []
+  }
 }

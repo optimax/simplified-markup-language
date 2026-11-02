@@ -65,7 +65,7 @@ Use secure XML parsing: disallow external entities, DTDs unless a separately dec
 
 ## 7. Corpus design
 
-The supplied `corpus/` folder includes 18 *synthetic* SVG fixtures:
+The supplied `corpus/` folder starts with these 18 *synthetic* baseline fixtures. Later fixtures in the folder are named by their SV number in §15 of the SML specification and cover document-level information, prefixes, DOCTYPEs, and formatting whitespace. `corpus-negative/` holds inputs that must be rejected.
 
 | Fixture | Focus |
 |---|---|
@@ -88,7 +88,7 @@ The supplied `corpus/` folder includes 18 *synthetic* SVG fixtures:
 | 17-empty-and-siblings | Empty elements and repeated sibling names |
 | 18-whitespace-control | XML character-reference tabs, CRs and LF |
 
-**Future required expansion:** genuine Inkscape/Illustrator exports, deeply nested SVG, animations, `textPath`, `switch`, malformed/DTD inputs, huge paths, `xml:base`, prefix-dependent QName values, namespace undeclaration, root-external comments and PIs, XML standalone metadata, and fuzz/differential tests. Synthetic fixture success is only the first layer of qualification.
+**Future required expansion:** genuine Inkscape/Illustrator exports, deeply nested SVG, animations, `textPath`, `switch`, huge paths, `xml:base`, and fuzz/differential tests. The later fixtures already cover malformed and DTD inputs, prefix-dependent QName values, namespace undeclaration, root-external comments and PIs, and XML standalone metadata, all synthetically. Synthetic fixture success is only the first layer of qualification.
 
 ## 8. Mandatory comparison algorithm
 
@@ -107,9 +107,11 @@ A system must not declare RT-2 compliance based on a comparison algorithm that i
 
 ## 9. Results from supplied harness
 
-The included Python harness uses `lxml` and a **prototype-only canonical expanded SML subset**. It tests RT-1 tree equality; it does not test the complete SML grammar. There is no installed KDL 2.0 parser or converter in the test runtime, so **KDL was NOT run**. The XML baseline checks lxml parse/serialize/reparse equality, not SVG rendering. The comparison omits top-level prolog/epilog nodes, standalone declaration metadata and namespace-prefix lexical identity; therefore neither full RT-2 nor RT-3 has been established.
+The included Python harness runs the corpus through a **prototype** of SML 1.0-SVG-3 (`sml_prototype.py`): an expat-based importer, an SML reader for the complete Core syntax, a canonical writer, and an XML exporter. Its comparison covers RT-2 with prefix preservation: prolog and epilog comments and PIs, the DOCTYPE, standalone metadata, namespace prefixes and declaration locations, attributes, and exact text. It also verifies second-cycle stability (step 6) and rejection of negative inputs (step 9). lxml provides an independent RT-1 cross-check of the importer.
 
-Actual fixture-level results are saved in `results/results.json`, and the canonical SML generated outputs are in `results/*.sml`. Re-run using `python build_and_test.py` from this directory (requires `lxml`).
+Limits: the prototype was written alongside the specification and has not been validated independently, so a pass is evidence rather than RT-2 certification. There is no installed KDL 2.0 parser or converter, so **KDL was NOT run**. Rendering is not compared, and RT-3 (source-aware fidelity) is not tested.
+
+Fixture-level results are saved in `results/results.json` and `results/REPORT.md`, and the generated canonical SML is in `results/*.sml`. Re-run with `python build_and_test.py` from this directory (requires `lxml`).
 
 ## 10. Exit gates before choosing a language
 

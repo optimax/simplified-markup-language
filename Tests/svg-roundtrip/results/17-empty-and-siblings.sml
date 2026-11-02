@@ -1,14 +1,9 @@
-@sml 1.0
-svg
-  @ns "http://www.w3.org/2000/svg"
+@sml 1.0-SVG-3
+svg(xmlns=http://www.w3.org/2000/svg)
+  g/
+  g/
   g
-  end
-  g
-  end
-  g
-    rect
-    end
-    rect
-    end
+    rect/
+    rect/
   end
 end

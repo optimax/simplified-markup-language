@@ -1,19 +1,10 @@
-@sml 1.0
-svg
-  @ns "http://www.w3.org/2000/svg"
-  @ns p "urn:one"
+@sml 1.0-SVG-3
+svg(xmlns=http://www.w3.org/2000/svg, xmlns:p=urn:one)
   metadata
-    p:info
-      .p:code "1"
+    p:info(p:code=1)/
+    g(xmlns:p=urn:two)
+      p:info(p:code=2)/
     end
-    g
-      @ns p "urn:two"
-      p:info
-        .p:code "2"
-      end
-    end
-    p:info
-      .p:code "3"
-    end
+    p:info(p:code=3)/
   end
 end

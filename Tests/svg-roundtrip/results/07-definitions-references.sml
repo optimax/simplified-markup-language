@@ -1,46 +1,20 @@
-@sml 1.0
-svg
-  @ns "http://www.w3.org/2000/svg"
+@sml 1.0-SVG-3
+svg(xmlns=http://www.w3.org/2000/svg)
   defs
-    linearGradient
-      .id "grad"
-      stop
-        .offset "0%"
-        .stop-color "red"
-      end
-      stop
-        .offset "100%"
-        .stop-color "blue"
-      end
+    linearGradient(id=grad)
+      stop(offset=0%, stop-color=red)/
+      stop(offset=100%, stop-color=blue)/
     end
-    clipPath
-      .id "clip"
-      rect
-        .width "20"
-        .height "20"
-      end
+    clipPath(id=clip)
+      rect(height=20, width=20)/
     end
-    filter
-      .id "blur"
-      feGaussianBlur
-        .stdDeviation "2.5"
-      end
+    filter(id=blur)
+      feGaussianBlur(stdDeviation=2.5)/
     end
-    symbol
-      .id "sym"
-      circle
-        .r "10"
-      end
+    symbol(id=sym)
+      circle(r=10)/
     end
   end
-  rect
-    .width "50"
-    .height "50"
-    .fill "url(#grad)"
-    .clip-path "url(#clip)"
-    .filter "url(#blur)"
-  end
-  use
-    .href "#sym"
-  end
+  rect(clip-path=url(#clip), fill=url(#grad), filter=url(#blur), height=50, width=50)/
+  use(href=#sym)/
 end

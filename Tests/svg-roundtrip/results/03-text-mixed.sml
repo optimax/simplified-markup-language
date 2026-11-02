@@ -1,18 +1,9 @@
-@sml 1.0
-svg
-  @ns "http://www.w3.org/2000/svg"
-  text
-    .x "12"
-    .xml:space "preserve"
+@sml 1.0-SVG-3
+svg(xmlns=http://www.w3.org/2000/svg)
+  text(x=12, xml:space=preserve)
     = "Before "
-    tspan
-      .font-weight "bold"
-      = " bold "
-    end
+    tspan(font-weight=bold) = " bold "
     = " after"
-    tspan
-      .dx "2"
-      = "!"
-    end
+    tspan(dx=2) = !
   end
 end

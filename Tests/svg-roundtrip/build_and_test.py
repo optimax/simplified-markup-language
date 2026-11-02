@@ -1,14 +1,29 @@
 #!/usr/bin/env python3
-"""SVG round-trip test harness and intentionally narrow SML interchange prototype.
-Only canonical, fully quoted expanded SML is supported; NOT an SML 1.0 conformance parser.
+"""SVG round-trip harness for the SML 1.0-SVG-3 prototype (sml_prototype.py).
+
+Writes the fixture corpus, runs every positive fixture through
+XML -> model -> canonical SML -> model -> XML -> model, checks that every negative fixture is
+rejected, runs the Core unit tests (test_sml_core.py), and writes results/*.sml,
+results/results.json, and results/REPORT.md. Requires lxml for the independent cross-check.
 """
-from lxml import etree
+import datetime
+import io
+import json
+import unittest
 from pathlib import Path
-import json, re, sys, traceback, datetime
-BASE=Path(__file__).resolve().parent
-CORPUS=BASE/'corpus'; OUT=BASE/'results'; CORPUS.mkdir(exist_ok=True); OUT.mkdir(exist_ok=True)
-SVG='http://www.w3.org/2000/svg'; XL='http://www.w3.org/1999/xlink'; INK='http://www.inkscape.org/namespaces/inkscape'; DC='http://purl.org/dc/elements/1.1/'
-fixtures={
+
+from lxml import etree
+
+import sml_prototype as S
+
+BASE = Path(__file__).resolve().parent
+CORPUS = BASE / 'corpus'
+NEGATIVE = BASE / 'corpus-negative'
+OUT = BASE / 'results'
+
+# File name prefix = SV fixture number in §15 of the specification (01-18 are SV-1 to SV-18).
+# X-prefixed fixtures are extra coverage without an SV number.
+fixtures = {
 '01-basic-shapes.svg':'''<svg xmlns="http://www.w3.org/2000/svg" width="400" height="200" viewBox="0 0 400 200"><rect x="10" y="20" width="50" height="60" fill="#4477cc"/><circle cx="100" cy="70" r="30"/><ellipse cx="190" cy="80" rx="30" ry="15"/><line x1="1" y1="2" x2="30" y2="50"/><polyline points="0,0 5,10 10,0"/><polygon points="2,2 22,2 10,18"/></svg>''',
 '02-path-exact.svg':'''<svg xmlns="http://www.w3.org/2000/svg"><path d="M10,10 C 20.000 30 40 30 50 10 L 90 70 z M0 0h10v-5" fill="none" stroke="black" stroke-width="1.00"/></svg>''',
 '03-text-mixed.svg':'''<svg xmlns="http://www.w3.org/2000/svg"><text x="12" xml:space="preserve">Before <tspan font-weight="bold"> bold </tspan> after<tspan dx="2">!</tspan></text></svg>''',
@@ -26,187 +41,214 @@ fixtures={
 '15-svg-cdata.svg':'''<svg xmlns="http://www.w3.org/2000/svg"><style><![CDATA[.a > rect { fill: red; }]]></style><text><![CDATA[< & >]]></text></svg>''',
 '16-attribute-order.svg':'''<svg xmlns="http://www.w3.org/2000/svg"><rect z="9" a="1" id="x" fill="none" data-case="A  B"/></svg>''',
 '17-empty-and-siblings.svg':'''<svg xmlns="http://www.w3.org/2000/svg"><g/><g></g><g><rect/><rect/></g></svg>''',
-'18-whitespace-control.svg':'''<svg xmlns="http://www.w3.org/2000/svg"><text xml:space="preserve">&#xA;&#x9; X &#xD;Y </text><rect data="A&#xA;B&#x9;C&#xD;D"/></svg>'''
+'18-whitespace-control.svg':'''<svg xmlns="http://www.w3.org/2000/svg"><text xml:space="preserve">&#xA;&#x9; X &#xD;Y </text><rect data="A&#xA;B&#x9;C&#xD;D"/></svg>''',
+'19-prolog-epilog.svg':'''<?xml version="1.0" encoding="UTF-8"?>\n<!-- before root -->\n<?app-config mode="edit"?>\n<svg xmlns="http://www.w3.org/2000/svg"><rect/></svg>\n<!-- after root -->\n<?app-trailer done?>\n''',
+'20-unused-namespace.svg':'''<svg xmlns="http://www.w3.org/2000/svg" xmlns:unused="urn:unused"><g xmlns:also="urn:also"><rect/></g></svg>''',
+'21-prefix-in-css.svg':'''<svg xmlns="http://www.w3.org/2000/svg" xmlns:app="urn:app"><style>@namespace app url(urn:app); app|marker { fill: red; }</style><g app:ref="app:item" app:type="app:layer"/></svg>''',
+'22-default-ns-undeclaration.svg':'''<svg xmlns="http://www.w3.org/2000/svg"><foreignObject width="10" height="10"><data xmlns=""><item key="a"/></data></foreignObject></svg>''',
+'23-text-cr-lf-tab.svg':'''<svg xmlns="http://www.w3.org/2000/svg"><desc>line1&#13;&#10;line2&#9;tab&#13;end</desc></svg>''',
+'24-attribute-cr-lf-tab.svg':'''<svg xmlns="http://www.w3.org/2000/svg"><g data-a="x&#13;y" data-b="x&#10;y" data-c="x&#9;y" data-d="&#9;lead and trail&#10;"/></svg>''',
+'25-end-element.svg':'''<svg xmlns="http://www.w3.org/2000/svg"><metadata><end xmlns="urn:x" id="e1">text</end><end xmlns="urn:x"/></metadata></svg>''',
+'26-style-end-line.svg':'''<svg xmlns="http://www.w3.org/2000/svg"><style>\n.a { fill: red; }\nend\n.b { fill: blue; }\n</style></svg>''',
+'27-ns-on-empty-element.svg':'''<svg xmlns="http://www.w3.org/2000/svg"><metadata><p:x xmlns:p="urn:vendor"/><p:y xmlns:p="urn:vendor" p:k="v">t</p:y></metadata></svg>''',
+'29-nested-foreign-prefixes.svg':'''<svg xmlns="http://www.w3.org/2000/svg" xmlns:a="urn:a"><a:outer a:x="1" xmlns:b="urn:b"><b:inner b:y="2" a:z="3"><a:leaf/></b:inner></a:outer></svg>''',
+'30a-standalone-no.svg':'''<?xml version="1.0" encoding="UTF-8" standalone="no"?>\n<svg xmlns="http://www.w3.org/2000/svg"/>\n''',
+'30b-standalone-yes.svg':'''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<svg xmlns="http://www.w3.org/2000/svg"/>\n''',
+'32-multiple-prefixes.svg':'''<svg xmlns="http://www.w3.org/2000/svg" xmlns:a="urn:shared" xmlns:b="urn:shared"><g a:one="1" b:two="2"><a:x/><b:x/></g></svg>''',
+'59-pi-trailing-space.svg':'''<?app-hint compact ?><svg xmlns="http://www.w3.org/2000/svg"><?app-note keep  ?></svg>''',
+'60a-indent-2.svg':'''<svg xmlns="http://www.w3.org/2000/svg">\n  <defs>\n    <linearGradient id="g">\n      <stop offset="0"/>\n      <stop offset="1"/>\n    </linearGradient>\n  </defs>\n  <g id="layer">\n    <rect width="10" height="10"/>\n    <!-- note -->\n    <circle r="5"/>\n  </g>\n</svg>\n''',
+'60b-indent-4.svg':'''<svg xmlns="http://www.w3.org/2000/svg">\n    <defs>\n        <linearGradient id="g">\n            <stop offset="0"/>\n            <stop offset="1"/>\n        </linearGradient>\n    </defs>\n    <g id="layer">\n        <rect width="10" height="10"/>\n        <!-- note -->\n        <circle r="5"/>\n    </g>\n</svg>\n''',
+'60c-indent-tab.svg':'''<svg xmlns="http://www.w3.org/2000/svg">\n\t<defs>\n\t\t<linearGradient id="g">\n\t\t\t<stop offset="0"/>\n\t\t\t<stop offset="1"/>\n\t\t</linearGradient>\n\t</defs>\n\t<g id="layer">\n\t\t<rect width="10" height="10"/>\n\t\t<!-- note -->\n\t\t<circle r="5"/>\n\t</g>\n</svg>\n''',
+'61-mixed-content-indent.svg':'''<svg xmlns="http://www.w3.org/2000/svg">\n  <text x="1"><tspan>A</tspan> B</text>\n  <text x="2">C <tspan>D</tspan></text>\n</svg>\n''',
+'62-minified-in-indented.svg':'''<svg xmlns="http://www.w3.org/2000/svg">\n  <g><rect/><rect/></g>\n  <g>\n    <circle/>\n  </g>\n</svg>\n''',
+'63-irregular-indent.svg':'''<svg xmlns="http://www.w3.org/2000/svg">\n  <g>\n\n    <rect/>\n   <rect/>\n  </g>\n  <g>\n    <circle/></g>\n</svg>\n''',
+'66-doctype-public.svg':'''<?xml version="1.0" encoding="UTF-8" standalone="no"?>\n<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">\n<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1">\n  <use xlink:href="#a"/>\n</svg>\n''',
+'67a-doctype-system.svg':'''<!DOCTYPE svg SYSTEM "svg11.dtd"><svg xmlns="http://www.w3.org/2000/svg"/>''',
+'67b-doctype-bare.svg':'''<!DOCTYPE svg><svg xmlns="http://www.w3.org/2000/svg"/>''',
+'68-doctype-between-comments.svg':'''<!-- first --><!DOCTYPE svg><?between yes?><!-- second --><svg xmlns="http://www.w3.org/2000/svg"/>''',
+'73-cdata-end-marker.svg':'''<svg xmlns="http://www.w3.org/2000/svg"><text>a ]]&gt; b</text><style><![CDATA[x]]]]><![CDATA[>y]]></style></svg>''',
+'74-root-default-undeclared.svg':'''<svg xmlns=""><rect/></svg>''',
+'75-explicit-xml-prefix.svg':'''<svg xmlns="http://www.w3.org/2000/svg" xmlns:xml="http://www.w3.org/XML/1998/namespace"><text xml:space="preserve"> x </text></svg>''',
+'X1-long-values.svg':'''<svg xmlns="http://www.w3.org/2000/svg"><path d="M 0 0 C 10 20 30 40 50 60 S 70 80 90 100 S 110 120 130 140 S 150 160 170 180 S 190 200 210 220 Z"/><image href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="/></svg>''',
+'X2-inline-parens.svg':'''<svg xmlns="http://www.w3.org/2000/svg"><g transform="translate(10,20) rotate(45)" clip-path="url(#c)" fill="url(#grad)"><rect/></g></svg>''',
 }
-for name,src in fixtures.items(): (CORPUS/name).write_text(src,encoding='utf-8',newline='')
 
-def parse_xml(raw):
-    parser=etree.XMLParser(resolve_entities=False,load_dtd=False,no_network=True,remove_blank_text=False,strip_cdata=False,remove_comments=False,remove_pis=False)
-    return etree.fromstring(raw.encode('utf-8'),parser)
+# Inputs a strict importer MUST reject (SV-28, SV-57, SV-69, and general XML/namespace errors).
+negative_fixtures = {
+'28a-internal-subset.svg':'''<!DOCTYPE svg [<!ENTITY x "expanded">]><svg xmlns="http://www.w3.org/2000/svg">&x;</svg>''',
+'28b-empty-internal-subset.svg':'''<!DOCTYPE svg [ ]><svg xmlns="http://www.w3.org/2000/svg"/>''',
+'28c-external-entity.svg':'''<!DOCTYPE svg [<!ENTITY ext SYSTEM "http://example.invalid/secret">]><svg xmlns="http://www.w3.org/2000/svg">&ext;</svg>''',
+'57-pi-colon-target.svg':'''<?a:b data?><svg xmlns="http://www.w3.org/2000/svg"/>''',
+'69-undeclared-entity.svg':'''<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd"><svg xmlns="http://www.w3.org/2000/svg"><text>&nbsp;</text></svg>''',
+'N1-xml-1-1.svg':'''<?xml version="1.1"?><svg xmlns="http://www.w3.org/2000/svg"/>''',
+'N2-unbound-prefix.svg':'''<svg xmlns="http://www.w3.org/2000/svg"><p:x/></svg>''',
+'N3-duplicate-expanded-attribute.svg':'''<svg xmlns="http://www.w3.org/2000/svg" xmlns:a="urn:x" xmlns:b="urn:x"><g a:k="1" b:k="2"/></svg>''',
+'N4-malformed.svg':'''<svg xmlns="http://www.w3.org/2000/svg"><g></svg>''',
+}
 
-def sig_node(node):
-    if isinstance(node,etree._Comment): return ['comment',node.text or '']
-    if isinstance(node,etree._ProcessingInstruction): return ['pi',node.target,node.text or '']
-    attrs=sorted((str(k),v) for k,v in node.attrib.items())
-    children=[]
-    if node.text is not None and node.text!='': children.append(['text',node.text])
-    for ch in node:
-        children.append(sig_node(ch))
-        if ch.tail is not None and ch.tail!='':children.append(['text',ch.tail])
-    return ['element',str(node.tag),attrs,children]
+SECURE = dict(resolve_entities=False, load_dtd=False, no_network=True, strip_cdata=False,
+              remove_blank_text=False, remove_comments=False, remove_pis=False)
 
-def quoted(s): return json.dumps(s,ensure_ascii=False)
-def encode_qname(expanded,nsmap,attr=False):
-    if expanded.startswith('{http://www.w3.org/XML/1998/namespace}'):
-        return 'xml:'+expanded.split('}',1)[1]
-    if not expanded.startswith('{'):return expanded
-    uri,local=expanded[1:].split('}',1)
-    matches=[p for p,u in nsmap.items() if u==uri and (p is not None or not attr)]
-    if not matches: raise ValueError('QName mapping missing '+expanded)
-    prefix=next((x for x in matches if x is not None),None) if attr else (None if None in matches else matches[0])
-    if attr and prefix is None: raise ValueError('No attribute prefix '+expanded)
-    return (prefix+':' if prefix else '')+local
 
-def to_sml(root):
-    out=['@sml 1.0']
-    def emit_node(node,depth,parent_ns=None):
-        ind='  '*depth
-        if isinstance(node,etree._Comment):out.append(ind+'@comment '+quoted(node.text or ''));return
-        if isinstance(node,etree._ProcessingInstruction):out.append(ind+'@pi '+node.target+' '+quoted(node.text or ''));return
-        nsmap=dict(node.nsmap)
-        # preserve lexical qualified element prefix
-        ename=(node.prefix+':'+etree.QName(node).localname) if node.prefix else etree.QName(node).localname
-        out.append(ind+ename)
-        for prefix,uri in nsmap.items():
-            if parent_ns is None or parent_ns.get(prefix)!=uri:
-                out.append(ind+'  @ns '+(prefix+' ' if prefix is not None else '')+quoted(uri))
-        for key,val in node.attrib.items():out.append(ind+'  .'+encode_qname(key,nsmap,True)+' '+quoted(val))
-        if node.text:out.append(ind+'  = '+quoted(node.text))
-        for child in node:
-            emit_node(child,depth+1,nsmap)
-            if child.tail:out.append(ind+'  = '+quoted(child.tail))
-        out.append(ind+'end')
-    emit_node(root,0)
-    return '\n'.join(out)+'\n'
-
-def from_sml(source):
-    stack=[]; root=None; prolog=[]
-    # This prototype accepts ONLY the exact expanded subset generated by to_sml.
-    lines=source.splitlines()
-    i=0
-    def resolve(qname,nsmap,attr=False):
-        if ':' in qname:
-            p,local=qname.split(':',1)
-            if p=='xml': uri='http://www.w3.org/XML/1998/namespace'
-            else:uri=nsmap[p]
-            return '{'+uri+'}'+local
-        return qname if attr else ('{'+nsmap[None]+'}'+qname if nsmap.get(None) else qname)
-    def attach(parent,node):
-        if parent is None:raise ValueError('Outside root')
-        parent.append(node)
-    while i<len(lines):
-        line=lines[i].strip();i+=1
-        if not line or line=='@sml 1.0':continue
-        if line=='end':
-            if not stack:raise ValueError('unmatched end')
-            stack.pop();continue
-        if line.startswith('@ns ') or line.startswith('.'):
-            if not stack:raise ValueError('orphan declaration')
-            frame=stack[-1]
-            if frame['body']:raise ValueError('declaration after content')
-            frame['decl'].append(line);continue
-        if stack and not stack[-1]['finalized']:
-            finalize(stack[-1])
-        if line.startswith('= '):
-            if not stack:raise ValueError('orphan text')
-            val=json.loads(line[2:]); el=stack[-1]['node']
-            if len(el):el[-1].tail=(el[-1].tail or '')+val
-            else:el.text=(el.text or '')+val
-            stack[-1]['body']=True;continue
-        if line.startswith('@comment ') or line.startswith('@pi '):
-            if line.startswith('@comment '):node=etree.Comment(json.loads(line[9:]))
-            else:
-                target,data=line[4:].split(' ',1);node=etree.ProcessingInstruction(target,json.loads(data))
-            if stack: stack[-1]['node'].append(node);stack[-1]['body']=True
-            else:prolog.append(node)
-            continue
-        # opening element; provisional no-namespace element until decl resolved
-        fr={'name':line,'parent':stack[-1]['node'] if stack else None,'decl':[],'body':False,'finalized':False,'node':None,'nsmap':None}
-        stack.append(fr)
-        # finalization deferred to next actual content or close
-        # so on `end`, finalize first (handled below by post-fix)
-    if stack:raise ValueError('unclosed element')
-    if root is None:raise ValueError('missing root')
-    return root
-
-# Actual parser with stack frames that finalize when first body content or closing marker is seen.
-def parse_sml(source):
-    stack=[]; root=None
-    def resolve(q,ns,attr=False):
-        if ':' in q:
-            p,l=q.split(':',1); uri='http://www.w3.org/XML/1998/namespace' if p=='xml' else ns[p]
-            return '{'+uri+'}'+l
-        return q if attr or not ns.get(None) else '{'+ns[None]+'}'+q
-    def fin(f):
-        nonlocal root
-        if f['node'] is not None:return
-        ns=dict(f['parent_ns'])
-        own={}
-        for s in f['decl']:
-            if s.startswith('@ns '):
-                v=s[4:]; parts=v.split(' ',1)
-                if len(parts)==1: own[None]=json.loads(parts[0])
-                elif parts[0].startswith('"'):own[None]=json.loads(v)
-                else:own[parts[0]]=json.loads(parts[1])
-        ns.update(own)
-        tag=resolve(f['name'],ns)
-        elem=etree.Element(tag,nsmap=own or None)
-        for s in f['decl']:
-            if s.startswith('.'):
-                k,v=s[1:].split(' ',1);elem.set(resolve(k,ns,True),json.loads(v))
-        f['node']=elem;f['ns']=ns
-        if f['parent'] is None:root=elem
-        else:f['parent']['node'].append(elem)
-    for raw in source.splitlines():
-        s=raw.strip()
-        if not s or s=='@sml 1.0':continue
-        if s=='end':
-            if not stack:raise ValueError('unmatched end')
-            fin(stack[-1]);stack.pop();continue
-        if s.startswith('@ns ') or s.startswith('.'):
-            if not stack or stack[-1]['started']:raise ValueError('late declaration')
-            stack[-1]['decl'].append(s);continue
-        if stack:
-            fin(stack[-1]);stack[-1]['started']=True
-        if s.startswith('= '):
-            if not stack:raise ValueError('orphan text')
-            el=stack[-1]['node'];v=json.loads(s[2:])
-            if len(el):el[-1].tail=(el[-1].tail or '')+v
-            else:el.text=(el.text or '')+v
-        elif s.startswith('@comment ') or s.startswith('@pi '):
-            if s.startswith('@comment '):node=etree.Comment(json.loads(s[9:]))
-            else:
-                t,v=s[4:].split(' ',1);node=etree.ProcessingInstruction(t,json.loads(v))
-            if stack:stack[-1]['node'].append(node)
-            else:pass # top-level PI not currently included in prototype model
+def lxml_signature(node):
+    """RT-1 element-tree signature computed by lxml, independently of the prototype."""
+    if isinstance(node, etree._Comment):
+        return ['comment', node.text or '']
+    if isinstance(node, etree._ProcessingInstruction):
+        return ['pi', node.target, node.text or '']
+    attrs = sorted([str(k), v] for k, v in node.attrib.items())
+    children = []
+    if node.text:
+        children.append(['text', node.text])
+    for child in node:
+        children.append(lxml_signature(child))
+        if child.tail:
+            children.append(['text', child.tail])
+    merged = []
+    for item in children:
+        if item[0] == 'text' and merged and merged[-1][0] == 'text':
+            merged[-1] = ['text', merged[-1][1] + item[1]]
         else:
-            stack.append({'name':s,'parent':stack[-1] if stack else None,'parent_ns':stack[-1]['ns'] if stack else {},'decl':[],'node':None,'started':False})
-    if stack:raise ValueError('unclosed')
-    if root is None:raise ValueError('missing root')
-    return root
+            merged.append(item)
+    return ['element', str(node.tag), attrs, merged]
 
-results=[]
-for path in sorted(CORPUS.glob('*.svg')):
-    result={'id':path.stem,'xml_baseline':'FAIL','sml_prototype':'FAIL','kdl_2_0':'NOT_RUN','notes':[]}
+
+def run_positive(path: Path) -> dict:
+    r = {'id': path.stem, 'xml_baseline': 'FAIL', 'lxml_crosscheck': 'FAIL', 'sml_round_trip': 'FAIL',
+         'xml_reimport': 'FAIL', 'stable': 'FAIL', 'kdl_2_0': 'NOT_RUN', 'notes': []}
     try:
-        x=parse_xml(path.read_text(encoding='utf8'))
-        base=etree.fromstring(etree.tostring(x,encoding='utf-8'),etree.XMLParser(resolve_entities=False,load_dtd=False,no_network=True,remove_blank_text=False,remove_comments=False,remove_pis=False))
-        assert sig_node(x)==sig_node(base),'XML semantic baseline mismatch'
-        result['xml_baseline']='PASS'
-        sml=to_sml(x)
-        (OUT/(path.stem+'.sml')).write_text(sml,encoding='utf8')
-        xx=parse_sml(sml)
-        if sig_node(x)!=sig_node(xx):
-            result['notes'].append('SML semantic mismatch')
-        else:
-            xml2=etree.tostring(xx,encoding='utf-8')
-            assert sig_node(x)==sig_node(etree.fromstring(xml2,etree.XMLParser(remove_blank_text=False,remove_comments=False,remove_pis=False)))
-            result['sml_prototype']='PASS'
-    except Exception as e:result['notes'].append(type(e).__name__+': '+str(e))
-    results.append(result)
-report={'profile':'SVG-RTCP 1.0 draft','date':datetime.date.today().isoformat(),'method':'lxml XML baseline + narrow generated-SML subset prototype; no KDL parser','caveats':['SML prototype is NOT an SML 1.0 general parser','Top-level XML processing instructions/comments not checked by subtree comparison','XML source lexical differences not compared','No visual rendering comparison','No KDL translation run'], 'results':results}
-(OUT/'results.json').write_text(json.dumps(report,indent=2,ensure_ascii=False)+'\n',encoding='utf8')
-print('XML baseline:',sum(x['xml_baseline']=='PASS' for x in results),'/',len(results))
-print('SML prototype:',sum(x['sml_prototype']=='PASS' for x in results),'/',len(results))
-for x in results:
- if x['sml_prototype']!='PASS':print('FAIL',x['id'],x['notes'])
+        raw = path.read_bytes()
+        x = etree.fromstring(raw, etree.XMLParser(**SECURE))
+        again = etree.fromstring(etree.tostring(x, encoding='utf-8'), etree.XMLParser(**SECURE))
+        assert lxml_signature(x) == lxml_signature(again), 'lxml parse/serialize/reparse mismatch'
+        r['xml_baseline'] = 'PASS'
+
+        d1 = S.read_xml(raw)
+        if S.rt1_signature(d1) != lxml_signature(x):
+            r['notes'].append('importer disagrees with lxml on the element tree')
+            return r
+        r['lxml_crosscheck'] = 'PASS'
+
+        sml = S.write_sml(d1)
+        (OUT / (path.stem + '.sml')).write_text(sml, encoding='utf-8', newline='\n')
+        d2 = S.read_sml(sml)
+        diff = S.first_difference(S.signature(d1), S.signature(d2))
+        if diff:
+            r['notes'].append('SML round trip: ' + diff)
+            return r
+        r['sml_round_trip'] = 'PASS'
+
+        xml2 = S.write_xml(d2)
+        d3 = S.read_xml(xml2)
+        diff = S.first_difference(S.signature(d1), S.signature(d3))
+        if diff or lxml_signature(etree.fromstring(xml2.encode(), etree.XMLParser(**SECURE))) != lxml_signature(x):
+            r['notes'].append('XML re-import: ' + (diff or 'lxml signature differs'))
+            return r
+        r['xml_reimport'] = 'PASS'
+
+        if S.write_sml(d3) != sml:
+            r['notes'].append('second cycle produced different canonical SML')
+            return r
+        r['stable'] = 'PASS'
+    except Exception as e:  # report and continue with the next fixture
+        r['notes'].append(f'{type(e).__name__}: {e}')
+    return r
+
+
+def run_negative(path: Path) -> dict:
+    r = {'id': path.stem, 'expected': 'REJECT', 'result': 'ACCEPTED', 'notes': []}
+    try:
+        S.read_xml(path.read_bytes())
+        r['notes'].append('accepted, but must be rejected')
+    except S.XmlInputError as e:
+        r['result'] = 'REJECTED'
+        kind = 'UNSUPPORTED_XML_INFORMATION' if isinstance(e, S.UnsupportedXmlError) else 'XML_ERROR'
+        r['notes'].append(f'{kind}: {e}')
+    except Exception as e:
+        r['notes'].append(f'unexpected {type(e).__name__}: {e}')
+    return r
+
+
+def run_unit_tests() -> dict:
+    stream = io.StringIO()
+    suite = unittest.defaultTestLoader.loadTestsFromName('test_sml_core')
+    result = unittest.TextTestRunner(stream=stream, verbosity=0).run(suite)
+    failed = [str(t) for t, _ in result.failures + result.errors]
+    return {'run': result.testsRun, 'failed': failed}
+
+
+def write_report(report: dict) -> None:
+    pos, neg, unit = report['results'], report['negative_results'], report['unit_tests']
+    cols = ['xml_baseline', 'lxml_crosscheck', 'sml_round_trip', 'xml_reimport', 'stable']
+    passed = sum(all(r[c] == 'PASS' for c in cols) for r in pos)
+    rejected = sum(r['result'] == 'REJECTED' for r in neg)
+    lines = [
+        '# SVG Round-Trip Test Results', '',
+        f'Generated by `build_and_test.py` on {report["date"]} for SML {S.SML_VERSION}.', '',
+        f'**Positive fixtures passed:** {passed} / {len(pos)}  ',
+        f'**Negative fixtures rejected:** {rejected} / {len(neg)}  ',
+        f'**Core unit tests (CP and SML-side SV):** {unit["run"] - len(unit["failed"])} / {unit["run"]} passed  ',
+        '**KDL:** not run (no converter or parser available).', '',
+        '## Positive fixtures', '',
+        '| Fixture | XML baseline | lxml cross-check | SML round trip | XML re-import | Stable | Notes |',
+        '|---|---|---|---|---|---|---|',
+    ]
+    for r in pos:
+        lines.append(f'| {r["id"]} | ' + ' | '.join(r[c] for c in cols) + f' | {"; ".join(r["notes"])} |')
+    lines += ['', '## Negative fixtures (must be rejected)', '', '| Fixture | Result | Reason |', '|---|---|---|']
+    for r in neg:
+        lines.append(f'| {r["id"]} | {r["result"]} | {"; ".join(r["notes"]).replace("|", "/")} |')
+    if unit['failed']:
+        lines += ['', '## Failed unit tests', ''] + [f'- {t}' for t in unit['failed']]
+    lines += ['', '## Limits', ''] + [f'- {c}' for c in report['caveats']]
+    (OUT / 'REPORT.md').write_text('\n'.join(lines) + '\n', encoding='utf-8', newline='\n')
+
+
+def main() -> int:
+    for folder, items in ((CORPUS, fixtures), (NEGATIVE, negative_fixtures)):
+        folder.mkdir(exist_ok=True)
+        for name, src in items.items():
+            (folder / name).write_text(src, encoding='utf-8', newline='')
+    OUT.mkdir(exist_ok=True)
+    for stale in OUT.glob('*.sml'):
+        stale.unlink()
+    results = [run_positive(p) for p in sorted(CORPUS.glob('*.svg'))]
+    negative = [run_negative(p) for p in sorted(NEGATIVE.glob('*.svg'))]
+    unit = run_unit_tests()
+    report = {
+        'profile': 'SVG-RTCP 1.0 draft, RT-2 with prefix preservation (strict profile of SML ' + S.SML_VERSION + ')',
+        'date': datetime.date.today().isoformat(),
+        'method': ('expat-based importer and SML 1.0-SVG-3 prototype reader/canonical writer; lxml used as an '
+                   'independent element-tree cross-check; no KDL parser'),
+        'caveats': [
+            'The SML reader and writer are a prototype, not an independently validated conforming implementation.',
+            'The lxml cross-check covers the root element tree (RT-1); prolog/epilog, DOCTYPE, standalone, and '
+            'prefix/declaration checks rely on the prototype importer alone.',
+            'No visual rendering comparison.',
+            'No KDL translation run.',
+            'Not executed: SV-49 (writer-generated aliases) and SV-65 (readable import profile); neither is '
+            'implemented by the prototype.',
+        ],
+        'results': results,
+        'negative_results': negative,
+        'unit_tests': unit,
+    }
+    (OUT / 'results.json').write_text(json.dumps(report, indent=2, ensure_ascii=False) + '\n', encoding='utf-8')
+    write_report(report)
+    cols = ['xml_baseline', 'lxml_crosscheck', 'sml_round_trip', 'xml_reimport', 'stable']
+    ok = [r for r in results if all(r[c] == 'PASS' for c in cols)]
+    print(f'Positive fixtures passed: {len(ok)} / {len(results)}')
+    print(f'Negative fixtures rejected: {sum(r["result"] == "REJECTED" for r in negative)} / {len(negative)}')
+    print(f'Unit tests passed: {unit["run"] - len(unit["failed"])} / {unit["run"]}')
+    for r in results:
+        if r not in ok:
+            print('FAIL', r['id'], r['notes'])
+    for r in negative:
+        if r['result'] != 'REJECTED':
+            print('NOT REJECTED', r['id'], r['notes'])
+    failures = len(results) - len(ok) + sum(r['result'] != 'REJECTED' for r in negative) + len(unit['failed'])
+    return 1 if failures else 0
+
+
+if __name__ == '__main__':
+    raise SystemExit(main())

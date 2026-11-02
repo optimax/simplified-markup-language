@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg">
+	<defs>
+		<linearGradient id="g">
+			<stop offset="0"/>
+			<stop offset="1"/>
+		</linearGradient>
+	</defs>
+	<g id="layer">
+		<rect width="10" height="10"/>
+		<!-- note -->
+		<circle r="5"/>
+	</g>
+</svg>
