@@ -21,17 +21,26 @@ public static class CommandLine
           an .sml file to XML      drawing.sml -> drawing.svg (if the root is an SVG <svg>), else drawing.xml
           any other file to SML    drawing.svg -> drawing.sml
 
+        Files may contain wildcards: * and ? in any part of the path, and ** for any number of
+        folders. Examples: smlxml *.svg    smlxml drawings\*.sml    smlxml art\**\*.svg
+
         Options:
           -o, --output <path>  Write to this file instead (one input file only).
           -f, --force          Overwrite an existing output file.
           -h, --help           Show this help.
               --version        Show the version.
 
-        Exit codes: 0 success, 1 a conversion failed, 2 invalid command line.
+        Exit codes: 0 success, 1 a conversion failed or a pattern matched no file,
+        2 invalid command line (including no arguments).
         """;
 
     public static int Run(string[] args, TextWriter stdout, TextWriter stderr)
     {
+        if (args.Length == 0)
+        {
+            stdout.WriteLine(Usage);
+            return UsageError;
+        }
         var inputs = new List<string>();
         string? output = null;
         bool force = false;
@@ -67,13 +76,32 @@ public static class CommandLine
         }
         if (inputs.Count == 0)
             return Fail(stderr, "no input file");
-        if (output is not null && inputs.Count > 1)
-            return Fail(stderr, "--output can only be used with one input file");
 
+        // Expand every pattern before converting anything, so files written by this run never become inputs.
+        // A name that exists literally is used as is (on Linux, * and ? are legal in file names).
+        var files = new List<string>();
+        var allInputs = new HashSet<string>(FileExpander.PathComparer);
         int result = Success;
         foreach (string input in inputs)
         {
-            if (!Convert(input, output, force, stdout, stderr))
+            List<string> matches = FileExpander.IsPattern(input) && !File.Exists(input) ? FileExpander.Expand(input) : [input];
+            if (matches.Count == 0)
+            {
+                stderr.WriteLine($"{input}: error: no files match");
+                result = ConversionFailed;
+            }
+            foreach (string match in matches)
+            {
+                if (allInputs.Add(Path.GetFullPath(match)))
+                    files.Add(match);
+            }
+        }
+        if (output is not null && files.Count > 1)
+            return Fail(stderr, "--output can only be used with one input file");
+
+        foreach (string file in files)
+        {
+            if (!Convert(file, output, force, allInputs, stdout, stderr))
                 result = ConversionFailed;
         }
         return result;
@@ -92,8 +120,10 @@ public static class CommandLine
 
     private static bool IsSml(string path) => Path.GetExtension(path).Equals(".sml", StringComparison.OrdinalIgnoreCase);
 
-    /// <summary>Converts one file. Errors are reported as "file(line): error: message".</summary>
-    private static bool Convert(string input, string? output, bool force, TextWriter stdout, TextWriter stderr)
+    /// <summary>Converts one file. Errors are reported as "file(line): error: message". allInputs holds the full
+    /// paths of every input of this run: an output that is also an input is refused, so that a pattern such as *
+    /// cannot convert a.svg to a.sml and a.sml back to a.svg in the same run.</summary>
+    private static bool Convert(string input, string? output, bool force, IReadOnlySet<string> allInputs, TextWriter stdout, TextWriter stderr)
     {
         try
         {
@@ -118,6 +148,11 @@ public static class CommandLine
             if (Path.GetFullPath(output) == Path.GetFullPath(input))
             {
                 stderr.WriteLine($"{input}: error: the output would overwrite the input");
+                return false;
+            }
+            if (allInputs.Contains(Path.GetFullPath(output)))
+            {
+                stderr.WriteLine($"{input}: error: {output} is also an input of this run; convert them separately");
                 return false;
             }
             if (File.Exists(output) && !force)
