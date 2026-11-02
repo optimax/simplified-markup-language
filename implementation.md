@@ -41,6 +41,7 @@ The publish profile writes two framework-dependent single-file executables, each
 - **External DTDs are never loaded** (`XmlResolver = null`). DTD internal subsets are rejected, including an empty `[]`, which System.Xml cannot distinguish from no subset; `XmlImporter.HasInternalSubset` scans the prolog for it.
 - **One publish profile, both bitnesses.**
   - `windows.pubxml` serves both the command line and Visual Studio. `PublishProtocol=FileSystem` and `_TargetId=Folder` make Visual Studio list it as a folder profile.
+  - Visual Studio's Publish page shows "Target runtime: win-x64" for it, because a profile can name only one runtime. Each Publish still produces both builds. This display was accepted in preference to two profiles or a "Portable" profile.
   - It publishes `win-x64`. The `PublishAdditionalRuntimes` target in `SmlXml.csproj` runs after `Publish` and publishes each runtime in `AdditionalPublishRuntimes` (`win-x86`) the same way, so both executables come from one publish, in Visual Studio too.
   - `RuntimeIdentifiers` restores both runtimes up front.
   - `PublishDir` (`..\..\publish\smlxml\$(RuntimeIdentifier)\`) is relative to the project folder, so the output is the same wherever publishing starts.
@@ -52,7 +53,7 @@ The publish profile writes two framework-dependent single-file executables, each
 
 ## Known traps
 
-- **`--self-contained false` is not honored.** With SDK 10.0.114, `dotnet publish -r win-x64 --self-contained false` produced a 73 MB self-contained executable. `--no-self-contained`, `-p:SelfContained=false`, or the `win-x64` publish profile produce the 250 KB framework-dependent `smlxml.exe`.
+- **`--self-contained false` is not honored.** With SDK 10.0.114, `dotnet publish -r win-x64 --self-contained false` produced a 73 MB self-contained executable. `--no-self-contained`, `-p:SelfContained=false`, or the `windows` publish profile produce the 250 KB framework-dependent `smlxml.exe`.
 - **Single-file publishing bundles content files.** With `PublishSingleFile`, a file marked `CopyToPublishDirectory` is embedded in the executable unless it has `ExcludeFromSingleFile="true"`, as `LICENSE.md` does in `SmlXml.csproj`.
 - **System.Xml reports an empty internal subset (`[]`) exactly like no subset.** See `HasInternalSubset`.
 - **XML parsers disagree at the edges.** Recorded by the Python fuzzer as known divergences:

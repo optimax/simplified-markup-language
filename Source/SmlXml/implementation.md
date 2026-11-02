@@ -47,6 +47,6 @@
 ## Build
 
 `dotnet publish Source/SmlXml/SmlXml.csproj -p:PublishProfile=windows` writes `publish/smlxml/win-x64/smlxml.exe` (64-bit) and `publish/smlxml/win-x86/smlxml.exe` (32-bit), each one framework-dependent file of about 250 KB with `LICENSE.md` beside it.
-- This is the only publish profile, and Visual Studio's Publish command uses it too.
+- This is the only publish profile, and Visual Studio's Publish command uses it too. Visual Studio's Publish page shows "Target runtime: win-x64", because a profile can name only one runtime; each Publish still writes both builds. Keeping one profile with that display was chosen over two profiles (one per runtime) and over a profile that Visual Studio shows as Portable.
 - The profile publishes win-x64; `PublishAdditionalRuntimes` in `SmlXml.csproj` then publishes win-x86.
 - The assemblies are Any CPU (`PlatformTarget`); only the launcher differs between the two. The license is included in every build and publish output; `ExcludeFromSingleFile` keeps it out of the single-file bundle. On Windows, `dotnet build` also produces `smlxml.exe` in `bin/`.
