@@ -345,7 +345,7 @@ Do not put the signature
 
 Contrary to the above, commit, merge into main, and push at the end of each task/turn.
 
-In Claude Cloud, commit as `Claude` with email `noreply@anthropic.com`, not as Claude@<machineName>, so that GitHub shows the commits as Verified. Keep the rule above against adding a Co-Authored-By line.
+In Claude Cloud, commit as Claude-<machineName>@anthropic.com, so that GitHub shows the commits as Verified. Keep the rule above against adding a Co-Authored-By line.
 
 # 13. Data Access
 
