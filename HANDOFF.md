@@ -37,28 +37,20 @@ Provide `smlxml`, a two-way SML ↔ XML/SVG command-line converter in C# on .NET
 - **`README.md`** at the root introduces the project on GitHub. It assumes a public repository under the MIT license.
 - Solution-wide environment, conventions, decisions, and traps are in `implementation.md`.
 
-## Files changed in the last task (SML 1.0-SVG-4: `"""` blocks)
+## Files changed in the last task (reflow separates path parameters)
 
-- **Specification** `Documents/SML-Language-Specification.md`:
-  - revision 1.0-SVG-4, with a new change list;
-  - rewritten §§6.2, 7, 8.1, 8.3, 8.5, 12.1, 12.2 (grammar), 12.3, 14.1, and 14.2;
-  - updated §5 statement table, §11 version rules, §15 cases (SV-26, 37, 44, 47, 52, 53, 71, 72, 76; CP-8, 9, 20), §16, and every example.
-- **Python:**
-  - `sml_prototype.py`: `SML_VERSION`, `BLOCK_MARKER_RE`, `OLD_BLOCK_RE`, `parse_value_tail`, `read_block`, `st_alias`, `st_element`, `st_directive`, `block_tag`, and `SmlWriter.value`;
-  - `fuzz_roundtrip.py`: the variant writer uses longer markers, and new mutation tokens;
-  - `test_sml_core.py`: the tests listed under the specification;
-  - `results/*.sml` regenerated;
-  - version mentions in `build_and_test.py`, `crosscheck_csharp.py`, `README.md`, and `SVG-Round-Trip-Conformance-Profile.md`.
-- **C#:**
-  - `SmlReader.cs`: `Version`, `IsBlockMarker`, `IsObsoleteMarker`, `Statement`, `ParseValueTail`, `ReadBlock`, `AliasInvocation`, `ElementStatement`, `DirectiveStatement`;
-  - `SmlWriter.cs`: `BlockTag`, `Block`;
-  - tests: `ReaderTests.cs`, `CommandLineTests.cs`, `ProfileTests.cs`, `WriterOptionsTests.cs`.
-- **Docs and the rest:** `README.md`, `implementation.md` (decision), `Source/SmlXml/README.md`, `Source/SmlXml/implementation.md`, `Source/SmlXml/svg.smlprofile` (comment), `Source/SmlXml/SmlXml.csproj` (description).
+- `Source/Sml/ValueLayout.cs`:
+  - `SpacePathCommand` now also separates parameters written together: `a.75.75 0 01-.69-.35` becomes `a .75 .75 0 0 1 -.69 -.35`;
+  - new `PathParameters` reads numbers as long as possible and arc flags as single characters;
+  - `SpaceLetterAndCommas` is the fallback for items that aren't path parameters.
+- `Source/Sml.Tests/ProfileTests.cs`: `SpacesPathCommands`.
+- The tests and `Source/SmlXml/README.md` now expect the `svg` profile's path alias `data`, which the user renamed from `d` in `svg.smlprofile`.
+- `Documents/SML-Language-Specification.md` §3.2 and `Source/SmlXml/README.md` describe the rule.
 
 ## Build and test results
 
 - `dotnet build SimplifiedMarkupLanguage.slnx -c Release`: 0 warnings, 0 errors.
-- `dotnet test`: 1,892/1,892 passed, including the byte-for-byte comparison with the regenerated Python reference SML.
+- `dotnet test`: 1,904/1,904 passed, including the byte-for-byte comparison with the regenerated Python reference SML.
 - `fuzz_roundtrip.py --docs 2000 --seed 7`: 0 findings (only the known parser divergences).
 - `crosscheck_csharp.py` seeds 1–3 after the 1.0-SVG-4 change (3,000 documents, 12,000 SML mutants): 0 differences.
 - `smlxml --verbose` over a copy of `Tests/svg-corpus`: the Python prototype read all 495 accepted files back equal to their originals.

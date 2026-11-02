@@ -76,9 +76,60 @@ public static class ValueLayout
         return string.Join('\n', texts);
     }
 
-    /// <summary>A path command with a space after its letter and after each comma, where there is none and more
-    /// follows: "M10,20" becomes "M 10, 20". Path syntax allows whitespace in both places (§3.2).</summary>
+    /// <summary>A path command spaced for reading (§3.2): a space after its letter, after each comma, and between
+    /// two parameters written together, wherever there is none and more follows. "M10,20" becomes "M 10, 20", and
+    /// "a.5.5 0 01-1 0" becomes "a .5 .5 0 0 1 -1 0". Parameters are read as path data reads them: numbers each as
+    /// long as possible, and an arc's two flags as single characters, so a space only goes where the path already
+    /// has a boundary.</summary>
     public static string SpacePathCommand(string command)
+    {
+        List<(int Start, int End)>? parameters = PathParameters(command);
+        if (parameters is null)
+            return SpaceLetterAndCommas(command);    // not path parameters after all: space only the safe places
+        var result = new System.Text.StringBuilder(command.Length + 16);
+        result.Append(command[0]);
+        int previous = 1;
+        foreach (var (start, end) in parameters)
+        {
+            result.Append(command, previous, start - previous);    // the separator: spaces and at most one comma
+            if (result[^1] != ' ')
+                result.Append(' ');
+            result.Append(command, start, end - start);
+            previous = end;
+        }
+        result.Append(command, previous, command.Length - previous);
+        return result.ToString();
+    }
+
+    /// <summary>The parameters of a path command, or null if it has anything but parameters, spaces, and single
+    /// commas after its letter. In an arc command, the 4th and 5th of every 7 parameters are flags: one character,
+    /// 0 or 1.</summary>
+    private static List<(int Start, int End)>? PathParameters(string command)
+    {
+        bool arc = command[0] is 'a' or 'A';
+        var parameters = new List<(int Start, int End)>();
+        int i = 1;
+        while (true)
+        {
+            int commas = 0;
+            for (; i < command.Length && command[i] is ' ' or ','; i++)
+                commas += command[i] == ',' ? 1 : 0;
+            if (commas > 1)
+                return null;
+            if (i == command.Length)
+                return parameters;
+            int end = arc && parameters.Count % 7 is 3 or 4
+                ? (command[i] is '0' or '1' ? i + 1 : i)
+                : ScanNumber(command, i);
+            if (end == i)
+                return null;
+            parameters.Add((i, end));
+            i = end;
+        }
+    }
+
+    /// <summary>A command with a space after its letter and after each comma, where there is none and more follows.</summary>
+    private static string SpaceLetterAndCommas(string command)
     {
         var result = new System.Text.StringBuilder(command.Length + 8);
         for (int i = 0; i < command.Length; i++)

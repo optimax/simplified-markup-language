@@ -95,12 +95,28 @@ public class ProfileTests
         Assert.Equal("M 0 0\nL 1 1", ValueLayout.Reflow("M0 0L1 1", PathData));
         Assert.Equal("M 10, 20\nL 30, -40\nc 1, 2 3, 4 5, 6\nz", ValueLayout.Reflow("M10,20L30,-40c1,2 3,4 5,6z", PathData));
         Assert.Equal("M 0 0,\nL 1, 1", ValueLayout.Reflow("M 0 0,L 1, 1", PathData));
-        Assert.Equal("a .5.5 0 0 0-1 0\nZ", ValueLayout.Reflow("a.5.5 0 0 0-1 0Z", PathData));
+        Assert.Equal("a .5 .5 0 0 0 -1 0\nZ", ValueLayout.Reflow("a.5.5 0 0 0-1 0Z", PathData));
         Assert.Equal("10,20\n30,40", ValueLayout.Reflow("10,20 30,40", Pairs));   // only path commands are spaced
         Assert.Null(ValueLayout.Reflow("M 0 0", PathData));             // a single item
         Assert.Null(ValueLayout.Reflow("M 0\t0 L 1 1", PathData));      // TAB inside an item
         Assert.Null(ValueLayout.Segments("rotate(45)", Functions));
     }
+
+    [Theory]
+    [InlineData("a.75.75 0 0 0-.75-.75", "a .75 .75 0 0 0 -.75 -.75")]
+    [InlineData("M10,20", "M 10, 20")]
+    [InlineData("M10-20", "M 10 -20")]
+    [InlineData("c1e-5-2.5.5 1E2,3", "c 1e-5 -2.5 .5 1E2, 3")]
+    [InlineData("a1 1 0 011 1", "a 1 1 0 0 1 1 1")]      // arc flags are single characters
+    [InlineData("a.75.75 0 01-.69-.35", "a .75 .75 0 0 1 -.69 -.35")]
+    [InlineData("A1 1 0 1 0 5 5 2 2 0 0110 10", "A 1 1 0 1 0 5 5 2 2 0 0 1 10 10")]
+    [InlineData("a1 1 0 2 1 1 1", "a 1 1 0 2 1 1 1")]   // not a flag: only the letter and commas are spaced
+    [InlineData("M1,,2", "M 1, , 2")]                  // two commas: not path parameters; letter and commas spaced
+    [InlineData("M 0 0,", "M 0 0,")]
+    [InlineData("z", "z")]
+    [InlineData("L1e 2", "L 1e 2")]                     // not path numbers: only the letter and commas are spaced
+    public void SpacesPathCommands(string command, string expected) =>
+        Assert.Equal(expected, ValueLayout.SpacePathCommand(command));
 
     // ---------------------------------------------------------------------------------------------
     // Profile format
@@ -109,7 +125,7 @@ public class ProfileTests
     public void ParsesTheSvgProfile()
     {
         const string svg = "http://www.w3.org/2000/svg";
-        Assert.Contains(Svg.Aliases, a => a == new SmlProfile.Alias(new(svg, "path"), "d", new(null, "d")));
+        Assert.Contains(Svg.Aliases, a => a == new SmlProfile.Alias(new(svg, "path"), "data", new(null, "d")));
         Assert.Equal(new Layout(LayoutKind.Path), Svg.FindLayout(new(svg, "path"), new(null, "d")));
         Assert.Equal(new Layout(LayoutKind.Numbers, 2), Svg.FindLayout(new(svg, "polygon"), new(null, "points")));
         Assert.Equal(new Layout(LayoutKind.Declarations), Svg.FindLayout(new(svg, "rect"), new(null, "style")));
@@ -179,9 +195,9 @@ public class ProfileTests
             # Readable conversion (SML §3.2), not strict: one item per line in d
             @sml 1.0-SVG-4
             svg(xmlns=http://www.w3.org/2000/svg)
-              @block path d .d
+              @block path data .d
               path
-                d """
+                data """
                   M 0 0
                   L 1 1
                   Z

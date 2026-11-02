@@ -87,9 +87,9 @@ end
 # Readable conversion (SML §3.2), not strict: one item per line in d
 @sml 1.0-SVG-4
 svg(xmlns=http://www.w3.org/2000/svg)
-  @block path d .d
+  @block path data .d
   path
-    d """
+    data """
       M 20 60
       L 60 20
       Z
@@ -99,7 +99,7 @@ end
 ```
 
 This is easier to read and edit, but it is a readable conversion, not a strict one (§3.2 of the specification). The values now contain line breaks where they had spaces, so converting the SML back gives SVG that renders the same but is not identical, and the first line says so.
-- In path data, each command letter and each comma is followed by a space, so `M10,20L30,40` becomes the lines `M 10, 20` and `L 30, 40`. Numbers written together, such as `0-1` or `.5.5`, stay as they are.
+- In path data, each command letter and each comma is followed by a space, so `M10,20L30,40` becomes the lines `M 10, 20` and `L 30, 40`. Parameters written together are separated too, so `a.75.75 0 01-.69-.35` becomes `a .75 .75 0 0 1 -.69 -.35`. Parameters are read as path data reads them: numbers each as long as possible, and an arc's two flags as single characters `0` or `1`.
 - A value is reflowed only if it has its layout's form and at least two items; any other value is written exactly.
 - A single path command is never split, so a long run of coordinates after one command stays on one line.
 
@@ -109,7 +109,7 @@ The SML written with a profile is self-contained: it declares every alias it use
 
 | Attributes | Items, one per line | Alias |
 |---|---|---|
-| `d` of `path`, `glyph`, and `missing-glyph`; `path` of `animateMotion` and `textPath` | Path commands, spaced as in `M 10, 20` | `d`, `path` |
+| `d` of `path`, `glyph`, and `missing-glyph`; `path` of `animateMotion` and `textPath` | Path commands, spaced as in `M 10, 20` | `data`, `path` |
 | `points` of `polyline` and `polygon` | x,y pairs | `points` |
 | `values` of `feColorMatrix` | Rows of five numbers | |
 | `values` of `animate`, `animateColor`, `animateTransform`, and `animateMotion`; `keyPoints` of `animateMotion`; `keyTimes` and `keySplines` | Entries | |

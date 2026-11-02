@@ -313,8 +313,8 @@ public sealed class CommandLineTests : IDisposable
         Assert.Equal(CommandLine.Success, Run("-p", "svg", "-r", "-f", PathOf("drawing.svg")).Code);
         string reflowed = File.ReadAllText(PathOf("drawing.sml"));
         Assert.StartsWith("# Readable conversion", reflowed);
-        Assert.Contains("  @block path d .d\n", reflowed);
-        Assert.Contains("    d \"\"\"\n      M 0 0\n      L 1 1\n    \"\"\"\n", reflowed);
+        Assert.Contains("  @block path data .d\n", reflowed);
+        Assert.Contains("    data \"\"\"\n      M 0 0\n      L 1 1\n    \"\"\"\n", reflowed);
     }
 
     [Fact]
@@ -352,7 +352,7 @@ public sealed class CommandLineTests : IDisposable
             File.ReadAllText(PathOf("drawing.sml")));
         File.WriteAllText(PathOf("path.svg"), PathXml);
         Assert.Equal(CommandLine.Success, Run("--verbose", "-p", "svg", "-r", PathOf("path.svg")).Code);
-        Assert.Contains("svg\n  @ns http://www.w3.org/2000/svg\n  @block path d .d\n  path\n    d \"\"\"\n", File.ReadAllText(PathOf("path.sml")));
+        Assert.Contains("svg\n  @ns http://www.w3.org/2000/svg\n  @block path data .d\n  path\n    data \"\"\"\n", File.ReadAllText(PathOf("path.sml")));
         Assert.Contains("--verbose", Run("--help").Out);
     }
 }
