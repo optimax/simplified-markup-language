@@ -341,6 +341,10 @@ Do not put the signature
 
 (or anything similar) in the commit comments themselves.
 
+### Special Instructions for Claude Cloud
+
+Contrary to the above, commit, merge into main, and push at the end of each task/turn.
+
 # 13. Data Access
 
 You must never access network or removable drives without explicit authorization. Only access local hard drives.
