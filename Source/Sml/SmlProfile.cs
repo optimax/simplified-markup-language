@@ -120,8 +120,6 @@ public sealed class SmlProfile
 
     private void Block(string[] t, Dictionary<string, string> ns, int ln)
     {
-        if (t.Length == 4 && t[3].StartsWith('.') && !t[2].StartsWith('.'))
-            throw new SmlException($"the alias now comes last: @block {t[1]} {t[3]} {t[2]}", ln);
         if (t.Length != 4)
             throw new SmlException("@block takes: element-qname .attribute-qname alias", ln);
         ExpandedName element = XmlRules.Resolve(t[1], ns, attribute: false, ln);

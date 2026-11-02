@@ -9,10 +9,10 @@ public class ProfileTests
     private static readonly SmlProfile Svg =
         SmlProfile.Parse(File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "svg.smlprofile"), Encoding.UTF8));
 
-    /// <summary>The svg profile with element aliases (§8.7), including names that elements of the corpus have.</summary>
+    /// <summary>The svg profile with more element aliases (§8.7), including names that elements of the corpus have.</summary>
     private static readonly SmlProfile SvgWithNodes = SmlProfile.Parse(
         File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "svg.smlprofile"), Encoding.UTF8)
-        + "\n@node svg drawing\n@node g group\n@node path shape\n@node linearGradient gradient\n@node title desc\n");
+        + "\n@node svg drawing\n@node path shape\n@node linearGradient gradient\n@node title desc\n");
 
     internal static readonly string TestsFolder = FindTestsFolder();
 
@@ -169,7 +169,7 @@ public class ProfileTests
     [InlineData("@block path .d end\n", 1, "invalid alias name 'end'")]
     [InlineData("@block path d d\n", 1, "expected an attribute name starting with '.'")]
     [InlineData("@block path d\n", 1, "@block takes")]
-    [InlineData("@block path data .d\n", 1, "the alias now comes last: @block path .d data")]
+    [InlineData("@block path data .d\n", 1, "expected an attribute name starting with '.'")]
     [InlineData("@layout path .d path\n@layout path .d list\n", 2, "already has a layout")]
     [InlineData("@layout path .d numbers 0\n", 1, "numbers layout takes a count")]
     [InlineData("@layout path .d numbers\n", 1, "numbers layout takes a count")]

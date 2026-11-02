@@ -151,8 +151,7 @@ public class ReaderTests
     public void CP20_VersionHeader()
     {
         Rejects("@comment x\n@sml 1.0-SVG-4\ng/\n", "first statement");
-        Rejects("@sml 1.0-SVG-2\ng/\n", "unsupported draft");
-        Rejects("@sml 1.0-SVG-3\ng/\n", "unsupported draft");
+        Rejects("@sml 1.0-SVG-5\ng/\n", "unsupported draft");
         Root("# note\n@sml 1.0-SVG-4\ng/\n");
         Root("@sml 1.0\ng/\n");
     }
@@ -196,8 +195,8 @@ public class ReaderTests
         Assert.Equal("v", g.Attributes["d"]);
         Assert.Equal("data", ((ElementNode)g.Children[0]).QualifiedName);
         Rejects("g\n  data \"\"\"\n    v\n  \"\"\"\nend\n", "no active alias");
-        Rejects("g\n  @block g data = .d\nend\n", "no longer valid");
-        Rejects("g\n  @block g data .d\nend\n", "the alias now comes last: @block g .d data");
+        foreach (string declaration in new[] { "@block g data .d", "@block g .d", "@block g .d data x" })
+            Rejects($"g\n  {declaration}\nend\n", "@block takes: element-qname .attribute-qname alias");
     }
 
     [Fact]
@@ -242,10 +241,9 @@ public class ReaderTests
     {
         Same("g\n  .d\"\"\"\n    v\n  \"\"\"\nend\n", "g\n  .d \"\"\"\n    v\n  \"\"\"\nend\n");
         Same("g\n  @block g .y x\n  x\"\"\"\n    v\n  \"\"\"\nend\n", "g\n  .y \"\"\"\n    v\n  \"\"\"\nend\n");
-        foreach (string marker in new[] { "|", " |", "|EOT", " |EOT" })
-            Rejects($"g\n  .d{marker}\n    v\n  end\nend\n", "no longer starts a block");
-        Rejects("g\n  @block g .y x\n  x |\n    v\n  end\nend\n", "no longer starts a block");
-        Rejects("g\n  .d |x y\nend\n", "cannot begin with '|'");
+        foreach (string value in new[] { ".d |", ".d|", ".d |x y", "= |" })
+            Rejects($"g\n  {value}\nend\n", "cannot begin with '|'");
+        Rejects("g\n  x |\nend\n", "unexpected ' |' after element name");
     }
 
     private static List<string> Comments(ElementNode element) =>

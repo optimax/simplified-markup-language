@@ -169,8 +169,7 @@ class CoreFixtures(Base):
 
     def test_CP20_version_header(self):
         self.rejects('@comment x\n@sml 1.0-SVG-4\ng/\n', 'first statement')
-        self.rejects('@sml 1.0-SVG-2\ng/\n', 'unsupported draft')
-        self.rejects('@sml 1.0-SVG-3\ng/\n', 'unsupported draft')
+        self.rejects('@sml 1.0-SVG-5\ng/\n', 'unsupported draft')
         for header in ('@sml 1.0-SVG-4\n', '@sml 1.0\n', '', '# note\n@sml 1.0-SVG-4\n'):
             read(header + 'g/\n')
 
@@ -275,9 +274,9 @@ class SmlSideFixtures(Base):
         self.assertEqual(S.block_tag('a\n'), '"""')
         self.assertEqual(S.block_tag('\na'), '"""')
 
-    def test_SV46_legacy_separator(self):
-        self.rejects('g\n  @block g data = .d\nend\n', 'no longer valid')
-        self.rejects('g\n  @block g data .d\nend\n', 'the alias now comes last: @block g .d data')
+    def test_SV46_malformed_block_declarations(self):
+        for decl in ('@block g data .d', '@block g .d', '@block g .d data x'):
+            self.rejects(f'g\n  {decl}\nend\n', '@block takes: element-qname .attribute-qname alias')
 
     def test_SV47_alias_after_content(self):
         self.rejects('g\n  @block g .s style\n  h/\n  style """\n    x\n  """\nend\n', 'after the element')
@@ -345,12 +344,10 @@ class SmlSideFixtures(Base):
         self.assertEqual(sig(unspaced), sig(spaced))
         self.assertIn('.d """', S.write_sml(read('g\n  .d"""\n    v\n    w\n  """\nend\n')))
 
-    def test_SV72_bar_markers_are_obsolete(self):
-        for marker in ('|', ' |', '|EOT', ' |EOT'):
-            self.rejects(f'g\n  .d{marker}\n    v\n  end\nend\n', 'no longer starts a block')
-        self.rejects('g\n  @block g .y x\n  x |\n    v\n  end\nend\n', 'no longer starts a block')
-        self.rejects('g\n  = |\n    t\n  end\nend\n', 'no longer starts a block')
-        self.rejects('g\n  .d |x y\nend\n', "cannot begin with '|'")
+    def test_SV72_bar_at_value_start(self):
+        for value in ('.d |', '.d|', '.d |x y', '= |'):
+            self.rejects(f'g\n  {value}\nend\n', "cannot begin with '|'")
+        self.rejects('g\n  x |\nend\n', "unexpected ' |' after element name")
 
     def test_SV77_comment_runs(self):
         el = root('g\n  @comments """\n    a\n    # b\n    end\n  """\n  h/\nend\n')

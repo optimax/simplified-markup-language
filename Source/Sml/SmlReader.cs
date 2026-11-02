@@ -8,14 +8,8 @@ public sealed partial class SmlReader
 {
     public const string Version = "1.0-SVG-4";
 
-    private const string ObsoleteBlock = "blocks are written \"\"\" since SML 1.0-SVG-4; '|' no longer starts a block";
-
     /// <summary>Whether s is a block marker (§7): three or more quotation marks and nothing else.</summary>
     public static bool IsBlockMarker(string s) => s.Length >= 3 && s.All(c => c == '"');
-
-    /// <summary>Whether s is a 1.0-SVG-3 block marker, '|' or '|' and an NCName, which is now reported.</summary>
-    private static bool IsObsoleteMarker(string s) =>
-        s.Length > 0 && s[0] == '|' && (s.Length == 1 || XmlRules.IsNCName(s[1..]));
 
     private static readonly UTF8Encoding StrictUtf8 = new(encoderShouldEmitUTF8Identifier: false, throwOnInvalidBytes: true);
 
@@ -257,7 +251,7 @@ public sealed partial class SmlReader
         if (v[0] == '"')
             return (ValueKind.Quoted, ParseQuotedWhole(v, ln));
         if (v[0] == '|')
-            throw new SmlException(IsObsoleteMarker(v) ? ObsoleteBlock : "a raw value cannot begin with '|'; quote it", ln);
+            throw new SmlException("a raw value cannot begin with '|'; quote it", ln);
         return (ValueKind.Raw, XmlRules.CheckChars(v, ln));
     }
 
@@ -528,8 +522,6 @@ public sealed partial class SmlReader
         if (pos < s.Length && s[pos] == '(')
             (inline, pos) = ParseInlineList(s, pos, ln);
         string rest = s[pos..];
-        if (IsObsoleteMarker(rest.TrimStart(' ', '\t')))
-            throw new SmlException(ObsoleteBlock, ln);
         if (rest.Length == 0)
         {
             OpenElement(qname, inline, "open", ln).Alias = alias;
@@ -627,7 +619,7 @@ public sealed partial class SmlReader
             throw new SmlException($"malformed directive '{s}'", ln);
         string name = m.Groups[1].Value;
         string rest = s[m.Length..];
-        if (rest.Length > 0 && rest[0] is not (' ' or '\t' or '|') && !IsBlockMarker(rest))
+        if (rest.Length > 0 && rest[0] is not (' ' or '\t') && !IsBlockMarker(rest))
             throw new SmlException($"expected a space after @{name}", ln);
         if (name.Contains(':'))
         {
@@ -778,10 +770,6 @@ public sealed partial class SmlReader
     {
         Frame f = DeclarationFrame(ln, "@block");
         string[] t = XmlRules.StripSpacesAndTabs(rest).Split([' ', '\t'], StringSplitOptions.RemoveEmptyEntries);
-        if (t.Length == 4 && t[2] == "=")
-            throw new SmlException("the '=' separator in @block is no longer valid", ln);
-        if (t.Length == 3 && t[2].StartsWith('.') && !t[1].StartsWith('.'))
-            throw new SmlException($"the alias now comes last: @block {t[0]} {t[2]} {t[1]}", ln);
         if (t.Length != 3 || !t[1].StartsWith('.'))
             throw new SmlException("@block takes: element-qname .attribute-qname alias", ln);
         string attribute = t[1][1..], alias = t[2];

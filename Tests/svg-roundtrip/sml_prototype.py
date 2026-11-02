@@ -111,8 +111,6 @@ QNAME_RE = re.compile(QNAME)
 NAME_RE = re.compile(NAME)
 ALIAS_RE = re.compile(rf'({NCNAME})[ \t]*("{{3,}})')
 BLOCK_MARKER_RE = re.compile(r'"{3,}')
-OLD_BLOCK_RE = re.compile(rf'\|({NCNAME})?')   # a 1.0-SVG-3 block marker
-OBSOLETE_BLOCK = 'blocks are written """ since SML 1.0-SVG-4; \'|\' no longer starts a block'
 DIRECTIVE_RE = re.compile(r'@([^\s|"]+)')
 UESC_RE = re.compile(r'\{([0-9A-Fa-f]{1,6})\}')
 PUBID_RE = re.compile(r"[ \r\na-zA-Z0-9\-'()+,./:=?;!*#@$_%]*")
@@ -405,7 +403,7 @@ class SmlReader:
         if v[0] == '"':
             return 'quoted', self.parse_quoted_whole(v, ln)
         if v[0] == '|':
-            raise SmlError(OBSOLETE_BLOCK if OLD_BLOCK_RE.fullmatch(v) else "a raw value cannot begin with '|'; quote it", ln)
+            raise SmlError("a raw value cannot begin with '|'; quote it", ln)
         return 'raw', check_chars(v, ln)
 
     def read_block(self, marker: str, ln: int) -> str:
@@ -601,8 +599,6 @@ class SmlReader:
         if pos < len(s) and s[pos] == '(':
             inline, pos = self.parse_inline_list(s, pos, ln)
         rest = s[pos:]
-        if OLD_BLOCK_RE.fullmatch(rest.lstrip(' \t')):
-            raise SmlError(OBSOLETE_BLOCK, ln)
         if rest == '':
             self.open_element(qname, inline, 'open', ln).alias = alias
         elif rest == '/':
@@ -675,7 +671,7 @@ class SmlReader:
         if not m:
             raise SmlError(f'malformed directive {s!r}', ln)
         name, rest = m.group(1), s[m.end():]
-        if rest and rest[0] not in ' \t|' and not BLOCK_MARKER_RE.fullmatch(rest):
+        if rest and rest[0] not in ' \t' and not BLOCK_MARKER_RE.fullmatch(rest):
             raise SmlError(f'expected a space after @{name}', ln)
         if ':' in name:
             return self.st_extension(name, rest, ln)
@@ -788,10 +784,6 @@ class SmlReader:
     def d_block(self, rest: str, ln: int) -> None:
         f = self.decl_frame(ln, '@block')
         toks = [t for t in re.split(r'[ \t]+', rest) if t]
-        if len(toks) == 4 and toks[2] == '=':
-            raise SmlError("the '=' separator in @block is no longer valid", ln)
-        if len(toks) == 3 and toks[2].startswith('.') and not toks[1].startswith('.'):
-            raise SmlError(f'the alias now comes last: @block {toks[0]} {toks[2]} {toks[1]}', ln)
         if len(toks) != 3 or not toks[1].startswith('.'):
             raise SmlError('@block takes: element-qname .attribute-qname alias', ln)
         element, attr, alias = toks[0], toks[1][1:], toks[2]

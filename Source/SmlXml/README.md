@@ -119,6 +119,8 @@ The SML written with a profile is self-contained: it declares every alias it use
 
 An alias appears only where the value is written as a block: with `--reflow`, or for a value that already contains line breaks.
 
+The profile also has element aliases (`@node`): `g` elements are opened as `group`, and `p` elements in its namespace, the SVG namespace, as `para`.
+
 ### Writing a profile
 
 A profile is a UTF-8 text file with one statement per line; blank lines and lines starting with `#` are ignored. Pass its path to `--profile`, or put `name.smlprofile` beside `smlxml` and pass `name`. The built-in [`svg.smlprofile`](svg.smlprofile) is an example.

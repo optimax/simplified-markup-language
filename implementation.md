@@ -42,7 +42,6 @@ The publish profile writes two framework-dependent single-file executables, each
 - **Blocks are delimited by `"""`** (1.0-SVG-4), with a longer run of quotation marks when a payload line is `"""`, and `end` closes only elements.
   - Braces were rejected: CSS and scripts, the usual block payloads, put `}` alone on a line, so a brace-delimited block would close early and the rest of the CSS would parse as SML.
   - A backtick was rejected: it is hard to see, a dead key on many keyboard layouts, and PowerShell's escape character.
-  - `|` stays reserved in raw values, so that a 1.0-SVG-3 block is reported as an error instead of being misread.
 - **Writer profiles are exact unless reflow is asked for.**
   - A profile (`SmlProfile`) gives SML output aliases and layouts.
   - By default it changes only the SML spelling: blocks through aliases, and continuation lines at item boundaries.

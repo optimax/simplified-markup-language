@@ -19,7 +19,7 @@ Provide `smlxml`, a two-way SML ↔ XML/SVG command-line converter in C# on .NET
   - It accepts `*` patterns in `--output` (one output per input, `ApplyOutputPattern`).
   - It shows the usage when run without arguments.
   - It writes SML with a profile (`--profile svg`, `svg.smlprofile` beside the executable). That output is exact by default, or lossy with `--reflow` (specification §3.2).
-  - A profile can also declare element aliases (`@node`, specification §8.7), which that output then uses; `svg.smlprofile` declares none.
+  - A profile can also declare element aliases (`@node`, specification §8.7), which that output then uses; `svg.smlprofile` declares `g group` and `p para`.
   - With `--verbose`, it writes every attribute and namespace declaration on its own line.
 
   Behavior and requirements are in `Source/SmlXml/implementation.md`, usage and the profile format in `Source/SmlXml/README.md`.
@@ -38,20 +38,21 @@ Provide `smlxml`, a two-way SML ↔ XML/SVG command-line converter in C# on .NET
 - **`README.md`** at the root introduces the project on GitHub. It assumes a public repository under the MIT license.
 - Solution-wide environment, conventions, decisions, and traps are in `implementation.md`.
 
-## Files changed in the last task (alias last in `@block`)
+## Files changed in the last task (alias last in `@block`; no prior syntax)
 
-The user asked for both alias declarations to read the same way: XML names first, alias last. `@node g group` already did; `@block` changes from `@block path data .d` to `@block path .d data`. The language stays 1.0-SVG-4 (change-list item 9).
-
-- The old order (`@block E alias .attr`) is an error whose message names the new order (`the alias now comes last: @block E .attr alias`), in SML and in profiles. The `=` separator of earlier drafts is still rejected as before.
-- `svg.smlprofile` uses the new order, so `smlxml --profile svg --reflow` declares `@block path .d data` and `@block polygon .points points`.
-- `@node` (element aliases, specification §8.7) was added in the task before; profiles can declare it, and `svg.smlprofile` declares none.
+- **Alias last.** Both alias declarations read the same way, XML names first and alias last: `@node g group` and `@block path .d data`. The language stays 1.0-SVG-4.
+- **No prior syntax.** The user's direction: the syntax is defined as it goes, with no compatibility with earlier forms. So nothing refers to them any more:
+  - the specification has no change lists, and no passages on earlier drafts, earlier revisions, or forms that are no longer valid;
+  - neither reader has special messages for old forms (`|` blocks, the `=` separator in `@block`, the old `@block` order); such input gets the ordinary errors;
+  - SV-46 now covers malformed `@block` declarations, SV-72 raw values that begin with `|`, and CP-20 rejects another draft identifier, `1.0-SVG-5`.
+- `|` is still reserved at the start of a raw value (§6.2); with the compatibility reason gone, the specification gives none. Whether to free it is open.
+- `svg.smlprofile` uses the new `@block` order. The user added `@node g group` and `@node p para` to it. Under the profile's `@ns http://www.w3.org/2000/svg`, `p` names an SVG-namespace `p`, so the alias does not apply to XHTML `p` elements in `foreignObject` or metadata; that would need `@ns h http://www.w3.org/1999/xhtml` and `@node h:p para`. Left as the user wrote it.
 - Files:
-  - `Documents/SML-Language-Specification.md`: change list item 9, §8.1 (syntax, operand order, the two rejected spellings), the §12.2 grammar, §12.3, SV-46, and every `@block` example.
-  - `Tests/svg-roundtrip/sml_prototype.py` (`d_block`), `test_sml_core.py`, `fuzz_roundtrip.py` (`VariantWriter` and the mutation token).
-  - `Source/Sml/SmlReader.cs` (`BlockDeclaration`), `SmlProfile.cs` (`Block`), `SmlWriter.cs` (the declarations on the root).
-  - `Source/Sml.Tests/ReaderTests.cs`, `ProfileTests.cs`, `CommandLineTests.cs`, `WriterOptionsTests.cs`.
-  - `Source/SmlXml/svg.smlprofile`, `Source/SmlXml/README.md`.
-- `Documents/SML-Spec-Review-Claude.md` keeps the old order: it reviews revision 1.0-SVG-2.
+  - `Documents/SML-Language-Specification.md`: change lists removed; §§1, 5, 6.2, 8.1, 11, 12.2, 12.3; SV-46, SV-72, CP-20; every `@block` example.
+  - `Tests/svg-roundtrip/sml_prototype.py` (`d_block`, and the old-form checks removed), `test_sml_core.py`, `fuzz_roundtrip.py`.
+  - `Source/Sml/SmlReader.cs`, `SmlProfile.cs`, `SmlWriter.cs`; `Source/Sml.Tests/ReaderTests.cs`, `ProfileTests.cs`, `CommandLineTests.cs`, `WriterOptionsTests.cs`.
+  - `Source/SmlXml/svg.smlprofile`, `Source/SmlXml/README.md`, `Source/SmlXml/implementation.md`, `implementation.md`.
+- `Documents/SML-Spec-Review-Claude.md` is a review of revision 1.0-SVG-2 and still shows that syntax; whether to keep it is the user's call.
 
 ## Build and test results
 
@@ -68,7 +69,7 @@ The user asked for both alias declarations to read the same way: XML names first
 - `smlxml *.svg` then `smlxml -o *.out.svg *.sml` over all 47 corpus fixtures produced 47 `.out.svg` files; the Python importer found each equal in information to its original.
 - `dotnet publish Source/SmlXml/SmlXml.csproj -p:PublishProfile=windows` produced `publish/smlxml/win-x64/smlxml.exe` (PE32+ x86-64) and `publish/smlxml/win-x86/smlxml.exe` (PE32 Intel 80386), each with `LICENSE.md` and `svg.smlprofile`. This held both from the repository root and from the project folder. The assemblies' CLR headers confirm Any CPU. `windows.pubxml` is the only publish profile and also serves Visual Studio; Visual Studio itself was not run, and neither executable was run on Windows. Visual Studio's Publish page shows "Target runtime: win-x64" for the profile; that is expected and documented, and each Publish writes both builds.
 - `python build_and_test.py`: 53/53 fixtures, 9/9 rejections, 61/61 unit tests, 0 fuzz findings.
-- `fuzz_roundtrip.py` seed 22 (1,500 documents) after the `@block` order change: 0 findings. Seed 21 (1,500 documents) with `@node` variants: 0 findings (only the known parser divergences). 400 variants had 393 `@node` declarations, 171 of them in declaration sections, and 236 `@element` openers; all read back equal.
+- `fuzz_roundtrip.py` seed 23 (1,500 documents) after the `@block` order change and the removal of the old-form checks: 0 findings. Seed 21 (1,500 documents) with `@node` variants: 0 findings (only the known parser divergences). 400 variants had 393 `@node` declarations, 171 of them in declaration sections, and 236 `@element` openers; all read back equal.
 - `smlxml -p` with `svg.smlprofile` plus six `@node` aliases (one colliding with real `desc` elements) over a copy of `Tests/svg-corpus` and the fixtures: the Python prototype read all 434 outputs back equal to their SVG files; 433 declared aliases, used 5,213 times, and no colliding alias was used.
 - `Tests/svg-corpus` was checked by hand, with a script that is not in the repository:
   - Python and C# both accept 381 of the 385 files. Each round-trips XML → SML → XML to the same document, and the canonical SML is byte-identical between the implementations. Three files use the new forms (8 per-element steps, 1 laid-out text block).
