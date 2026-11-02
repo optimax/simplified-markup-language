@@ -47,6 +47,10 @@ Provide `smlxml`, a two-way SML ↔ XML/SVG command-line converter in C# on .NET
   No other candidate in the remaining sources has such a notice, so their selection is unchanged.
 - `Tests/svg-corpus/THIRD-PARTY-NOTICES.md` regenerated: 15 sources, MIT and ISC only.
 - Docs: `Tests/svg-corpus/README.md`, `README.md`, `implementation.md`.
+- **History rewritten:** `main` was then rewritten and force-pushed so that no commit ever contained the W3C files.
+  - From the first corpus commit on, every commit has a new ID. Files, authors, dates, and messages are unchanged.
+  - Claude's commits were re-signed and show as Verified.
+  - A clone made before the rewrite must not pull or push. Reset it with `git fetch origin` and `git reset --hard origin/main`, or clone again.
 
 ## Build and test results
 
