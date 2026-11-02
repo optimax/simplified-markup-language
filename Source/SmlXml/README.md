@@ -66,4 +66,4 @@ This writes both Windows executables, each with `LICENSE.md` (MIT) beside it; di
 | `publish/smlxml/win-x64/` | 64-bit `smlxml.exe` | the x64 .NET 10 runtime |
 | `publish/smlxml/win-x86/` | 32-bit `smlxml.exe` | the x86 .NET 10 runtime, which 64-bit Windows does not include by default |
 
-In Visual Studio, **Publish** on the `SmlXml` project uses the same profile (`windows`) and writes the same files.
+In Visual Studio, **Publish** on the `SmlXml` project uses the same profile (`windows`) and writes the same files. Visual Studio's Publish page shows **Target runtime: win-x64**, because a profile can name only one runtime. That is expected: each Publish still writes the 32-bit build to `publish/smlxml/win-x86/` as well.
