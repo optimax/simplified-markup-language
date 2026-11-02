@@ -10,6 +10,7 @@ extension (every required extension is rejected; optional ones are skipped).
 """
 from __future__ import annotations
 
+import codecs
 import re
 import unicodedata
 import xml.parsers.expat as expat
@@ -217,6 +218,8 @@ def check_doctype(dt: Doctype, line: int | None, error=SmlError) -> None:
         check_chars(dt.system_id, line)
         if '"' in dt.system_id and "'" in dt.system_id:
             raise error('DOCTYPE system ID cannot contain both quote characters', line)
+        if '\r' in dt.system_id:
+            raise error('DOCTYPE system ID cannot contain CR (U+000D); XML cannot represent it', line)
 
 
 # ---------------------------------------------------------------------------------------------
@@ -1080,12 +1083,42 @@ def write_sml(doc: Document) -> str:
 # ---------------------------------------------------------------------------------------------
 # XML importer (expat, no namespace processing; namespaces are resolved here)
 
+EXPAT_ENCODINGS = {'utf-8', 'utf-16', 'iso-8859-1', 'us-ascii'}
+# Registered (IANA) charset names transcoded through Python codecs, plus the common "UTF8"
+# spelling. Python also knows non-standard aliases ("UTF", "U8") that XML parsers reject.
+TRANSCODED_ENCODINGS = (
+    {'utf8', 'shift_jis', 'euc-jp', 'iso-2022-jp', 'gb2312', 'gbk', 'gb18030', 'big5', 'euc-kr',
+     'koi8-r', 'koi8-u'}
+    | {f'iso-8859-{n}' for n in range(2, 17) if n != 12}
+    | {f'windows-{n}' for n in range(1250, 1259)})
+XML_DECL_ENCODING_RE = re.compile(
+    rb'<\?xml[ \t\r\n]+version[ \t\r\n]*=[ \t\r\n]*(?:"[^"]*"|\'[^\']*\')[ \t\r\n]+'
+    rb'encoding[ \t\r\n]*=[ \t\r\n]*["\']([A-Za-z][A-Za-z0-9._-]*)["\']')
+
+
+def _transcode(data: bytes) -> tuple[bytes, str | None]:
+    """Expat handles only its four built-in encodings natively, and decodes any other declared
+    encoding one byte at a time. For the encodings in TRANSCODED_ENCODINGS, decode with Python's
+    codec instead and parse as UTF-8; reject every other declared encoding."""
+    m = XML_DECL_ENCODING_RE.match(data[3:] if data.startswith(b'\xef\xbb\xbf') else data)
+    if not m or m.group(1).decode('ascii').lower() in EXPAT_ENCODINGS:
+        return data, None
+    name = m.group(1).decode('ascii')
+    if name.lower() not in TRANSCODED_ENCODINGS:
+        raise XmlInputError(f'unsupported encoding {name!r}')
+    try:
+        return data.decode(codecs.lookup(name).name).encode('utf-8'), 'UTF-8'
+    except UnicodeDecodeError as e:
+        raise XmlInputError(f'the document is not valid {name}: {e.reason}') from None
+
+
 def read_xml(data) -> Document:
     if isinstance(data, str):
         data = data.encode('utf-8')
+    data, override = _transcode(data)
     doc = Document()
     stack: list[tuple[Element, dict]] = []
-    p = expat.ParserCreate()
+    p = expat.ParserCreate(override)
     p.ordered_attributes = True
     p.buffer_text = True
     p.SetParamEntityParsing(expat.XML_PARAM_ENTITY_PARSING_NEVER)
@@ -1109,8 +1142,10 @@ def read_xml(data) -> Document:
     def doctype(name, sysid, pubid, has_internal_subset):
         if has_internal_subset:
             raise UnsupportedXmlError('DTD internal subsets are not supported', line())
-        if pubid is not None:
-            pubid = ' '.join(pubid.split())
+        if pubid is not None:  # XML 1.0 §4.2.2 normalization (XML whitespace only)
+            pubid = re.sub(r'[ \t\r\n]+', ' ', pubid).strip(' ')
+        if sysid is not None:  # expat skips XML §2.11 line-end normalization in this literal
+            sysid = sysid.replace('\r\n', '\n').replace('\r', '\n')
         dt = Doctype(name, pubid, sysid)
         check_doctype(dt, line(), UnsupportedXmlError)
         doc.prolog.append(dt)
@@ -1180,6 +1215,8 @@ def read_xml(data) -> Document:
         p.Parse(data, True)
     except expat.ExpatError as e:
         raise XmlInputError(f'malformed XML: {expat.errors.messages[e.code]}', e.lineno) from None
+    except LookupError as e:  # expat raises this for an unknown encoding declaration
+        raise XmlInputError(f'unsupported encoding: {e}') from None
     if doc.root is None:
         raise XmlInputError('the document has no root element')
     return doc

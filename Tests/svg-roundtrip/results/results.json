@@ -4,7 +4,8 @@
   "method": "expat-based importer and SML 1.0-SVG-3 prototype reader/canonical writer; lxml used as an independent element-tree cross-check; no KDL parser",
   "caveats": [
     "The SML reader and writer are a prototype, not an independently validated conforming implementation.",
-    "The lxml cross-check covers the root element tree (RT-1); prolog/epilog, DOCTYPE, standalone, and prefix/declaration checks rely on the prototype importer alone.",
+    "The lxml cross-check compares the element tree, prolog/epilog, standalone flag, DOCTYPE identifiers, and namespace scopes; attribute prefix spelling and the DOCTYPE name are checked by the prototype only.",
+    "Known libxml2/expat divergences are counted rather than failed; see the fuzz section.",
     "No visual rendering comparison.",
     "No KDL translation run.",
     "Not executed: SV-49 (writer-generated aliases) and SV-65 (readable import profile); neither is implemented by the prototype."
@@ -558,5 +559,18 @@
   "unit_tests": {
     "run": 54,
     "failed": []
+  },
+  "fuzz": {
+    "seed": 1,
+    "documents": 300,
+    "sml_mutants": 1200,
+    "sml_mutants_accepted": 338,
+    "xml_mutants": 1200,
+    "xml_mutants_both_accepted": 321,
+    "known_divergences": {
+      "libxml2 rejects namespace names that are not URI references; expat and the prototype accept them": 30,
+      "expat uses XML 1.0 4th-edition name characters and rejects names that 5th-edition parsers such as libxml2 accept": 1
+    },
+    "findings": []
   }
 }

@@ -2,44 +2,59 @@
 
 ## Current objective
 
-Bring the SVG round-trip prototype and its tests up to the SML 1.0-SVG-3 specification (`Documents/SML-Language-Specification.md`), and point the specification's §15 at the corpus in this repository.
+Test the SML 1.0-SVG-3 specification (`Documents/SML-Language-Specification.md`) with a prototype implementation, fixture corpus, and fuzz/differential tests in `Tests/svg-roundtrip/`.
 
 ## Current state
 
-- `Tests/svg-roundtrip/sml_prototype.py` implements:
-  - an SML reader for the complete 1.0-SVG-3 Core syntax;
+- `sml_prototype.py` implements:
+  - an SML reader for the complete Core syntax;
   - the §14.2 canonical writer;
   - an expat-based XML importer and an XML exporter;
-  - the strict-profile comparison: prolog/epilog, DOCTYPE, standalone, prefixes and declaration locations.
-- `Tests/svg-roundtrip/build_and_test.py` runs the full pipeline over `corpus/` and checks that `corpus-negative/` is rejected. It also runs `test_sml_core.py` and writes `results/results.json` and `results/REPORT.md`.
-- The specification's §15 and §17 now point at `Tests/svg-roundtrip/`, and §14.2 rule 5 states how the 100-code-point limit is measured.
+  - the strict-profile comparison.
+- `build_and_test.py` runs the fixture pipeline over `corpus/`, which includes a full-document lxml cross-check. It checks that `corpus-negative/` is rejected, runs `test_sml_core.py`, and runs a fixed-seed fuzz pass. It writes `results/REPORT.md` and `results/results.json`.
+- `fuzz_roundtrip.py` runs three campaigns:
+  - **Generated documents:** each must round-trip through SML, randomized non-canonical SML (`VariantWriter`), and XML, and lxml must agree on the exported XML.
+  - **SML mutants:** the reader must reject each one cleanly, or accept a document that round-trips.
+  - **XML mutants:** expat and libxml2 must agree on each one.
 
-## Files changed
+  Findings are shrunk and saved to `results/fuzz-findings/`, which git ignores.
+- **Fuzzer sensitivity check:** nine deliberately planted correctness bugs in the writer, reader, and exporter were all caught by a 150-document run, and the control run was clean.
 
-- `Documents/SML-Language-Specification.md` (§§14.2, 15, 17)
-- `Tests/svg-roundtrip/sml_prototype.py` (new)
-- `Tests/svg-roundtrip/test_sml_core.py` (new)
-- `Tests/svg-roundtrip/build_and_test.py` (rewritten; the original 18 fixture definitions are unchanged)
-- `Tests/svg-roundtrip/README.md`, `Tests/svg-roundtrip/SVG-Round-Trip-Conformance-Profile.md` (§§7, 9)
-- `Tests/svg-roundtrip/corpus/` (new fixtures 19–75, X1, X2), `Tests/svg-roundtrip/corpus-negative/` (new)
-- `Tests/svg-roundtrip/results/` (regenerated), `Tests/svg-roundtrip/.gitignore` (new)
+## Fixed after fuzzing (prototype)
 
-## Decisions
+- An unknown XML `encoding` crashed the importer with `LookupError`; it now raises `XmlInputError`.
+- Encodings expat lacks are transcoded through Python codecs, limited to registered names plus `UTF8`.
+- DOCTYPE system IDs get the XML §2.11 line-end normalization that expat skips.
+- Public-ID normalization uses XML whitespace only.
 
-- **expat instead of lxml for import.** lxml cannot report an attribute's lexical prefix or where the DOCTYPE sits among prolog comments and PIs, and the strict profile needs both. lxml remains as an independent RT-1 cross-check.
-- **Fixture naming.** A corpus file's numeric prefix is its SV number in the specification; `X` files are extra coverage.
+## Fixed after fuzzing (specification)
+
+§11.1 and SV-70: a DOCTYPE system ID must not contain CR, because XML cannot represent it.
+
+## Known divergences (counted, not failed)
+
+- libxml2 rejects namespace names that are not URI references (non-ASCII characters, spaces, `|`, `{}`); expat and the prototype accept them.
+- expat uses XML 1.0 4th-edition name characters, so names such as one containing U+FEFF, valid in the 5th edition, export XML that expat cannot read.
+- libxml2 accepts a malformed `version="1."` with only a warning.
+- lxml quirk: it raises only when the *last* logged message is an error, so the fuzzer reads libxml2's error log instead.
 
 ## Test result
 
-`python build_and_test.py` passes 47/47 positive fixtures, rejects 9/9 negative fixtures, and passes 54/54 unit tests. There is no build step; this is Python only.
+`python build_and_test.py`:
+- 47/47 positive fixtures pass and 9/9 negative fixtures are rejected;
+- 54/54 unit tests pass;
+- the fuzz pass (300 documents, 1,200 SML and 1,200 XML mutants) has 0 findings.
+
+Seeds 1–20 at 1,000 documents each also ran with 0 findings. There is no build step; this is Python only.
 
 ## Unresolved
 
-- SV-49 (writer-generated aliases) and SV-65 (readable import profile) are not executed; the prototype implements neither.
-- The prototype was written alongside the specification and has not been validated independently; its passes are evidence, not certification.
-- The language name and `.sml` extension still collide with Standard ML and W3C's Service Modeling Language (spec §17).
-- `CLAUDE.md` imports `implementation.md`, which does not exist yet.
+- **Spec decision:** should SML require namespace names to be URI references, as Namespaces in XML says and libxml2 enforces?
+- **Spec decision:** should the spec warn that 5th-edition-only name characters are not portable to parsers such as expat?
+- SV-49 (writer-generated aliases) and SV-65 (readable import) are not executed; the prototype implements neither.
+- The fuzzer checks that canonical output round-trips but not that it is the canonical form of §14.2. An independent canonical-form checker would close that gap.
+- The prototype has not been validated independently; the language name still collides with Standard ML and W3C SML; `CLAUDE.md` imports a missing `implementation.md`.
 
 ## Recommended next step
 
-Run the harness against real-world SVG exports (Inkscape, Illustrator) and add fuzz/differential tests (profile §7, Gate C).
+Run the harness against real-world SVG exports (Inkscape, Illustrator), which need files from the user or permission to download them, and decide the two spec questions above.

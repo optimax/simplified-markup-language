@@ -688,7 +688,7 @@ A DOCTYPE that has **no internal subset** is preserved as opaque metadata:
 - **Placement.** `@doctype` MAY appear at most once, in the prolog, before the root element. Its position relative to prolog `@comment` and `@pi` statements is preserved; XML permits comments and PIs both before and after the DOCTYPE.
 - **Name.** The first operand is the declared name, an XML `Name`, recorded as written. It is not checked against the root element's name.
 - **External identifier.** `PUBLIC` requires both a public ID and a system ID, and `SYSTEM` requires a system ID. With neither keyword, the declaration has no external identifier. The keywords are case-sensitive, as in XML.
-- **Literals.** Both identifiers MUST be written as quoted values (§6.2). A public ID may contain only XML `PubidChar` characters and MUST already be normalized as described in XML 1.0 §4.2.2: no TAB, LF, or CR, no leading or trailing space, and no run of consecutive spaces. An XML importer records the public ID in this normalized form. A system ID MUST NOT contain both `"` and `'`.
+- **Literals.** Both identifiers MUST be written as quoted values (§6.2). A public ID may contain only XML `PubidChar` characters and MUST already be normalized as described in XML 1.0 §4.2.2: no TAB, LF, or CR, no leading or trailing space, and no run of consecutive spaces. An XML importer records the public ID in this normalized form. A system ID MUST NOT contain both `"` and `'`, and MUST NOT contain CR (U+000D): DOCTYPE literals cannot use character references, and XML parsers normalize a literal CR to LF, so such a system ID cannot survive an XML round trip.
 - **Opaque, never loaded.** `@doctype` is information, not configuration. SML readers and XML converters MUST NOT fetch, parse, or validate against the referenced DTD, and MUST NOT apply its attribute defaults or entity declarations. This matches how browsers handle SVG.
 - **Internal subsets stay out of scope.** An XML DOCTYPE with an internal subset, even an empty one (`[ ]`), MUST be rejected by strict import.
 - **Undeclared entities.** When a DOCTYPE has an external identifier but the DTD is not read, a non-validating XML parser may skip a reference to an undeclared entity, such as `&nbsp;`, instead of failing. A strict importer MUST treat any skipped or unexpanded entity reference as an error, because skipping it would silently lose information.
@@ -876,6 +876,7 @@ The fixtures are in this repository under `Tests/svg-roundtrip/`:
 - `corpus/` holds the 18-fixture baseline corpus (SV-1–SV-18, the earlier RT-1 subset) and the XML fixtures below. A file's numeric prefix is its SV number; for example, `66-doctype-public.svg` is SV-66.
 - `corpus-negative/` holds inputs that a strict importer must reject.
 - `test_sml_core.py` holds the CP fixtures (§15.1) and the SV fixtures that need only SML.
+- `fuzz_roundtrip.py` runs seeded fuzz and differential tests: random documents, random mutations of SML and XML, and comparison with an independent XML parser.
 - `build_and_test.py` runs all of them against the prototype in `sml_prototype.py` and writes `results/REPORT.md`.
 
 The following fixtures are mandatory in addition to the baseline corpus:
@@ -933,7 +934,7 @@ The following fixtures are mandatory in addition to the baseline corpus:
 | SV-67 | `SYSTEM`-only DOCTYPE and bare `<!DOCTYPE svg>` | Preserved exactly |
 | SV-68 | DOCTYPE between prolog comments/PIs | Position preserved |
 | SV-69 | External-ID DOCTYPE with an undeclared entity reference such as `&nbsp;` | Strict import rejects; no skipped-entity loss |
-| SV-70 | `@doctype` with a non-normalized public ID, or a system ID containing both quote kinds | SML reader rejects |
+| SV-70 | `@doctype` with a non-normalized public ID, or a system ID containing both quote kinds or CR | SML reader rejects |
 | SV-71 | `data\|`, `.d\|`, `=\|`, `name =\|`, `@comment\|` | Parsed identically to the spaced forms; canonical writer emits the space |
 | SV-72 | `.d\|EOT` and `.d \|EOT`; `.d \|x y` | First two start a block ending at a line `EOT`; third rejected (quote values beginning with `\|`) |
 | SV-73 | `]]>` in text, including text from CDATA sections | Escaped correctly on export; exact round trip |

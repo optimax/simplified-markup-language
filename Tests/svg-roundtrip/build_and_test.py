@@ -3,20 +3,24 @@
 
 Writes the fixture corpus, runs every positive fixture through
 XML -> model -> canonical SML -> model -> XML -> model, checks that every negative fixture is
-rejected, runs the Core unit tests (test_sml_core.py), and writes results/*.sml,
-results/results.json, and results/REPORT.md. Requires lxml for the independent cross-check.
+rejected, runs the Core unit tests (test_sml_core.py) and a fixed-seed fuzz/differential pass
+(fuzz_roundtrip.py), and writes results/*.sml, results/results.json, and results/REPORT.md.
+Requires lxml for the independent cross-check.
 """
 import datetime
 import io
 import json
+import shutil
 import unittest
 from pathlib import Path
 
 from lxml import etree
 
+import fuzz_roundtrip as F
 import sml_prototype as S
 
 BASE = Path(__file__).resolve().parent
+FUZZ = dict(seed=1, docs=300, mutations=4)   # the fixed fuzz pass; see fuzz_roundtrip.py for longer runs
 CORPUS = BASE / 'corpus'
 NEGATIVE = BASE / 'corpus-negative'
 OUT = BASE / 'results'
@@ -124,8 +128,10 @@ def run_positive(path: Path) -> dict:
         r['xml_baseline'] = 'PASS'
 
         d1 = S.read_xml(raw)
-        if S.rt1_signature(d1) != lxml_signature(x):
-            r['notes'].append('importer disagrees with lxml on the element tree')
+        root, error, _ = F.lxml_parse(raw)
+        diff = error or F.view_difference(F.model_view(d1), F.lxml_view(root))
+        if diff:
+            r['notes'].append('importer disagrees with lxml: ' + diff)
             return r
         r['lxml_crosscheck'] = 'PASS'
 
@@ -178,7 +184,7 @@ def run_unit_tests() -> dict:
 
 
 def write_report(report: dict) -> None:
-    pos, neg, unit = report['results'], report['negative_results'], report['unit_tests']
+    pos, neg, unit, fuzz = report['results'], report['negative_results'], report['unit_tests'], report['fuzz']
     cols = ['xml_baseline', 'lxml_crosscheck', 'sml_round_trip', 'xml_reimport', 'stable']
     passed = sum(all(r[c] == 'PASS' for c in cols) for r in pos)
     rejected = sum(r['result'] == 'REJECTED' for r in neg)
@@ -188,6 +194,7 @@ def write_report(report: dict) -> None:
         f'**Positive fixtures passed:** {passed} / {len(pos)}  ',
         f'**Negative fixtures rejected:** {rejected} / {len(neg)}  ',
         f'**Core unit tests (CP and SML-side SV):** {unit["run"] - len(unit["failed"])} / {unit["run"]} passed  ',
+        f'**Fuzz/differential findings:** {len(fuzz["findings"])} (seed {fuzz["seed"]}, {fuzz["documents"]} documents)  ',
         '**KDL:** not run (no converter or parser available).', '',
         '## Positive fixtures', '',
         '| Fixture | XML baseline | lxml cross-check | SML round trip | XML re-import | Stable | Notes |',
@@ -200,6 +207,19 @@ def write_report(report: dict) -> None:
         lines.append(f'| {r["id"]} | {r["result"]} | {"; ".join(r["notes"]).replace("|", "/")} |')
     if unit['failed']:
         lines += ['', '## Failed unit tests', ''] + [f'- {t}' for t in unit['failed']]
+    lines += ['', '## Fuzz and differential tests (`fuzz_roundtrip.py`)', '',
+              f'- {fuzz["documents"]} generated documents: SML, variant-SML and XML round trips, canonical '
+              'stability, and agreement with lxml (libxml2).',
+              f'- {fuzz["sml_mutants"]} SML mutants, {fuzz["sml_mutants_accepted"]} accepted by the reader; every '
+              'accepted mutant must round-trip and export XML that lxml accepts.',
+              f'- {fuzz["xml_mutants"]} XML mutants, {fuzz["xml_mutants_both_accepted"]} accepted by both importers; '
+              'verdicts and results must agree.',
+              f'- Findings: {len(fuzz["findings"])}.']
+    for f in fuzz['findings']:
+        lines.append(f'  - `{f["kind"]}`: {f["message"][:200].replace("|", "/")}')
+    if fuzz['known_divergences']:
+        lines += ['', 'Known divergences between libxml2 and expat (counted, not failures):', '']
+        lines += [f'- {reason} ({count}x)' for reason, count in sorted(fuzz['known_divergences'].items())]
     lines += ['', '## Limits', ''] + [f'- {c}' for c in report['caveats']]
     (OUT / 'REPORT.md').write_text('\n'.join(lines) + '\n', encoding='utf-8', newline='\n')
 
@@ -215,6 +235,8 @@ def main() -> int:
     results = [run_positive(p) for p in sorted(CORPUS.glob('*.svg'))]
     negative = [run_negative(p) for p in sorted(NEGATIVE.glob('*.svg'))]
     unit = run_unit_tests()
+    shutil.rmtree(F.FINDINGS, ignore_errors=True)
+    fuzz = F.run(**FUZZ)
     report = {
         'profile': 'SVG-RTCP 1.0 draft, RT-2 with prefix preservation (strict profile of SML ' + S.SML_VERSION + ')',
         'date': datetime.date.today().isoformat(),
@@ -222,8 +244,9 @@ def main() -> int:
                    'independent element-tree cross-check; no KDL parser'),
         'caveats': [
             'The SML reader and writer are a prototype, not an independently validated conforming implementation.',
-            'The lxml cross-check covers the root element tree (RT-1); prolog/epilog, DOCTYPE, standalone, and '
-            'prefix/declaration checks rely on the prototype importer alone.',
+            'The lxml cross-check compares the element tree, prolog/epilog, standalone flag, DOCTYPE identifiers, '
+            'and namespace scopes; attribute prefix spelling and the DOCTYPE name are checked by the prototype only.',
+            'Known libxml2/expat divergences are counted rather than failed; see the fuzz section.',
             'No visual rendering comparison.',
             'No KDL translation run.',
             'Not executed: SV-49 (writer-generated aliases) and SV-65 (readable import profile); neither is '
@@ -232,6 +255,7 @@ def main() -> int:
         'results': results,
         'negative_results': negative,
         'unit_tests': unit,
+        'fuzz': fuzz,
     }
     (OUT / 'results.json').write_text(json.dumps(report, indent=2, ensure_ascii=False) + '\n', encoding='utf-8')
     write_report(report)
@@ -240,13 +264,18 @@ def main() -> int:
     print(f'Positive fixtures passed: {len(ok)} / {len(results)}')
     print(f'Negative fixtures rejected: {sum(r["result"] == "REJECTED" for r in negative)} / {len(negative)}')
     print(f'Unit tests passed: {unit["run"] - len(unit["failed"])} / {unit["run"]}')
+    print(f'Fuzz findings: {len(fuzz["findings"])} ({fuzz["documents"]} documents, '
+          f'{fuzz["sml_mutants"]} SML and {fuzz["xml_mutants"]} XML mutants)')
+    for f in fuzz['findings']:
+        print('FUZZ', f['kind'], f['message'][:200])
     for r in results:
         if r not in ok:
             print('FAIL', r['id'], r['notes'])
     for r in negative:
         if r['result'] != 'REJECTED':
             print('NOT REJECTED', r['id'], r['notes'])
-    failures = len(results) - len(ok) + sum(r['result'] != 'REJECTED' for r in negative) + len(unit['failed'])
+    failures = (len(results) - len(ok) + sum(r['result'] != 'REJECTED' for r in negative) + len(unit['failed'])
+                + len(fuzz['findings']))
     return 1 if failures else 0
 
 

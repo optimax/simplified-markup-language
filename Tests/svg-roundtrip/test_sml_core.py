@@ -331,6 +331,7 @@ class SmlSideFixtures(Base):
         self.rejects('@doctype svg PUBLIC " -//W3C//DTD SVG 1.1//EN" "x"\nsvg/\n', 'not normalized')
         self.rejects('@doctype svg PUBLIC "-//W3C//DTD  SVG" "x"\nsvg/\n', 'not normalized')
         self.rejects('@doctype svg SYSTEM "a\\"b\'c"\nsvg/\n', 'both quote')
+        self.rejects('@doctype svg SYSTEM "a\\rb"\nsvg/\n', 'CR')
 
     def test_SV71_marker_without_space(self):
         spaced = 'g\n  .d |\n    v\n  end\n  @comment |\n    c\n  end\n  = |\n    t\n  end\n  h = |\n    i\n  end\nend\n'
