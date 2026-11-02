@@ -59,4 +59,4 @@ SML output is in the canonical form of the specification (§14.2). XML input mus
 dotnet publish Source/SmlXml/SmlXml.csproj -p:PublishProfile=win-x64
 ```
 
-This writes `publish/smlxml/smlxml.exe`, which requires the .NET 10 runtime, and `LICENSE.md` (MIT) beside it. Distribute the two together.
+This writes `publish/smlxml/smlxml.exe`, which requires the .NET 10 runtime, and `LICENSE.md` (MIT) beside it. Distribute the two together. In Visual Studio, **Publish** on the `SmlXml` project uses the same profile (`win-x64`) and writes the same files.

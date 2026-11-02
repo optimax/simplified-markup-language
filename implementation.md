@@ -25,7 +25,7 @@ python Tests/svg-roundtrip/build_and_test.py
 python Tests/svg-roundtrip/crosscheck_csharp.py --docs 1000
 ```
 
-The publish profile writes one framework-dependent `publish/smlxml/smlxml.exe` (requires the .NET 10 runtime), with `LICENSE.md` beside it. `crosscheck_csharp.py` needs a Release build of `Source/SmlXml` first.
+The publish profile writes one framework-dependent `publish/smlxml/smlxml.exe` (requires the .NET 10 runtime), with `LICENSE.md` beside it. `Source/SmlXml/Properties/PublishProfiles/win-x64.pubxml` is the only publish profile; Visual Studio's Publish command uses it too. `crosscheck_csharp.py` needs a Release build of `Source/SmlXml` first.
 
 ## Conventions
 
@@ -39,6 +39,7 @@ The publish profile writes one framework-dependent `publish/smlxml/smlxml.exe` (
 - **The library is split from the command line** so that the format logic can be tested directly and reused by future tools such as an editor.
 - **The XML importer turns off System.Xml namespace processing.** It uses `XmlTextReader` with `Namespaces = false`, wrapped with character checking, and validates names and namespaces itself with `XmlRules`, as the SML reader does. With namespace processing on, System.Xml rejects `xml:space` values other than `default` and `preserve`, which are well-formed opaque values without a DTD.
 - **External DTDs are never loaded** (`XmlResolver = null`). DTD internal subsets are rejected, including an empty `[]`, which System.Xml cannot distinguish from no subset; `XmlImporter.HasInternalSubset` scans the prolog for it.
+- **One publish profile.** `win-x64.pubxml` serves both the command line and Visual Studio. `PublishProtocol=FileSystem` and `_TargetId=Folder` make Visual Studio list it as a folder profile. Its `PublishDir` is relative to the project folder, so the output is the same wherever publishing starts.
 - **Licensing.**
   - `smlxml` is distributed under the MIT license in `LICENSE.md` at the root, Copyright (c) 2026 Optimax Technologies, Inc. The same copyright is in `<Company>` and `<Copyright>` in the C# project files and in the banner.
   - `SmlXml.csproj` copies `LICENSE.md` to the build and publish output, beside `smlxml.exe`.

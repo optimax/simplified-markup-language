@@ -46,4 +46,4 @@
 
 ## Build
 
-`dotnet publish Source/SmlXml/SmlXml.csproj -p:PublishProfile=win-x64` writes `publish/smlxml/smlxml.exe` as one framework-dependent file of about 250 KB, with `LICENSE.md` beside it. The license is included in every build and publish output (including Visual Studio's `FolderProfile`); `ExcludeFromSingleFile` keeps it out of the single-file bundle. On Windows, `dotnet build` also produces `smlxml.exe` in `bin/`.
+`dotnet publish Source/SmlXml/SmlXml.csproj -p:PublishProfile=win-x64` writes `publish/smlxml/smlxml.exe` as one framework-dependent file of about 250 KB, with `LICENSE.md` beside it. This is the only publish profile, and Visual Studio's Publish command uses it too. The license is included in every build and publish output; `ExcludeFromSingleFile` keeps it out of the single-file bundle. On Windows, `dotnet build` also produces `smlxml.exe` in `bin/`.
