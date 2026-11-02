@@ -14,7 +14,7 @@ Provide `smlxml`, a two-way SML ↔ XML/SVG command-line converter in C# on .NET
 
   It is a port of `Tests/svg-roundtrip/sml_prototype.py`.
 - **`Source/SmlXml`** (`smlxml`) is the command line. It expands wildcards in input names itself (`*`, `?`, `**`; `FileExpander`), accepts `*` patterns in `--output` (one output per input, `ApplyOutputPattern`), and shows the usage when run without arguments. Behavior and requirements are in `Source/SmlXml/implementation.md`, usage in `Source/SmlXml/README.md`.
-- **`Source/Sml.Tests`** has 180 xUnit tests:
+- **`Source/Sml.Tests`** has 182 xUnit tests:
   - the corpus, compared byte for byte with the Python reference output;
   - both round trips;
   - the negative corpus;
@@ -25,13 +25,14 @@ Provide `smlxml`, a two-way SML ↔ XML/SVG command-line converter in C# on .NET
 
 ## Files changed in recent tasks (output patterns; `-v` for `--version`)
 
+- Banner at the start of every run (`-v` prints only the banner): `Source/SmlXml/CommandLine.cs` (`Run`, new `WriteBanner`), `Source/SmlXml/SmlXml.csproj` and `Source/Sml/Sml.csproj` (`Company`, `Copyright`), `Source/Sml.Tests/CommandLineTests.cs`, `Source/SmlXml/README.md`, `Source/SmlXml/implementation.md`, `implementation.md` (licensing).
 - `-v` is the short form of `--version`: `Source/SmlXml/CommandLine.cs` (`Run`, usage text), `Source/SmlXml/README.md`, `Source/Sml.Tests/CommandLineTests.cs`.
 - Changed: `Source/SmlXml/CommandLine.cs` (`Run`, `Convert`, new `RunContext` and `ApplyOutputPattern`, `WriteAtomically` creates a missing output folder, usage text), `Source/Sml.Tests/CommandLineTests.cs`, `Source/SmlXml/README.md`, `Source/SmlXml/implementation.md`.
 
 ## Build and test results
 
 - `dotnet build SimplifiedMarkupLanguage.slnx -c Release`: 0 warnings, 0 errors.
-- `dotnet test`: 180/180 passed.
+- `dotnet test`: 182/182 passed.
 - The real executable was also exercised on Linux with quoted relative patterns (`*.svg`, `art/**/*.svg`, an unmatched pattern, no arguments), simulating how Windows shells pass them.
 - `smlxml *.svg` then `smlxml -o *.out.svg *.sml` over all 47 corpus fixtures produced 47 `.out.svg` files; the Python importer found each equal in information to its original.
 - `dotnet publish Source/SmlXml/SmlXml.csproj -p:PublishProfile=win-x64` produced `publish/smlxml/smlxml.exe` (252 KB, PE32+ x86-64 console). It was built on Linux and **not run on Windows**.
@@ -40,6 +41,7 @@ Provide `smlxml`, a two-way SML ↔ XML/SVG command-line converter in C# on .NET
 
 ## Unresolved
 
+- The banner states the MIT license, but the repository has no `LICENSE` file. MIT requires the license text to accompany copies, so a `LICENSE` file (and shipping it with `smlxml.exe`) is still needed.
 - Spec decisions still open:
   - should namespace names be required to be URI references (libxml2 enforces this)?
   - should the spec carry a portability note on XML 1.0 5th-edition name characters?

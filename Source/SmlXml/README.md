@@ -29,7 +29,7 @@ For example, `smlxml *.svg`, `smlxml drawings\*.sml`, or `smlxml art\**\*.svg`.
 - A file matched by several arguments is converted once.
 - If a file's output is itself an input of the same run (for example with `smlxml *`), both files are refused.
 
-Run `smlxml` without arguments to see the usage.
+Run `smlxml` without arguments to see the usage. Every run starts with a banner showing the version, copyright, and license; `-v` prints only the banner.
 
 ### Output patterns
 
@@ -47,7 +47,7 @@ smlxml -o *.out.svg *.sml
 | `-o`, `--output <path>` | Write to this file instead (one input file only), or with `*`, one file per input (see below) |
 | `-f`, `--force` | Overwrite an existing output file |
 | `-h`, `--help` | Show help |
-| `-v`, `--version` | Show the version |
+| `-v`, `--version` | Show the version (the banner) |
 
 An existing output file is never overwritten without `--force`. Errors appear as `file(line): error: message`. The exit code is 0 on success, 1 if a conversion failed or a pattern matched no file, and 2 for an invalid command line, including no arguments.
 

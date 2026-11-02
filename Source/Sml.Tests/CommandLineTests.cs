@@ -107,6 +107,22 @@ public sealed class CommandLineTests : IDisposable
         Assert.Equal(Run("--version"), Run("-v"));
     }
 
+    private const string Banner =
+        "smlxml 1.0.0 (SML 1.0-SVG-3)\nCopyright (c) 2026 Optimax Technologies, Inc.\nFreely distributed under MIT license.\n\n";
+
+    [Fact]
+    public void VersionPrintsExactlyTheBanner() => Assert.Equal(Banner, Run("-v").Out.ReplaceLineEndings("\n"));
+
+    [Fact]
+    public void EveryRunStartsWithTheBanner()
+    {
+        File.WriteAllText(PathOf("drawing.svg"), SvgXml);
+        File.WriteAllText(PathOf("bad.sml"), "g\n  .a 1\n  @ns urn:x\nend\n");
+        string[][] runs = [[PathOf("drawing.svg")], ["--help"], [], ["--bogus"], [PathOf("bad.sml")], [PathOf("*.nothing")]];
+        foreach (string[] args in runs)
+            Assert.StartsWith(Banner, Run(args).Out.ReplaceLineEndings("\n"));
+    }
+
     [Fact]
     public void ShowsUsageWhenRunWithoutArguments()
     {

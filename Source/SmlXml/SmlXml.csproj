@@ -8,6 +8,8 @@
     <RootNamespace>SmlXml</RootNamespace>
     <AssemblyName>smlxml</AssemblyName>
     <Version>1.0.0</Version>
+    <Company>Optimax Technologies, Inc.</Company>
+    <Copyright>Copyright (c) 2026 Optimax Technologies, Inc.</Copyright>
     <Product>smlxml</Product>
     <Description>Two-way converter between SML 1.0-SVG-3 and XML/SVG.</Description>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>

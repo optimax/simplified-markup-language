@@ -38,6 +38,7 @@ public static class CommandLine
 
     public static int Run(string[] args, TextWriter stdout, TextWriter stderr)
     {
+        WriteBanner(stdout);
         if (args.Length == 0)
         {
             stdout.WriteLine(Usage);
@@ -55,8 +56,7 @@ public static class CommandLine
                     stdout.WriteLine(Usage);
                     return Success;
                 case "-v" or "--version":
-                    stdout.WriteLine($"smlxml {VersionText()} (SML {SmlReader.Version})");
-                    return Success;
+                    return Success;     // the banner already shows the version
                 case "-f" or "--force":
                     force = true;
                     break;
@@ -135,6 +135,16 @@ public static class CommandLine
         stderr.WriteLine($"smlxml: {message}");
         stderr.WriteLine("Try 'smlxml --help'.");
         return UsageError;
+    }
+
+    /// <summary>The banner printed at the start of every run: version, copyright, license, and a blank line.
+    /// The version and copyright come from the assembly (Version and Copyright in SmlXml.csproj).</summary>
+    private static void WriteBanner(TextWriter stdout)
+    {
+        stdout.WriteLine($"smlxml {VersionText()} (SML {SmlReader.Version})");
+        stdout.WriteLine(typeof(CommandLine).Assembly.GetCustomAttribute<AssemblyCopyrightAttribute>()?.Copyright);
+        stdout.WriteLine("Freely distributed under MIT license.");
+        stdout.WriteLine();
     }
 
     private static string VersionText() =>

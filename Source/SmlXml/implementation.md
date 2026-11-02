@@ -6,6 +6,8 @@
 - Given an XML file, it writes SML with the same name; given an SML file, it writes XML beside the original.
 - Input file names may contain wildcards.
 - Run without arguments, it shows the usage.
+- Every run starts with this banner on standard output, followed by a blank line:
+  `smlxml 1.0.0 (SML 1.0-SVG-3)`, `Copyright (c) 2026 Optimax Technologies, Inc.`, `Freely distributed under MIT license.`
 - `--output` accepts a `*` pattern, so that `smlxml *.svg` followed by `smlxml -o *.out.svg *.sml` leaves `name.sml` and `name.out.svg` beside each `name.svg`.
 
 ## Behavior
@@ -29,6 +31,9 @@
   - `?`, or `*` in the folder part, is a usage error.
 - **One output per run.** An output already written by this run is refused for a later input, so `a.svg` and `a.xml` cannot both write `a.sml`, even with `--force`.
 - **Inputs are never outputs.** A file whose output path is also an input of the same run is refused, so `smlxml -f *` cannot convert `a.svg` to `a.sml` and `a.sml` back to `a.svg`.
+- **Banner.** `WriteBanner` runs first in every run, including `--help`, usage errors, and failed conversions; errors still go to standard error.
+  - The version comes from `<Version>` and the copyright from `<Copyright>` in `SmlXml.csproj`. `<Company>` and `<Copyright>` also appear in the `.exe`'s file properties on Windows.
+  - `-v` / `--version` prints only the banner, because its first line is the version.
 - **No arguments** prints the usage text on standard output and exits with 2, because nothing was converted. `--help` exits with 0.
 - **Errors** are reported on standard error as `file(line): error: message`, a format Visual Studio can jump to, and conversion continues with the next file.
 - **Exit codes:** 0 when every file converted, 1 when at least one conversion failed or a pattern matched no file, 2 for an invalid command line or no arguments.
