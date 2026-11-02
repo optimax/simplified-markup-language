@@ -12,11 +12,11 @@
 @ns http://www.w3.org/2000/svg
 
 # Path data: one command per line; --reflow also spaces it, as in M 10, 20.
-@block path d .d
+@block path data .d
 @layout path .d path
-@block glyph d .d
+@block glyph data .d
 @layout glyph .d path
-@block missing-glyph d .d
+@block missing-glyph data .d
 @layout missing-glyph .d path
 @block animateMotion path .path
 @layout animateMotion .path path
