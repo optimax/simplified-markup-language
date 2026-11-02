@@ -1,0 +1,140 @@
+{
+  "profile": "SVG-RTCP 1.0 draft",
+  "date": "2026-11-02",
+  "method": "lxml XML baseline + narrow generated-SML subset prototype; no KDL parser",
+  "caveats": [
+    "SML prototype is NOT an SML 1.0 general parser",
+    "Top-level XML processing instructions/comments not checked by subtree comparison",
+    "XML source lexical differences not compared",
+    "No visual rendering comparison",
+    "No KDL translation run"
+  ],
+  "results": [
+    {
+      "id": "01-basic-shapes",
+      "xml_baseline": "PASS",
+      "sml_prototype": "PASS",
+      "kdl_2_0": "NOT_RUN",
+      "notes": []
+    },
+    {
+      "id": "02-path-exact",
+      "xml_baseline": "PASS",
+      "sml_prototype": "PASS",
+      "kdl_2_0": "NOT_RUN",
+      "notes": []
+    },
+    {
+      "id": "03-text-mixed",
+      "xml_baseline": "PASS",
+      "sml_prototype": "PASS",
+      "kdl_2_0": "NOT_RUN",
+      "notes": []
+    },
+    {
+      "id": "04-whitespace",
+      "xml_baseline": "PASS",
+      "sml_prototype": "PASS",
+      "kdl_2_0": "NOT_RUN",
+      "notes": []
+    },
+    {
+      "id": "05-namespaces",
+      "xml_baseline": "PASS",
+      "sml_prototype": "PASS",
+      "kdl_2_0": "NOT_RUN",
+      "notes": []
+    },
+    {
+      "id": "06-prefix-shadow",
+      "xml_baseline": "PASS",
+      "sml_prototype": "PASS",
+      "kdl_2_0": "NOT_RUN",
+      "notes": []
+    },
+    {
+      "id": "07-definitions-references",
+      "xml_baseline": "PASS",
+      "sml_prototype": "PASS",
+      "kdl_2_0": "NOT_RUN",
+      "notes": []
+    },
+    {
+      "id": "08-styles-css",
+      "xml_baseline": "PASS",
+      "sml_prototype": "PASS",
+      "kdl_2_0": "NOT_RUN",
+      "notes": []
+    },
+    {
+      "id": "09-transforms",
+      "xml_baseline": "PASS",
+      "sml_prototype": "PASS",
+      "kdl_2_0": "NOT_RUN",
+      "notes": []
+    },
+    {
+      "id": "10-foreign-object",
+      "xml_baseline": "PASS",
+      "sml_prototype": "PASS",
+      "kdl_2_0": "NOT_RUN",
+      "notes": []
+    },
+    {
+      "id": "11-comments-pi",
+      "xml_baseline": "PASS",
+      "sml_prototype": "PASS",
+      "kdl_2_0": "NOT_RUN",
+      "notes": []
+    },
+    {
+      "id": "12-unicode-entities",
+      "xml_baseline": "PASS",
+      "sml_prototype": "PASS",
+      "kdl_2_0": "NOT_RUN",
+      "notes": []
+    },
+    {
+      "id": "13-images-href",
+      "xml_baseline": "PASS",
+      "sml_prototype": "PASS",
+      "kdl_2_0": "NOT_RUN",
+      "notes": []
+    },
+    {
+      "id": "14-metadata-vendor",
+      "xml_baseline": "PASS",
+      "sml_prototype": "PASS",
+      "kdl_2_0": "NOT_RUN",
+      "notes": []
+    },
+    {
+      "id": "15-svg-cdata",
+      "xml_baseline": "PASS",
+      "sml_prototype": "PASS",
+      "kdl_2_0": "NOT_RUN",
+      "notes": []
+    },
+    {
+      "id": "16-attribute-order",
+      "xml_baseline": "PASS",
+      "sml_prototype": "PASS",
+      "kdl_2_0": "NOT_RUN",
+      "notes": []
+    },
+    {
+      "id": "17-empty-and-siblings",
+      "xml_baseline": "PASS",
+      "sml_prototype": "PASS",
+      "kdl_2_0": "NOT_RUN",
+      "notes": []
+    },
+    {
+      "id": "18-whitespace-control",
+      "xml_baseline": "PASS",
+      "sml_prototype": "PASS",
+      "kdl_2_0": "NOT_RUN",
+      "notes": []
+    }
+  ]
+}
