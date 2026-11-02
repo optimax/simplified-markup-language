@@ -197,6 +197,84 @@ public sealed class CommandLineTests : IDisposable
         Assert.Equal(CommandLine.UsageError, Run("-o", PathOf("out2.sml"), PathOf("x*.xml")).Code);
     }
 
+    private void CreateSvg(string relative, string corpusFixture)
+    {
+        string source = Path.Combine(CorpusFolder(), corpusFixture + ".svg");
+        Directory.CreateDirectory(Path.GetDirectoryName(PathOf(relative))!);
+        File.Copy(source, PathOf(relative));
+    }
+
+    private static string CorpusFolder()
+    {
+        for (var dir = new DirectoryInfo(AppContext.BaseDirectory); dir is not null; dir = dir.Parent)
+        {
+            string candidate = Path.Combine(dir.FullName, "Tests", "svg-roundtrip", "corpus");
+            if (Directory.Exists(candidate))
+                return candidate;
+        }
+        throw new DirectoryNotFoundException("Tests/svg-roundtrip/corpus");
+    }
+
+    private void AssertSameDocument(string original, string roundTripped) =>
+        Assert.Null(DocumentComparer.FirstDifference(
+            XmlImporter.Read(File.ReadAllBytes(PathOf(original))), XmlImporter.Read(File.ReadAllBytes(PathOf(roundTripped)))));
+
+    [Fact]
+    public void OutputPatternRoundTripsEverySvgBesideTheOriginal()
+    {
+        CreateSvg("a.svg", "07-definitions-references");
+        CreateSvg("b.svg", "66-doctype-public");
+        CreateSvg("c.svg", "60a-indent-2");
+        Assert.Equal(CommandLine.Success, Run(PathOf("*.svg")).Code);
+        var (code, output, error) = Run("-o", PathOf("*.out.svg"), PathOf("*.sml"));
+        Assert.Equal(CommandLine.Success, code);
+        Assert.Empty(error);
+        Assert.Contains("a.sml -> ", output);
+        foreach (string name in new[] { "a", "b", "c" })
+            AssertSameDocument(name + ".svg", name + ".out.svg");
+    }
+
+    [Fact]
+    public void OutputPatternWithoutAFolderWritesBesideEachInput()
+    {
+        CreateSvg("one/x.y.svg", "01-basic-shapes");
+        CreateSvg("two/z.svg", "05-namespaces");
+        Assert.Equal(CommandLine.Success, Run(Path.Join(_dir, "*", "*.svg")).Code);
+        Assert.Equal(CommandLine.Success, Run("-o", "*.out.svg", Path.Join(_dir, "*", "*.sml")).Code);
+        AssertSameDocument("one/x.y.svg", "one/x.y.out.svg");
+        AssertSameDocument("two/z.svg", "two/z.out.svg");
+    }
+
+    [Fact]
+    public void OutputPatternWithAFolderCreatesItAndConvertsXmlInputs()
+    {
+        CreateSvg("p.xml", "14-metadata-vendor");
+        CreateSvg("q.xml", "19-prolog-epilog");
+        Assert.Equal(CommandLine.Success, Run("-o", Path.Join(_dir, "converted", "*.sml"), PathOf("*.xml")).Code);
+        Assert.Equal(["converted/p.sml", "converted/q.sml"], Existing(".sml"));
+    }
+
+    [Theory]
+    [InlineData("out/*/x.svg")]
+    [InlineData("a?.svg")]
+    [InlineData("literal.svg")]
+    public void RejectsInvalidOutputPatterns(string output)
+    {
+        Create("a.sml", "b.sml");
+        Assert.Equal(CommandLine.UsageError, Run("-o", output, PathOf("*.sml")).Code);
+    }
+
+    [Fact]
+    public void RefusesTwoInputsWithTheSameOutput()
+    {
+        File.WriteAllText(PathOf("a.svg"), SvgXml);
+        File.WriteAllText(PathOf("a.xml"), SvgXml);
+        var (code, _, error) = Run("--force", PathOf("a.*"));
+        Assert.Equal(CommandLine.ConversionFailed, code);
+        Assert.Contains("is already the output of", error);
+        Assert.Equal(["a.sml"], Existing(".sml"));
+    }
+
     [Fact]
     public void PrefersAnExistingFileWhoseNameContainsWildcardCharacters()
     {

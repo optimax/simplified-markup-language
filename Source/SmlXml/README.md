@@ -31,9 +31,20 @@ For example, `smlxml *.svg`, `smlxml drawings\*.sml`, or `smlxml art\**\*.svg`.
 
 Run `smlxml` without arguments to see the usage.
 
+### Output patterns
+
+When `--output` contains `*`, each input gets its own output, and `*` stands for the input's file name without its extension. Without a folder, each output goes beside its input; with a folder, into that folder, which is created if needed. For example, this converts every SVG to SML and back, leaving `name.sml` and `name.out.svg` beside each `name.svg`:
+
+```text
+smlxml *.svg
+smlxml -o *.out.svg *.sml
+```
+
+`smlxml -o converted\*.sml *.svg` writes the SML files into `converted`. An output pattern can use only `*`, and only in the file name. A literal `--output` (without `*`) still takes a single input file. Two inputs that would produce the same output, such as `a.svg` and `a.xml`, are refused. On Linux and macOS, quote patterns (`'*.out.svg'`) so that the shell passes them to `smlxml` unexpanded.
+
 | Option | Meaning |
 |---|---|
-| `-o`, `--output <path>` | Write to this file instead (one input file only) |
+| `-o`, `--output <path>` | Write to this file instead (one input file only), or with `*`, one file per input (see below) |
 | `-f`, `--force` | Overwrite an existing output file |
 | `-h`, `--help` | Show help |
 | `--version` | Show the version |

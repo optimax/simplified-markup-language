@@ -25,7 +25,9 @@ public static class CommandLine
         folders. Examples: smlxml *.svg    smlxml drawings\*.sml    smlxml art\**\*.svg
 
         Options:
-          -o, --output <path>  Write to this file instead (one input file only).
+          -o, --output <path>  Write to this file instead (one input file only). With *, write one output per
+                               input: * stands for the input's name without its extension, and without a
+                               folder each output goes beside its input. Example: smlxml -o *.out.svg *.sml
           -f, --force          Overwrite an existing output file.
           -h, --help           Show this help.
               --version        Show the version.
@@ -76,11 +78,17 @@ public static class CommandLine
         }
         if (inputs.Count == 0)
             return Fail(stderr, "no input file");
+        bool outputPattern = output is not null && output.Contains('*');
+        if (output is not null && output.Contains('?'))
+            return Fail(stderr, "an --output pattern can only use *");
+        if (outputPattern && (Path.GetDirectoryName(output) ?? "").Contains('*'))
+            return Fail(stderr, "an --output pattern can use * only in the file name");
 
         // Expand every pattern before converting anything, so files written by this run never become inputs.
         // A name that exists literally is used as is (on Linux, * and ? are legal in file names).
         var files = new List<string>();
-        var allInputs = new HashSet<string>(FileExpander.PathComparer);
+        var run = new RunContext(force, new HashSet<string>(FileExpander.PathComparer),
+            new Dictionary<string, string>(FileExpander.PathComparer), stdout, stderr);
         int result = Success;
         foreach (string input in inputs)
         {
@@ -92,19 +100,34 @@ public static class CommandLine
             }
             foreach (string match in matches)
             {
-                if (allInputs.Add(Path.GetFullPath(match)))
+                if (run.Inputs.Add(Path.GetFullPath(match)))
                     files.Add(match);
             }
         }
-        if (output is not null && files.Count > 1)
-            return Fail(stderr, "--output can only be used with one input file");
+        if (output is not null && !outputPattern && files.Count > 1)
+            return Fail(stderr, "--output can only be used with one input file, unless it contains *");
 
         foreach (string file in files)
         {
-            if (!Convert(file, output, force, allInputs, stdout, stderr))
+            string? target = outputPattern ? ApplyOutputPattern(output!, file) : output;
+            if (!Convert(file, target, run))
                 result = ConversionFailed;
         }
         return result;
+    }
+
+    /// <summary>The state of one run: the full paths of all inputs, and of each output written so far with its
+    /// input.</summary>
+    private sealed record RunContext(
+        bool Force, HashSet<string> Inputs, Dictionary<string, string> Outputs, TextWriter Out, TextWriter Err);
+
+    /// <summary>Applies an --output pattern to one input: each * becomes the input's file name without its
+    /// extension. A pattern without a folder puts the output beside the input.</summary>
+    private static string ApplyOutputPattern(string pattern, string input)
+    {
+        string name = Path.GetFileName(pattern).Replace("*", Path.GetFileNameWithoutExtension(input));
+        string? folder = Path.GetDirectoryName(pattern);
+        return string.IsNullOrEmpty(folder) ? Path.Join(Path.GetDirectoryName(input), name) : Path.Join(folder, name);
     }
 
     private static int Fail(TextWriter stderr, string message)
@@ -120,16 +143,17 @@ public static class CommandLine
 
     private static bool IsSml(string path) => Path.GetExtension(path).Equals(".sml", StringComparison.OrdinalIgnoreCase);
 
-    /// <summary>Converts one file. Errors are reported as "file(line): error: message". allInputs holds the full
-    /// paths of every input of this run: an output that is also an input is refused, so that a pattern such as *
-    /// cannot convert a.svg to a.sml and a.sml back to a.svg in the same run.</summary>
-    private static bool Convert(string input, string? output, bool force, IReadOnlySet<string> allInputs, TextWriter stdout, TextWriter stderr)
+    /// <summary>Converts one file to output, or to its default name when output is null. Errors are reported as
+    /// "file(line): error: message". An output that is also an input of the run is refused, so that a pattern
+    /// such as * cannot convert a.svg to a.sml and a.sml back to a.svg; so is an output already written by the
+    /// run, so that two inputs (a.svg and a.xml) cannot overwrite each other's a.sml.</summary>
+    private static bool Convert(string input, string? output, RunContext run)
     {
         try
         {
             if (!File.Exists(input))
             {
-                stderr.WriteLine($"{input}: error: file not found");
+                run.Err.WriteLine($"{input}: error: file not found");
                 return false;
             }
             byte[] data = File.ReadAllBytes(input);
@@ -145,33 +169,40 @@ public static class CommandLine
                 output ??= Path.ChangeExtension(input, ".sml");
                 text = SmlWriter.Write(XmlImporter.Read(data));
             }
-            if (Path.GetFullPath(output) == Path.GetFullPath(input))
+            string fullOutput = Path.GetFullPath(output);
+            if (fullOutput == Path.GetFullPath(input))
             {
-                stderr.WriteLine($"{input}: error: the output would overwrite the input");
+                run.Err.WriteLine($"{input}: error: the output would overwrite the input");
                 return false;
             }
-            if (allInputs.Contains(Path.GetFullPath(output)))
+            if (run.Inputs.Contains(fullOutput))
             {
-                stderr.WriteLine($"{input}: error: {output} is also an input of this run; convert them separately");
+                run.Err.WriteLine($"{input}: error: {output} is also an input of this run; convert them separately");
                 return false;
             }
-            if (File.Exists(output) && !force)
+            if (run.Outputs.TryGetValue(fullOutput, out string? earlier))
             {
-                stderr.WriteLine($"{input}: error: {output} already exists; use --force to overwrite it");
+                run.Err.WriteLine($"{input}: error: {output} is already the output of {earlier} in this run");
+                return false;
+            }
+            if (File.Exists(output) && !run.Force)
+            {
+                run.Err.WriteLine($"{input}: error: {output} already exists; use --force to overwrite it");
                 return false;
             }
             WriteAtomically(output, text);
-            stdout.WriteLine($"{input} -> {output}");
+            run.Outputs[fullOutput] = input;
+            run.Out.WriteLine($"{input} -> {output}");
             return true;
         }
         catch (SmlException e)
         {
-            stderr.WriteLine(e.Line is { } line ? $"{input}({line}): error: {e.Reason}" : $"{input}: error: {e.Reason}");
+            run.Err.WriteLine(e.Line is { } line ? $"{input}({line}): error: {e.Reason}" : $"{input}: error: {e.Reason}");
             return false;
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException)
         {
-            stderr.WriteLine($"{input}: error: {e.Message}");
+            run.Err.WriteLine($"{input}: error: {e.Message}");
             return false;
         }
     }
@@ -179,10 +210,11 @@ public static class CommandLine
     private static bool IsSvg(SmlDocument doc) => doc.Root.Name == new ExpandedName(SvgNamespace, "svg");
 
     /// <summary>Writes to a temporary file beside the target, then renames it, so a failure never leaves a
-    /// partial output file.</summary>
+    /// partial output file. A missing output folder (from --output) is created.</summary>
     private static void WriteAtomically(string path, string text)
     {
         string directory = Path.GetDirectoryName(Path.GetFullPath(path))!;
+        Directory.CreateDirectory(directory);
         string temp = Path.Combine(directory, $".{Path.GetFileName(path)}.{Guid.NewGuid():N}.tmp");
         try
         {
