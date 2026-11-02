@@ -104,6 +104,7 @@ public sealed class CommandLineTests : IDisposable
     {
         Assert.Contains("Usage: smlxml", Run("--help").Out);
         Assert.Contains("SML 1.0-SVG-3", Run("--version").Out);
+        Assert.Equal(Run("--version"), Run("-v"));
     }
 
     [Fact]

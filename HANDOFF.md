@@ -23,8 +23,9 @@ Provide `smlxml`, a two-way SML ↔ XML/SVG command-line converter in C# on .NET
 - **`Tests/svg-roundtrip/crosscheck_csharp.py`** compares the C# and Python implementations on random documents, non-canonical SML spellings, and SML mutants.
 - Solution-wide environment, conventions, decisions, and traps are in `implementation.md`.
 
-## Files changed in this task (output patterns)
+## Files changed in recent tasks (output patterns; `-v` for `--version`)
 
+- `-v` is the short form of `--version`: `Source/SmlXml/CommandLine.cs` (`Run`, usage text), `Source/SmlXml/README.md`, `Source/Sml.Tests/CommandLineTests.cs`.
 - Changed: `Source/SmlXml/CommandLine.cs` (`Run`, `Convert`, new `RunContext` and `ApplyOutputPattern`, `WriteAtomically` creates a missing output folder, usage text), `Source/Sml.Tests/CommandLineTests.cs`, `Source/SmlXml/README.md`, `Source/SmlXml/implementation.md`.
 
 ## Build and test results

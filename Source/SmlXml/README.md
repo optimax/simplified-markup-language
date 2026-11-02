@@ -47,7 +47,7 @@ smlxml -o *.out.svg *.sml
 | `-o`, `--output <path>` | Write to this file instead (one input file only), or with `*`, one file per input (see below) |
 | `-f`, `--force` | Overwrite an existing output file |
 | `-h`, `--help` | Show help |
-| `--version` | Show the version |
+| `-v`, `--version` | Show the version |
 
 An existing output file is never overwritten without `--force`. Errors appear as `file(line): error: message`. The exit code is 0 on success, 1 if a conversion failed or a pattern matched no file, and 2 for an invalid command line, including no arguments.
 

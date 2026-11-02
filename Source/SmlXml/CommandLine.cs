@@ -30,7 +30,7 @@ public static class CommandLine
                                folder each output goes beside its input. Example: smlxml -o *.out.svg *.sml
           -f, --force          Overwrite an existing output file.
           -h, --help           Show this help.
-              --version        Show the version.
+          -v, --version        Show the version.
 
         Exit codes: 0 success, 1 a conversion failed or a pattern matched no file,
         2 invalid command line (including no arguments).
@@ -54,7 +54,7 @@ public static class CommandLine
                 case "-h" or "--help" or "/?":
                     stdout.WriteLine(Usage);
                     return Success;
-                case "--version":
+                case "-v" or "--version":
                     stdout.WriteLine($"smlxml {VersionText()} (SML {SmlReader.Version})");
                     return Success;
                 case "-f" or "--force":
