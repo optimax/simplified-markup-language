@@ -19,15 +19,17 @@ Provide `smlxml`, a two-way SML ↔ XML/SVG command-line converter in C# on .NET
   - It accepts `*` patterns in `--output` (one output per input, `ApplyOutputPattern`).
   - It shows the usage when run without arguments.
   - It writes SML with a profile (`--profile svg`, `svg.smlprofile` beside the executable). That output is exact by default, or lossy with `--reflow` (specification §3.2).
+  - With `--verbose`, it writes every attribute and namespace declaration on its own line.
 
   Behavior and requirements are in `Source/SmlXml/implementation.md`, usage and the profile format in `Source/SmlXml/README.md`.
-- **`Source/Sml.Tests`** has 1,337 xUnit tests:
+- **`Source/Sml.Tests`** has 1,892 xUnit tests:
   - the corpus, compared byte for byte with the Python reference output;
   - both round trips;
   - the negative corpus;
   - C# ports of the CP and key SV tests;
   - command-line tests, including wildcards, output patterns, profiles, and the matcher (`FileExpanderTests`);
-  - `ProfileTests`: layouts, the profile format, and the profile writer in both modes, over every fixture and every file of `Tests/svg-corpus`.
+  - `ProfileTests`: layouts, the profile format, and the profile writer in both modes, over every fixture and every file of `Tests/svg-corpus`;
+  - `WriterOptionsTests`: vertical attributes, over the same files.
 - **`Tests/svg-roundtrip/crosscheck_csharp.py`** compares the C# and Python implementations on random documents, non-canonical SML spellings, and SML mutants.
 - **`Tests/svg-corpus`** holds 505 real-world SVG files from 16 MIT-, ISC-, and BSD-licensed projects: icon sets, emoji, flags, animated icons, and the W3C SVG 1.1 and resvg test suites. `ProfileTests` reads them; the Python harness does not.
   - `gather_corpus.py` downloads the sources at pinned versions, selects the files, and writes them and `THIRD-PARTY-NOTICES.md`.
@@ -35,25 +37,22 @@ Provide `smlxml`, a two-way SML ↔ XML/SVG command-line converter in C# on .NET
 - **`README.md`** at the root introduces the project on GitHub. It assumes a public repository under the MIT license.
 - Solution-wide environment, conventions, decisions, and traps are in `implementation.md`.
 
-## Files changed in the last task (smlxml profiles)
+## Files changed in the last task (smlxml --verbose)
 
-- New: `Source/Sml/SmlProfile.cs`, `Source/Sml/ValueLayout.cs`, `Source/SmlXml/svg.smlprofile`, `Source/Sml.Tests/ProfileTests.cs`.
+- New `Source/Sml/SmlWriterOptions.cs`: Profile, Reflow, and VerticalAttributes.
 - `Source/Sml/SmlWriter.cs`:
-  - new overload `Write(doc, profile, reflow)`;
-  - new `Effective`, `Segmented`, `PlanAliases`, `QNameOnRoot`, `AttributeResolvesOnRoot`, `Attribute`, `Block`;
-  - `Write`, `Value`, and `Element` adjusted.
-
-  Without a profile the canonical output is unchanged.
-- `Source/SmlXml/CommandLine.cs`: `-p`/`--profile`, `-r`/`--reflow`, `FindProfile`, `RunContext`, `Convert`, usage text.
-- `Source/SmlXml/SmlXml.csproj`: copies `*.smlprofile` to build and publish output.
-- `Source/Sml.Tests/CommandLineTests.cs`: profile tests.
-- `Documents/SML-Language-Specification.md`: new §3.2 (readable attribute reflow), with §1.2, §3.1, §8.5, the change list, §15, and §17 adjusted.
-- Docs: `Source/SmlXml/README.md` (Profiles section), `Source/SmlXml/implementation.md`, `README.md`, `implementation.md`.
+  - new overload `Write(doc, SmlWriterOptions)`;
+  - `Write(doc, profile, reflow)` is now shorthand for it;
+  - `Element` skips inline lists when `VerticalAttributes` is set.
+- `Source/SmlXml/CommandLine.cs`: `--verbose`, `RunContext` holds the writer options, `Convert`, and the usage text.
+- Tests: new `Source/Sml.Tests/WriterOptionsTests.cs`; `CommandLineTests.cs` (verbose); `ProfileTests.cs` (`TestsFolder` shared).
+- Docs: `Source/SmlXml/README.md`, `Source/SmlXml/implementation.md`.
 
 ## Build and test results
 
 - `dotnet build SimplifiedMarkupLanguage.slnx -c Release`: 0 warnings, 0 errors.
-- `dotnet test`: 1,337/1,337 passed.
+- `dotnet test`: 1,892/1,892 passed.
+- `smlxml --verbose` over a copy of `Tests/svg-corpus`: the Python prototype read all 495 accepted files back equal to their originals.
 - Profiles over a copy of `Tests/svg-corpus` with the real executable, checked by the Python prototype (script not in the repository):
   - `smlxml -p svg` output read back equal to the original for all 495 accepted files;
   - `smlxml -p svg -r` reflowed values in 365 files;

@@ -48,12 +48,24 @@ smlxml -o *.out.svg *.sml
 | `-f`, `--force` | Overwrite an existing output file |
 | `-p`, `--profile <name>` | Write SML with a profile's aliases and layouts (see [Profiles](#profiles)) |
 | `-r`, `--reflow` | With `--profile`: one item per line in blocks; readable, but not lossless |
+| `--verbose` | Write every attribute and namespace declaration on its own line, never in a `name(...)` list |
 | `-h`, `--help` | Show help |
 | `-v`, `--version` | Show the version (the banner) |
 
 An existing output file is never overwritten without `--force`. Errors appear as `file(line): error: message`. The exit code is 0 on success, 1 if a conversion failed or a pattern matched no file, and 2 for an invalid command line or profile, including no arguments.
 
-SML output is in the canonical form of the specification (§14.2), unless a profile is used. XML input must be namespace-well-formed XML 1.0 without a DTD internal subset (§3); a DOCTYPE with only a public or system identifier is kept, and its DTD is never loaded.
+SML output is in the canonical form of the specification (§14.2), unless a profile or `--verbose` is used.
+
+The canonical form writes short attribute lists inline: `path(d=M0 0 L1 1, fill=#fff)/`. With `--verbose`, every attribute and namespace declaration gets its own line instead:
+
+```text
+path
+  .d M0 0 L1 1
+  .fill #fff
+end
+```
+
+Elements without attributes keep their compact forms (`g/`, `title = Text`), and values are written as in the canonical form. The SML reads back as the same document. `--verbose` has no short form, because `-v` is `--version`; it can be combined with `--profile`. XML input must be namespace-well-formed XML 1.0 without a DTD internal subset (§3); a DOCTYPE with only a public or system identifier is kept, and its DTD is never loaded.
 
 ## Profiles
 

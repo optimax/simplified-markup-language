@@ -34,6 +34,8 @@ public static class CommandLine
                                a profile beside smlxml: smlxml -p svg uses svg.smlprofile.
           -r, --reflow         With --profile: put one item per line, such as one path command per line.
                                Readable, but the values change: the XML written back differs in whitespace.
+              --verbose        Write every attribute and namespace declaration on its own line, never in a
+                               name(...) list (XML to SML only).
           -h, --help           Show this help.
           -v, --version        Show the version.
 
@@ -51,7 +53,7 @@ public static class CommandLine
         }
         var inputs = new List<string>();
         string? output = null, profileName = null;
-        bool force = false, reflow = false;
+        bool force = false, reflow = false, verbose = false;
         for (int i = 0; i < args.Length; i++)
         {
             string arg = args[i];
@@ -77,6 +79,9 @@ public static class CommandLine
                     break;
                 case "-r" or "--reflow":
                     reflow = true;
+                    break;
+                case "--verbose":
+                    verbose = true;
                     break;
                 case "--":
                     inputs.AddRange(args[(i + 1)..]);
@@ -123,7 +128,8 @@ public static class CommandLine
         // Expand every pattern before converting anything, so files written by this run never become inputs.
         // A name that exists literally is used as is (on Linux, * and ? are legal in file names).
         var files = new List<string>();
-        var run = new RunContext(force, profile, reflow, new HashSet<string>(FileExpander.PathComparer),
+        var writer = new SmlWriterOptions { Profile = profile, Reflow = reflow, VerticalAttributes = verbose };
+        var run = new RunContext(force, writer, new HashSet<string>(FileExpander.PathComparer),
             new Dictionary<string, string>(FileExpander.PathComparer), stdout, stderr);
         int result = Success;
         foreach (string input in inputs)
@@ -154,7 +160,7 @@ public static class CommandLine
 
     /// <summary>The state of one run: the options, the full paths of all inputs, and of each output written so far
     /// with its input.</summary>
-    private sealed record RunContext(bool Force, SmlProfile? Profile, bool Reflow, HashSet<string> Inputs,
+    private sealed record RunContext(bool Force, SmlWriterOptions Writer, HashSet<string> Inputs,
         Dictionary<string, string> Outputs, TextWriter Out, TextWriter Err);
 
     /// <summary>The file of a --profile argument: an existing file, or for a plain name (no folder or extension),
@@ -226,7 +232,7 @@ public static class CommandLine
             {
                 output ??= Path.ChangeExtension(input, ".sml");
                 SmlDocument doc = XmlImporter.Read(data);
-                text = run.Profile is null ? SmlWriter.Write(doc) : SmlWriter.Write(doc, run.Profile, run.Reflow);
+                text = SmlWriter.Write(doc, run.Writer);
             }
             string fullOutput = Path.GetFullPath(output);
             if (fullOutput == Path.GetFullPath(input))

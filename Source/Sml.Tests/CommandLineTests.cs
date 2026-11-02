@@ -342,6 +342,19 @@ public sealed class CommandLineTests : IDisposable
         Assert.Equal(CommandLine.UsageError, Run("-p").Code);
         Assert.False(File.Exists(PathOf("drawing.sml")));
     }
+
+    [Fact]
+    public void VerboseWritesEveryAttributeOnItsOwnLine()
+    {
+        File.WriteAllText(PathOf("drawing.svg"), SvgXml);
+        Assert.Equal(CommandLine.Success, Run("--verbose", PathOf("drawing.svg")).Code);
+        Assert.Equal("@sml 1.0-SVG-3\nsvg\n  @ns http://www.w3.org/2000/svg\n  rect\n    .width 1\n  end\nend\n",
+            File.ReadAllText(PathOf("drawing.sml")));
+        File.WriteAllText(PathOf("path.svg"), PathXml);
+        Assert.Equal(CommandLine.Success, Run("--verbose", "-p", "svg", "-r", PathOf("path.svg")).Code);
+        Assert.Contains("svg\n  @ns http://www.w3.org/2000/svg\n  @block path d .d\n  path\n    d |\n", File.ReadAllText(PathOf("path.sml")));
+        Assert.Contains("--verbose", Run("--help").Out);
+    }
 }
 
 public class FileExpanderTests

@@ -9,7 +9,7 @@ public class ProfileTests
     private static readonly SmlProfile Svg =
         SmlProfile.Parse(File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "svg.smlprofile"), Encoding.UTF8));
 
-    private static readonly string TestsFolder = FindTestsFolder();
+    internal static readonly string TestsFolder = FindTestsFolder();
 
     private static string FindTestsFolder()
     {

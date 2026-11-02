@@ -76,6 +76,7 @@ SML also has vertical attributes, multiline literal blocks for long paths, CSS, 
 | `smlxml -o *.out.svg *.sml` | Writes `name.out.svg` for each `name.sml` |
 | `smlxml --profile svg drawing.svg` | Writes `drawing.sml` with path data, point lists, styles, and transforms broken at items, exactly |
 | `smlxml --profile svg --reflow drawing.svg` | Writes them one item per line in blocks: more readable, but no longer lossless |
+| `smlxml --verbose drawing.svg` | Writes every attribute on its own line instead of in `name(...)` lists |
 
 An existing file is never overwritten without `-f`. Errors are reported as `file(line): error: message`. See [`Source/SmlXml/README.md`](Source/SmlXml/README.md) for all options.
 
