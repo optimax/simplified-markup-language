@@ -17,6 +17,8 @@ The capitalized words **MUST**, **MUST NOT**, **SHOULD**, and **MAY** have their
 3. **Laid-out comment blocks.** Under `@indent`, a `@comment` block in a laid-out position gets predicted edges: a line break, its lines indented one level deeper than the comment, and a line break and the comment's own indentation. This is how pretty-printers lay out multi-line comments, so such comments become readable blocks instead of quoted strings (§6.4). Case SV-78 covers it.
 4. **Unindented layout.** `@indent 0` describes XML that puts each child on its own line without indentation, as many design tools export it. The predicted whitespace is a single LF, so such documents need no text statements for it (§6.4). Case SV-79 covers it.
 5. **Line breaks quoted.** A value made only of line breaks, such as a text node `\n`, is written quoted (`= "\n"`) instead of as a block of blank lines (§14.2). Case SV-80 covers it.
+6. **Per-element indentation steps.** Predicted whitespace is now relative: an element's indentation is its parent's indentation followed by its parent's step. The step is the `@indent` unit, unless an element states its own with `@indent N` or `@indent tab` in its declaration section. A subtree indented differently from the rest of the document, such as embedded metadata, is then laid out too, instead of being spelled out with text statements (§§5.1, 6.4). For documents without per-element steps, the predicted whitespace is unchanged. Case SV-81 covers it.
+7. **Laid-out text blocks.** Under `@indent`, a compact `name = """` element in a laid-out position gets predicted edges, like a laid-out comment block. Pretty-printed multi-line text, such as a description indented one level deeper than its element, becomes a readable block instead of a quoted string (§6.4). The `= """` statement of the normal form stays literal. Case SV-82 covers it.
 
 **Changes in 1.0-SVG-3, since 1.0-SVG-2** (blocks are spelled here as 1.0-SVG-3 wrote them, with `|`):
 
@@ -220,7 +222,7 @@ Without reflow, a writer MAY still use a layout to show a value one item per lin
 | `@element QName` | Explicit normal element opener, required for an element named `end` |
 | `@sml VERSION` | Optional document version header; must come first (§11) |
 | `@standalone yes` / `@standalone no` | Optional XML standalone metadata |
-| `@indent N` / `@indent tab` | Optional header enabling the formatting-whitespace model (§6.4) |
+| `@indent N` / `@indent tab` | Optional header enabling the formatting-whitespace model; in a declaration section, the indentation step of that element's children (§6.4) |
 | `@doctype name [PUBLIC "pubid" "sysid" \| SYSTEM "sysid"]` | Optional document type declaration, preserved as opaque metadata (§11.1) |
 | `@use identifier version [optional]` | Opt-in extension declaration (see §13) |
 | `@identifier:name [value]` | Directive of a declared extension (see §13) |
@@ -232,15 +234,15 @@ There is **no** `@cdata`, `@encoding`, `@xml`, `|+`, or `|-` in this simplified 
 A normal element opener is followed by a **declaration section**. It contains, in this order:
 
 1. zero or more `@ns` namespace declarations (§10), which **MUST come first**;
-2. then, in any order, `@block` declarations (§8), ordinary `.attribute` statements, alias invocations (`alias """`), and at most one `@noindent` marker (§6.4).
+2. then, in any order, `@block` declarations (§8), ordinary `.attribute` statements, alias invocations (`alias """`), at most one `@noindent` marker, and at most one `@indent` step (§6.4).
 
 Blank lines, `#` source comments, and extension directives (§13) may appear anywhere. An `@ns` line after any statement of the second group is an error.
 
 Because all of an element's namespace declarations precede everything else, its name, attributes, `@block` declarations, and alias invocations resolve against one fixed set of bindings in a single pass. Those declarations are the inline `xmlns` entries on the opener (§6.3) and the `@ns` lines. This is the only ordering rule for namespaces; other sections refer to it.
 
-Once the first actual child/text/`@comment`/`@pi` occurs, the declaration section closes. Any subsequent `.attribute`, `@ns`, `@block`, `@noindent`, or alias invocation is an error. A bare name line is always an element opener, whether or not it matches an alias name (§8.3). A streaming `StartElement` event is emitted when the declaration section closes, after the parser has collected namespace bindings, block declarations, and all ordinary and aliased attributes.
+Once the first actual child/text/`@comment`/`@pi` occurs, the declaration section closes. Any subsequent `.attribute`, `@ns`, `@block`, `@noindent`, `@indent`, or alias invocation is an error. A bare name line is always an element opener, whether or not it matches an alias name (§8.3). A streaming `StartElement` event is emitted when the declaration section closes, after the parser has collected namespace bindings, block declarations, and all ordinary and aliased attributes.
 
-An empty element (`name/`) and an inline-text element (`name = value`) have no declaration section. They cannot have `.attribute`, `@ns`, `@block`, or `@noindent` statements or invoke a named block, and they declare namespaces only through inline `xmlns` entries (§6.3). An element that needs vertical attributes, aliases, or `@ns` lines uses the normal opener plus `end`, even if it is otherwise empty or text-only.
+An empty element (`name/`) and an inline-text element (`name = value`) have no declaration section. They cannot have `.attribute`, `@ns`, `@block`, `@noindent`, or `@indent` statements or invoke a named block, and they declare namespaces only through inline `xmlns` entries (§6.3). An element that needs vertical attributes, aliases, or `@ns` lines uses the normal opener plus `end`, even if it is otherwise empty or text-only.
 
 ### 5.2 Explicit element opener (`@element`)
 
@@ -356,7 +358,7 @@ Inline declarations count as made before the element's `@ns` lines. Declaring th
 
 Strict conversion preserves every whitespace-only text node (§3). In pretty-printed XML those nodes sit between nearly all elements, and writing each one as `= "\n  "` would make the SML hard to read. The optional `@indent` header states the indentation pattern once, and the reader regenerates the nodes. Like `@block`, this is an SML representation choice: `@indent` and `@noindent` are not part of the information model and never appear in XML output.
 
-**Header.** `@indent N`, where `N` is a decimal integer from 0 to 16 without leading zeros meaning `N` spaces, or `@indent tab`, MAY appear once in the prolog. `@indent 0` describes XML that puts each child on its own line without indentation, as many design tools export it: the predicted whitespace is then a single LF. It sets the indent unit `I`. Without `@indent`, the reader never inserts whitespace, and every text node is written explicitly.
+**Header.** `@indent N`, where `N` is a decimal integer from 0 to 16 without leading zeros meaning `N` spaces, or `@indent tab`, MAY appear once in the prolog. `@indent 0` describes XML that puts each child on its own line without indentation, as many design tools export it: the predicted whitespace is then a single LF. It sets the indent unit `I`. Without `@indent`, the reader never inserts whitespace, and every text node is written explicitly. The same directive in an element's declaration section sets that element's step instead (see *Per-element steps* below).
 
 **Laid-out and exact elements.** When `@indent` is present, an element `E` is **laid out** when both of the following hold:
 
@@ -365,9 +367,40 @@ Strict conversion preserves every whitespace-only text node (§3). In pretty-pri
 
 Every other element is **exact**: elements with no content, elements whose first content statement is text (`=`), and elements marked `@noindent`. An exact element's content is exactly what its statements say.
 
-**Predicted whitespace.** For a laid-out element at depth `d` (the root has depth 0) whose non-text children are `N1 … Nk`, the reader inserts the text `LF + I×(d+1)` before each `Ni` and `LF + I×d` after `Nk`. Here `I×n` means `I` repeated `n` times. A text statement inside a laid-out element is an error; mixed content whose first node is an element, comment, or PI MUST be marked `@noindent`.
+**Indentation and step.** Every element has an *indentation* `W` and a *step* `S`, both strings of spaces or tabs. The root's indentation is empty. Every other element's indentation is its parent's indentation followed by its parent's step, whether or not the parent is laid out. An element's step is `I`, unless the element has its own `@indent` (see *Per-element steps*). Without per-element steps, an element at depth `d` (the root has depth 0) therefore has indentation `I×d`, where `I×n` means `I` repeated `n` times.
+
+**Predicted whitespace.** For a laid-out element with indentation `W` and step `S` whose non-text children are `N1 … Nk`, the reader inserts the text `LF + W + S` before each `Ni` and `LF + W` after `Nk`. A text statement inside a laid-out element is an error; mixed content whose first node is an element, comment, or PI MUST be marked `@noindent`.
 
 **`@noindent`.** A declaration-section directive with no operands, allowed at most once per element. It applies only to that element, never to its descendants.
+
+**Per-element steps.** `@indent N` or `@indent tab` in an element's declaration section, with `N` as in the header, sets that element's step. It is allowed only in a document with the `@indent` header, at most once per element. Like `@noindent`, it applies only to that element: its children's indentation includes it, but their own steps are `I` again unless they have their own `@indent`. It is how a subtree indented differently from the rest of the document, such as metadata copied from another file, stays laid out:
+
+```sml
+@indent 2
+svg
+  @ns http://www.w3.org/2000/svg
+  metadata
+    @indent 4
+    title = Map
+    source = Survey
+  end
+  rect/
+end
+```
+
+is the XML
+
+```xml
+<svg xmlns="http://www.w3.org/2000/svg">
+  <metadata>
+      <title>Map</title>
+      <source>Survey</source>
+  </metadata>
+  <rect/>
+</svg>
+```
+
+`metadata` has indentation `I` and step four spaces, so the reader inserts `LF` and six spaces before each child, and `LF` and two spaces before `</metadata>`.
 
 **Streaming.** The reader decides whether `E` is laid out when its declaration section closes, so predicted whitespace is emitted as ordinary `Text` events without lookahead.
 
@@ -403,21 +436,23 @@ is the XML:
 
 `svg` (depth 0) and `g` (depth 1) are laid out. `text` is exact because of `@noindent`; without it, `= " B"` would be an error. `tspan` has no element children, so nothing is predicted for it.
 
-**Writer rule.** A writer that emits `@indent` MUST, for each element that has at least one non-text child, compare the element's actual content with the prediction, after coalescing adjacent text nodes and dropping empty ones:
+**Writer rule.** A writer that emits `@indent` MUST, for each element that has at least one non-text child, compare the element's actual content with the prediction for its indentation and a step, after coalescing adjacent text nodes and dropping empty ones. The step is `I`, or another step that the writer then states with `@indent` in the element's declaration section:
 
 - **Equal:** write the non-text children only.
 - **Different, and the first node is text:** write all nodes explicitly. The element is exact because its first statement is text.
 - **Different otherwise:** emit `@noindent` and write all nodes explicitly.
 
-Each case reproduces the element's content exactly, so the round trip of §3 holds. Elements without non-text children are written explicitly, as without `@indent`.
+Each case reproduces the element's content exactly, so the round trip of §3 holds. Elements without non-text children are written explicitly, as without `@indent`. The indentation of an element's children follows from the step written for it, so a writer compares each element after deciding its parent's step.
 
-**Laid-out comment blocks.** Pretty-printed XML lays out a multi-line comment like the content around it. `<!--` is followed by a line break and the comment's lines, indented one level deeper than the comment, then a line break and the comment's own indentation before `-->`. A block cannot reproduce that whitespace (§7), so `@indent` predicts it as well. A comment is in a *laid-out position* when it is a child of a laid-out element, or when it comes before or after the root element in a document with `@indent`. Its *depth* d is 0 before or after the root, and otherwise one more than the depth of its parent element. A `@comment` block in a laid-out position has this data, where U is the indentation unit:
+**Laid-out positions.** A node is in a *laid-out position* when it is a child of a laid-out element, or when it comes before, after, or is the root element in a document with `@indent`. Its *indentation* `W` is the whitespace predicted before it, without the LF: empty at the top level, and otherwise its parent's indentation followed by its parent's step. For an element, this is the indentation defined above.
+
+**Laid-out comment blocks.** Pretty-printed XML lays out a multi-line comment like the content around it. `<!--` is followed by a line break and the comment's lines, indented one unit deeper than the comment, then a line break and the comment's own indentation before `-->`. A block cannot reproduce that whitespace (§7), so `@indent` predicts it as well. A `@comment` block in a laid-out position with indentation `W` has this data:
 
 1. LF;
-2. each payload line, prefixed with d + 1 units unless it is empty, joined by LF;
-3. LF and d units.
+2. each payload line, prefixed with `W + I` unless it is empty, joined by LF;
+3. LF and `W`.
 
-A block with no payload lines gives LF and d units. Elsewhere, a comment block is literal (§7). Raw and quoted comments, and the lines of `@comments` (§9), are never predicted. For example,
+A block with no payload lines gives LF and `W`. Elsewhere, a comment block is literal (§7). Raw and quoted comments, and the lines of `@comments` (§9), are never predicted. The payload is indented by the unit `I`, never by a per-element step. For example,
 
 ```sml
 @indent 2
@@ -442,6 +477,43 @@ is the XML
 ```
 
 A writer MUST NOT write a comment in a laid-out position as a block unless its data has exactly this layout and the payload is a block that §7 reproduces exactly. Other multi-line comment data in a laid-out position is quoted.
+
+**Laid-out text blocks.** Pretty-printers lay out the multi-line text of an element such as `desc`, `style`, or `script` the same way. A compact text element whose value is a block, `name = """` or `name(…) = """`, in a laid-out position with indentation `W` has the text that a laid-out comment block with the same payload and indentation would have as its data. A text statement `= """` in the normal form is literal, and so is a compact text element elsewhere. For example,
+
+```sml
+@indent 2
+svg
+  @ns http://www.w3.org/2000/svg
+  desc = """
+    A map of the town centre,
+    drawn from the 2025 survey.
+  """
+end
+```
+
+is the XML
+
+```xml
+<svg xmlns="http://www.w3.org/2000/svg">
+  <desc>
+    A map of the town centre,
+    drawn from the 2025 survey.
+  </desc>
+</svg>
+```
+
+A writer MUST NOT write the text of a compact element in a laid-out position as a block unless the text has exactly this layout and the payload is a block that §7 reproduces exactly. Text that a literal block reproduces, but that does not have this layout, uses the normal form, whose `= """` statement is literal. Under `@indent 2`,
+
+```sml
+desc
+  = """
+    first line
+    second line
+  """
+end
+```
+
+is `<desc>first line` LF `second line</desc>`, with no whitespace at the edges. Other multi-line text in a laid-out compact element is quoted.
 
 ### 6.5 Long values: quoted continuation lines
 
@@ -499,7 +571,7 @@ The `desc` text is `Write a block like this:\n"""\nand close it.`. Everything el
 
 This transformation deliberately strips *shared* leading whitespace. Therefore, for values where leading indentation itself is significant (particularly a one-line value or CSS whose first character must be a space), and for values in which any line ends with a space or tab, use a quoted value with explicit `\n` and `\t` escapes. A line consisting only of a block's own marker cannot appear in its payload; use a longer marker. This avoids making indentation structural in contradiction with §4.
 
-Blocks may be used for `.attribute`, `=`, inline text, `@comment`, `@comments` (which takes only a block, §9), and alias invocations. Under `@indent`, a `@comment` block in a laid-out position gets predicted edges (§6.4). For a compact `name = """` statement, the closing marker closes the value *and* implicitly closes the inline element; no `end` is needed.
+Blocks may be used for `.attribute`, `=`, inline text, `@comment`, `@comments` (which takes only a block, §9), and alias invocations. Under `@indent`, a `@comment` block and the block of a compact `name = """` element in a laid-out position get predicted edges (§6.4). For a compact `name = """` statement, the closing marker closes the value *and* implicitly closes the inline element; no `end` is needed.
 
 ## 8. Named attribute blocks (`@block`) — SML Core
 
@@ -740,7 +812,7 @@ Every namespace used by a prefixed element or attribute must be bound in scope. 
 - Until 1.0 is final, a reader treats `@sml 1.0` or a missing header as this revision.
 - Writers SHOULD emit `@sml 1.0-SVG-4` while the specification is a draft.
 
-**Other headers.** `@standalone yes|no` MAY appear once before the root to preserve an explicitly present XML standalone declaration; if it is absent, the standalone state is unspecified. `@indent` (§6.4) and `@doctype` (§11.1) MAY each appear once before the root, and `@use` (§13) MAY appear before the root.
+**Other headers.** `@standalone yes|no` MAY appear once before the root to preserve an explicitly present XML standalone declaration; if it is absent, the standalone state is unspecified. `@indent` (§6.4) and `@doctype` (§11.1) MAY each appear once before the root (`@indent` also in declaration sections, as a per-element step), and `@use` (§13) MAY appear before the root.
 
 **XML output.** All XML output uses version 1.0 and UTF-8 without a BOM. It begins with the declaration `<?xml version="1.0" encoding="UTF-8"?>`, adding `standalone="yes"` or `standalone="no"` when recorded. Top-level items (the declaration, prolog and epilog comments and PIs, the DOCTYPE, and the root) are separated by single LFs, and the output ends with an LF. The literal presence of the original `<?xml ...?>` declaration, its quote style, and its original encoding are not retained.
 
@@ -821,7 +893,7 @@ InlineAttributes  = "(", HSpaceOpt, [ InlineAttribute,
 InlineAttribute   = QName, HSpaceOpt, "=", HSpaceOpt, InlineValue ;
 DeclarationSection = { Neutral | Namespace },
                     { Neutral | Attribute | BlockDeclaration
-                    | NamedAttributeBlock | NoIndent } ;
+                    | NamedAttributeBlock | NoIndent | LocalIndent } ;
 Content           = Neutral | Element | Text | XMLComment | XMLComments | PI ;
 Neutral           = Blank | SourceComment | ExtensionDirective ;
 Attribute         = ".", QName, ValueTail ;
@@ -831,6 +903,7 @@ BlockDeclaration  = "@block", HSpace, QName, HSpace, NCName,
                     HSpace, ".", QName, EOL ;
 NamedAttributeBlock = AliasName, HSpaceOpt, Block ;
 NoIndent          = "@noindent", EOL ;
+LocalIndent       = "@indent", HSpace, ( "tab" | IndentWidth ), EOL ;
 Text              = "=", ValueTail ;
 XMLComment        = "@comment", ValueTail ;
 XMLComments       = "@comments", HSpaceOpt, Block ;   (* one comment per payload line *)
@@ -874,7 +947,7 @@ Notes on the grammar:
 - For `@ns`, an optional `NCName` prefix is recognized only when **two** operands are present (§10).
 - `EOL` may be EOF where no open construct remains.
 - Leading and trailing spaces/tabs are removed from **every** line outside blocks (§4). Block payload lines lose trailing spaces/tabs and their shared indentation (§7).
-- `Neutral` statements (blank lines, source comments, extension directives) never end a declaration section; a preserved XML comment or PI does. `DeclarationSection` encodes the `@ns`-first rule of §5.1.
+- `Neutral` statements (blank lines, source comments, extension directives) never end a declaration section; a preserved XML comment or PI does. `DeclarationSection` encodes the `@ns`-first rule of §5.1. `NoIndent` and `LocalIndent` may each appear at most once in a declaration section, and `LocalIndent` only in a document with the `@indent` header.
 
 The EBNF is a *statement grammar*, not a substitute for XML name validity, UTF-8 validity, whitespace and delimiter interpretation, namespace resolution, or semantic validation.
 
@@ -887,7 +960,7 @@ SML readers MUST reject, among other malformed syntax:
 - **Aliases:** unbound prefixes in `@block` declarations; conflicting aliases within a lexical scope; the legacy `=` separator; alias invocations with no matching active alias or after the declaration section has closed.
 - **Values:** malformed escapes; raw values beginning with `"` or `|`, including the 1.0-SVG-3 block markers `|` and `|TAG`; anything after a block marker on its line; misplaced continuation lines; unbalanced parentheses in inline raw values.
 - **Comments and PIs:** invalid comments or PIs, including PI targets containing colons and PI data beginning with whitespace; `@comments` without a block, or with a blank payload line.
-- **Headers:** text statements in a laid-out element (§6.4); repeated or misplaced `@sml`, `@indent`, `@noindent`, or `@doctype`; unknown draft versions; malformed `@doctype` identifiers.
+- **Headers:** text statements in a laid-out element (§6.4); repeated or misplaced `@sml`, `@indent`, `@noindent`, or `@doctype`; an `@indent` step in a declaration section without the `@indent` header (§6.4); unknown draft versions; malformed `@doctype` identifiers.
 - **Extensions:** unknown directives, and required extensions the reader does not implement.
 
 No implicit recovery or HTML-like repair is allowed. Editors MAY maintain a separately flagged recovery tree for interactive editing.
@@ -925,8 +998,8 @@ SML writers SHOULD emit:
 - `@block` declarations preceding their uses, and alias invocations written with a space before the marker (`alias """`). Use a normal `.attribute` when a value cannot be represented faithfully as a block.
 - A space before every block marker (`.attribute """`, `= """`, `name = """`, `@comment """`); readers also accept the forms without the space.
 - `@element` only for elements named `end`.
-- `@indent` and `@noindent` as §6.4's writer rule requires, and `@doctype` exactly as recorded, at its original prolog position.
-- `@comments` for consecutive one-line comments, and under `@indent`, laid-out comment blocks (§6.4) for comments in the layout pretty-printers give multi-line comments. A comment block in a laid-out position MUST have that layout; other multi-line comment data there is quoted.
+- `@indent` and `@noindent` as §6.4's writer rule requires, including an `@indent` step for an element whose children are indented by a step other than the unit, and `@doctype` exactly as recorded, at its original prolog position.
+- `@comments` for consecutive one-line comments, and under `@indent`, laid-out comment and text blocks (§6.4) for comments and element text in the layout pretty-printers give them. A comment block, or the block of a compact text element, in a laid-out position MUST have that layout. Other multi-line comment data there is quoted; other multi-line text uses the normal form's literal `= """` statement when a block reproduces it, and is quoted otherwise.
 
 SML formatters MUST be idempotent. Under the strict profile they MUST NOT modify element, text, comment, or PI order or values, SVG strings, namespace declaration locations, or lexical prefixes. They SHOULD preserve `#` comments, blank-line grouping, and alias declarations, and MAY change alias spelling or layout only if every attribute value is preserved. Because alias invocations carry a block marker, introducing an alias cannot change how an existing child-element opener parses.
 
@@ -939,15 +1012,20 @@ The canonical form is a function of the document alone: canonical writers MUST p
 3. **Indentation.** Two spaces per element depth. Block payload lines and continuation lines are indented one level deeper than their statement; a block terminator is at the statement's level.
 4. **Order.** Namespace declarations come first: the default namespace, then prefixes in ascending code-point order. Then attributes: those without a namespace by local name, then namespaced ones by namespace URI and then local name, all in ascending code-point order. This is the attribute order of Canonical XML.
 5. **Inline or vertical.** An element's namespace declarations and attributes are written inline, as one list, when every value is representable as a raw inline value (§6.3) under rule 7, and the indentation, element name, and inline list together are at most 100 code points long. Otherwise all are vertical: `@ns` lines, then `.attribute` lines.
-6. **Element form.** For an element with an inline list, or with no declarations or attributes: `name/` if it has no content; `name = value` if its only content is one text node. Otherwise the normal form with `end`. An element named `end` is always written `@element end` in the normal form.
+6. **Element form.** For an element with an inline list, or with no declarations or attributes: `name/` if it has no content; `name = value` if its only content is one text node, unless rule 7 says the text needs the normal form. Otherwise the normal form with `end`. An element named `end` is always written `@element end` in the normal form.
 7. **Value form.** Each value is written in the first form that applies:
    1. **Raw:** §6.2 allows it, it contains none of TAB, CR, LF, or the characters §4 says to escape, and the statement line is at most 100 code points.
    2. **Block:** it contains LF and a character other than LF, but no CR, and §7 reproduces it exactly. The marker is the shortest of `"""`, `""""`, `"""""`, … that no payload line equals after trimming. TAB is literal in block payloads.
    3. **Quoted:** otherwise.
 
    A comment in a laid-out position (§6.4) is written raw by 7.1; otherwise as a laid-out comment block if its data has that layout and the block's payload contains a character other than LF, with the marker chosen as in 7.2 for the payload; otherwise quoted. It is never written as a literal block, which would be read with predicted edges.
+
+   The only text of an element in a laid-out position, under `@indent`, is written in the compact form the same way, as a laid-out text block when it has that layout, with one exception: text that 7.2 would write as a block, but that does not have the layout, makes the element use the normal form, where its `=` statement follows 7.1–7.3.
 8. **Quoted values.** Escapes are used only where required (`\\`, `\"`) and for CR, LF, TAB, and the characters listed in §4. They are written `\r`, `\n`, `\t`, and `\u{…}` with uppercase hexadecimal digits and no leading zeros. When a quoted value's statement line would exceed 100 code points, the value is split into continuation lines (§6.5). Each segment takes as many source characters as fit in 80 code points, ends after the last space within that span if there is one, and never splits an escape.
-9. **Whitespace model.** `@indent` uses the unit that makes the most elements laid out (§6.4). Ties are broken in this order: two spaces, four spaces, tab, then the other widths ascending from 0. `@indent` is omitted if no element would be laid out. `@noindent` and explicit text follow §6.4's writer rule.
+9. **Whitespace model.** `@indent` uses the unit that makes the most elements laid out (§6.4) when every step is the unit. Ties are broken in this order: two spaces, four spaces, tab, then the other widths ascending from 0. `@indent` is omitted if no element would be laid out. Each element with a non-text child is then compared with the prediction for its indentation (§6.4), from the root down:
+   1. With the unit as its step: if equal, it is laid out.
+   2. Otherwise, with the step its first node suggests: if that node is text that begins with LF and the element's indentation, and the rest of it is one of the `@indent` widths (0 to 16 spaces, or one tab), and the content equals the prediction with that step, the element is laid out with it. `@indent` with that step is the last statement of its declaration section.
+   3. Otherwise `@noindent` and explicit text follow §6.4's writer rule, and the element's step is the unit.
 10. **Text.** Adjacent text nodes are coalesced and empty ones dropped. Each remaining text node is one `=` statement.
 11. **Comment runs.** Each maximal run of two or more consecutive comments that can be `@comments` lines is one `@comments` block. Consecutive means adjacent in the written statements: prolog or epilog items next to each other, or children with nothing between them but predicted whitespace (§6.4). A comment can be such a line when its data is not empty, contains no LF or CR, does not begin or end with a space or tab, and contains none of the characters §4 says to escape. The marker is chosen as in rule 7.2, and each comment is a payload line.
 
@@ -1034,6 +1112,8 @@ The following fixtures are mandatory in addition to the baseline corpus:
 | SV-78 | Pretty-printed multi-line comments at depths 0, 1, and 2 under `@indent`, one with an empty line; a multi-line comment whose lines are not indented one level deeper; a comment block without `@indent`, under `@noindent`, and in mixed content | Laid-out comment blocks, read back with the same data; the unindented one quoted; the last three literal blocks |
 | SV-79 | XML that puts each child on its own line without indentation, including a pretty-printed multi-line comment | `@indent 0`, no text statements, and a laid-out comment block; reads back with the same whitespace |
 | SV-80 | Text, attribute, and comment values made only of line breaks, in exact elements and in a laid-out position | Quoted (`= "\n"`, `.a "\n"`, `@comment "\n"`), never blocks of blank lines; a block of blank lines is still read |
+| SV-81 | Under `@indent 2`, a subtree whose children are indented by four more spaces, one indented by a tab, and the grandchildren of a four-space element; a per-element `@indent` without the header, twice in one element, after content, or after the root | `@indent 4` and `@indent tab` steps in the declaration sections; the grandchildren follow the unit again; exact round trip; the four invalid forms rejected |
+| SV-82 | Under `@indent`, pretty-printed multi-line text in `desc`, `style`, and `title`, including an empty line and a child of a four-space element; text without whitespace at its edges; text not indented one unit deeper; a compact block under `@noindent`, in mixed content, and without `@indent` | Laid-out text blocks (`desc = """`), read back with the same text; the edgeless text in the normal form with a literal `= """`; the unindented text quoted; the last three literal |
 
 **Mandatory round-trip acceptance:**
 

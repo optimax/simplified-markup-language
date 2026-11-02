@@ -65,9 +65,9 @@ public sealed class SmlWriter
             _out.Add("@standalone " + _doc.Standalone);
         if (_unit is not null)
             _out.Add("@indent " + (_unit == "\t" ? "tab" : _unit.Length.ToString()));
-        Items(_doc.Prolog, 0, _unit is not null);
-        Element(_doc.Root, 0);
-        Items(_doc.Epilog, 0, _unit is not null);
+        Items(_doc.Prolog, 0, _unit is not null, "");
+        Element(_doc.Root, 0, "", _unit is not null);
+        Items(_doc.Epilog, 0, _unit is not null, "");
         if (_reflowed.Count > 0)
             _out.Insert(0, "# Readable conversion (SML §3.2), not strict: one item per line in " + string.Join(", ", _reflowed));
         return string.Join('\n', _out) + "\n";
@@ -215,9 +215,10 @@ public sealed class SmlWriter
         return result;
     }
 
-    private static bool MatchesPrediction(ElementNode element, int depth, string unit)
+    /// <summary>Whether content nodes are laid out (§6.4): LF, the indentation, and the step before each non-text
+    /// child, and LF and the indentation before the end.</summary>
+    private static bool MatchesLayout(List<SmlNode> nodes, string indentation, string step)
     {
-        List<SmlNode> nodes = ContentNodes(element);
         int k = nodes.Count(n => n is not TextNode);
         if (k == 0 || nodes.Count != 2 * k + 1)
             return false;
@@ -229,11 +230,27 @@ public sealed class SmlWriter
                     return false;
                 continue;
             }
-            string want = "\n" + string.Concat(Enumerable.Repeat(unit, i == 2 * k ? depth : depth + 1));
+            string want = "\n" + indentation + (i == 2 * k ? "" : step);
             if (nodes[i] is not TextNode text || text.Data != want)
                 return false;
         }
         return true;
+    }
+
+    /// <summary>Whether an element is laid out with every step equal to unit (used to choose @indent, rule 9).</summary>
+    private static bool MatchesPrediction(ElementNode element, int depth, string unit) =>
+        MatchesLayout(ContentNodes(element), string.Concat(Enumerable.Repeat(unit, depth)), unit);
+
+    /// <summary>The step that an element's first whitespace suggests, if it is a possible @indent value (§6.4).</summary>
+    private static string? StepFrom(List<SmlNode> nodes, string indentation)
+    {
+        if (nodes.Count > 0 && nodes[0] is TextNode first && first.Data.StartsWith("\n" + indentation, StringComparison.Ordinal))
+        {
+            string step = first.Data[(1 + indentation.Length)..];
+            if (IndentCandidates.Contains(step))
+                return step;
+        }
+        return null;
     }
 
     private static string? ChooseIndent(SmlDocument doc)
@@ -413,11 +430,11 @@ public sealed class SmlWriter
         data.Length > 0 && !data.AsSpan().ContainsAny('\n', '\r') && data[0] is not (' ' or '\t')
         && data[^1] is not (' ' or '\t') && !data.EnumerateRunes().Any(XmlRules.NeedsEscape);
 
-    /// <summary>The block value that <see cref="SmlReader.LayOutComment"/> turns into data, or null if the data does
+    /// <summary>The block value that <see cref="SmlReader.LayOutBlock"/> turns into data, or null if the data does
     /// not have that layout.</summary>
-    public static string? LaidOutCommentValue(string data, string unit, int depth)
+    public static string? LaidOutValue(string data, string indentation, string unit)
     {
-        string outer = string.Concat(Enumerable.Repeat(unit, depth));
+        string outer = indentation;
         if (!data.StartsWith('\n') || !data.EndsWith(outer, StringComparison.Ordinal) || data.Length < 1 + outer.Length)
             return null;
         string middle = data[1..^outer.Length];
@@ -443,14 +460,14 @@ public sealed class SmlWriter
             }
             value = string.Join('\n', lines);
         }
-        if (BlockMarker(value) is null || SmlReader.LayOutComment(value, unit, depth) != data)
+        if (BlockMarker(value) is null || SmlReader.LayOutBlock(value, indentation, unit) != data)
             return null;
         return value;
     }
 
     /// <summary>Writes content statements at depth; a run of two or more comments that <see cref="CommentRunOk"/>
     /// accepts is one @comments block (canonical rule 11).</summary>
-    private void Items(List<SmlNode> nodes, int depth, bool laidOut)
+    private void Items(List<SmlNode> nodes, int depth, bool laidOut, string indentation)
     {
         string ind = Indentation(depth);
         for (int i = 0; i < nodes.Count;)
@@ -474,10 +491,10 @@ public sealed class SmlWriter
                     Value(ind + "=", text.Data, depth);
                     break;
                 case ElementNode child:
-                    Element(child, depth);
+                    Element(child, depth, indentation, laidOut);
                     break;
                 default:
-                    Misc(nodes[i], depth, laidOut);
+                    Misc(nodes[i], depth, laidOut, indentation);
                     break;
             }
             i++;
@@ -486,7 +503,7 @@ public sealed class SmlWriter
 
     /// <summary>Writes a comment; in a laid-out position a block has predicted edges (§6.4), so a block is used only
     /// for data in that layout, and other multi-line data is quoted.</summary>
-    private void Comment(string data, int depth, bool laidOut)
+    private void Comment(string data, int depth, bool laidOut, string indentation)
     {
         string ind = Indentation(depth);
         if (!laidOut || data.Length == 0
@@ -495,26 +512,45 @@ public sealed class SmlWriter
             Value(ind + "@comment", data, depth, allowBlock: !laidOut);
             return;
         }
-        string? value = LaidOutCommentValue(data, _unit!, depth);
+        string? value = LaidOutValue(data, indentation, _unit!);
         if (value is null || !value.AsSpan().ContainsAnyExcept('\n'))
         {
             Value(ind + "@comment", data, depth, allowBlock: false);
             return;
         }
-        string marker = BlockMarker(value)!;
-        _out.Add(ind + "@comment " + marker);
-        if (value.Length > 0)
-            _out.AddRange(value.Split('\n').Select(line => line.Length == 0 ? "" : ind + "  " + line));
-        _out.Add(ind + marker);
+        Block(ind + "@comment", value, BlockMarker(value)!, depth);
     }
 
-    private void Misc(SmlNode item, int depth, bool laidOut = false)
+    /// <summary>Writes prefix and an element's only text in the compact form, and returns true; or returns false
+    /// when the element must use the normal form: in a laid-out position a compact block has predicted edges
+    /// (§6.4), so text that needs a literal block is written as an = statement instead (rule 6).</summary>
+    private bool CompactText(string prefix, string data, int depth, string indentation, bool laidOut)
+    {
+        if (_unit is null || !laidOut || data.Length == 0
+            || (RawOk(data) && XmlRules.CodePointLength(prefix) + 1 + XmlRules.CodePointLength(data) <= LineLimit))
+        {
+            Value(prefix, data, depth);
+            return true;
+        }
+        string? value = LaidOutValue(data, indentation, _unit);
+        if (value is not null && value.AsSpan().ContainsAnyExcept('\n'))
+        {
+            Block(prefix, value, BlockMarker(value)!, depth);
+            return true;
+        }
+        if (BlockTag(data) is not null)
+            return false;
+        Value(prefix, data, depth, allowBlock: false);
+        return true;
+    }
+
+    private void Misc(SmlNode item, int depth, bool laidOut = false, string indentation = "")
     {
         string ind = Indentation(depth);
         switch (item)
         {
             case CommentNode comment:
-                Comment(comment.Data, depth, laidOut);
+                Comment(comment.Data, depth, laidOut, indentation);
                 break;
             case ProcessingInstructionNode pi:
                 Value(ind + "@pi " + pi.Target, pi.Data, depth, allowBlock: false);
@@ -530,14 +566,23 @@ public sealed class SmlWriter
         }
     }
 
-    private void Element(ElementNode element, int depth)
+    /// <summary>Writes an element; indentation is its own indentation in the XML (§6.4), and laidOutPosition says
+    /// whether whitespace before it is predicted.</summary>
+    private void Element(ElementNode element, int depth, string indentation, bool laidOutPosition)
     {
         string ind = Indentation(depth), inner = Indentation(depth + 1);
         List<SmlNode> nodes = ContentNodes(element);
-        bool noIndent = false;
+        bool noIndent = false, laidOut = false;
+        string? step = _unit, local = null;
         if (_unit is not null && nodes.Any(n => n is not TextNode))
         {
-            if (MatchesPrediction(element, depth, _unit))
+            laidOut = MatchesLayout(nodes, indentation, _unit);
+            if (!laidOut && StepFrom(nodes, indentation) is { } candidate && candidate != _unit
+                && MatchesLayout(nodes, indentation, candidate))
+            {
+                (laidOut, step, local) = (true, candidate, candidate);
+            }
+            if (laidOut)
                 nodes = nodes.Where(n => n is not TextNode).ToList();
             else if (nodes[0] is not TextNode)
                 noIndent = true;
@@ -577,11 +622,8 @@ public sealed class SmlWriter
                 _out.Add(ind + opener + "/");
                 return;
             }
-            if (nodes is [TextNode only])
-            {
-                Value(ind + opener + " =", only.Data, depth);
+            if (nodes is [TextNode only] && CompactText(ind + opener + " =", only.Data, depth, indentation, laidOutPosition))
                 return;
-            }
         }
         if (isEnd)
             _out.Add(ind + "@element end");
@@ -603,9 +645,11 @@ public sealed class SmlWriter
             foreach (var (name, value) in attributes)
                 Attribute(element, name, value, depth + 1);
         }
+        if (local is not null)
+            _out.Add(inner + "@indent " + (local == "\t" ? "tab" : local.Length.ToString()));
         if (noIndent)
             _out.Add(inner + "@noindent");
-        Items(nodes, depth + 1, _unit is not null && MatchesPrediction(element, depth, _unit));
+        Items(nodes, depth + 1, laidOut, indentation + (step ?? ""));
         _out.Add(ind + "end");
     }
 }

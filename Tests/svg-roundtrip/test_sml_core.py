@@ -413,6 +413,44 @@ class SmlSideFixtures(Base):
         laid = S.read_xml(b'<g>\n  <!--\n  -->\n</g>')
         self.assertIn('@comment "\\n  "', S.write_sml(laid))
 
+    def test_SV81_local_indent(self):
+        src = '@indent 2\ng\n  h\n    @indent 4\n    a/\n    b\n      c/\n    end\n  end\n  k\n    @indent tab\n    m/\n  end\nend\n'
+        doc = read(src)
+        h = kids(doc.root)[0]
+        self.assertEqual([t.data for t in h.children if isinstance(t, S.Text)], ['\n      ', '\n      ', '\n  '])
+        b = kids(h)[1]
+        self.assertEqual([t.data for t in b.children if isinstance(t, S.Text)], ['\n        ', '\n      '])
+        k = kids(doc.root)[1]
+        self.assertEqual([t.data for t in k.children if isinstance(t, S.Text)], ['\n  \t', '\n  '])
+        self.assertEqual(S.write_sml(doc), '@sml 1.0-SVG-4\n' + src)
+        self.rejects('g\n  @indent 4\n  h/\nend\n', 'needs the @indent header')
+        self.rejects('@indent 2\ng\n  @indent 4\n  @indent 2\nend\n', 'only once')
+        self.rejects('@indent 2\ng\n  h/\n  @indent 4\nend\n', 'after the element')
+        self.rejects('@indent 2\ng\n  @indent 3x\nend\n', 'width from 0 to 16')
+        self.rejects('@indent 2\ng/\n@indent 4\n', 'only allowed before the root')
+
+    def test_SV82_laid_out_text(self):
+        src = '@indent 2\ng\n  p = """\n    one\n\n    two\n  """\n  q\n    @indent 4\n    r = """\n      deep\n    """\n  end\nend\n'
+        doc = read(src)
+        p, q = kids(doc.root)
+        self.assertEqual(p.children[0].data, '\n    one\n\n    two\n  ')
+        self.assertEqual(kids(q)[0].children[0].data, '\n        deep\n      ')
+        self.assertEqual(S.write_sml(doc), '@sml 1.0-SVG-4\n' + src)
+        # The normal form, @noindent parents, mixed content, and documents without @indent stay literal.
+        literal = ('@indent 2\ng\n  p\n    = """\n      a\n      b\n    """\n  end\nend\n',
+                   '@indent 2\ng\n  @noindent\n  p = """\n    a\n    b\n  """\nend\n',
+                   '@indent 2\ng\n  = x\n  p = """\n    a\n    b\n  """\nend\n',
+                   'g\n  p = """\n    a\n    b\n  """\nend\n')
+        for text in literal:
+            self.assertEqual([c for c in kids(read(text).root)][0].children[0].data, 'a\nb')
+        # In a laid-out position, text that needs a literal block uses the normal form; other text is quoted.
+        doc = S.read_xml(b'<g>\n  <p>a\nb</p>\n  <p>\n  flush\n  </p>\n  <p>\n    x\n  </p>\n</g>')
+        out = S.write_sml(doc)
+        self.assertIn('  p\n    = """\n      a\n      b\n    """\n  end\n', out)
+        self.assertIn('  p = "\\n  flush\\n  "\n', out)
+        self.assertIn('  p = """\n    x\n  """\n', out)
+        self.assertEqual(S.signature(read(out)), S.signature(doc))
+
     def test_SV76_reverse_round_trip(self):
         src = ('@sml 1.0-SVG-4\n@indent 2\n@comment " authored in SML "\n'
                '@doctype svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd"\n'

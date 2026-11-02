@@ -230,7 +230,7 @@ def check_doctype(dt: Doctype, line: int | None, error=SmlError) -> None:
 
 class _Frame:
     __slots__ = ('el', 'lexical', 'parent_ns', 'ns', 'depth', 'line', 'decl_open', 'ns_phase',
-                 'inline_attrs', 'aliases', 'noindent', 'layout')
+                 'inline_attrs', 'aliases', 'noindent', 'layout', 'indentation', 'step', 'local_step')
 
     def __init__(self, el: Element, lexical: str, parent_ns: dict, depth: int, line: int):
         self.el = el
@@ -245,6 +245,9 @@ class _Frame:
         self.aliases: dict = {}
         self.noindent = False
         self.layout: bool | None = None
+        self.indentation = ''               # the element's own indentation (§6.4)
+        self.step: str | None = None        # how much deeper its children are: the unit or its own @indent
+        self.local_step = False
 
 
 class _Pending:
@@ -500,7 +503,7 @@ class SmlReader:
         if is_text and f.layout:
             raise SmlError('text in a laid-out element (§6.4); mark the element @noindent', ln)
         if f.layout:
-            f.el.children.append(Text('\n' + self.indent * (f.depth + 1)))
+            f.el.children.append(Text('\n' + f.indentation + f.step))
         f.el.children.append(node)
 
     def open_element(self, qname: str, inline: list, kind: str, ln: int) -> _Frame:
@@ -510,6 +513,10 @@ class SmlReader:
             self.close_decl(self.stack[-1], False)
             parent_ns = self.stack[-1].ns
         f = _Frame(el, qname, parent_ns, len(self.stack), ln)
+        if self.stack:
+            parent = self.stack[-1]
+            f.indentation = parent.indentation + (parent.step or '')
+        f.step = self.indent
         for name, value, quoted in inline:
             if name == 'xmlns':
                 self.add_ns_decl(f, None, value, quoted, ln)
@@ -538,7 +545,7 @@ class SmlReader:
                 raise SmlError(f'end {name} does not match the open element {f.lexical!r}', ln)
         self.close_decl(f, True)
         if f.layout:
-            f.el.children.append(Text('\n' + self.indent * f.depth))
+            f.el.children.append(Text('\n' + f.indentation))
         self.stack.pop()
         if not self.stack:
             self.phase = 'epilog'
@@ -601,6 +608,8 @@ class SmlReader:
             kind, value = self.parse_value_tail(rest[m2.end():], ln)
             if kind != 'empty':
                 node = Text(self.value_of(kind, value, ln))
+                if kind == 'block' and self.indent is not None and (not self.stack or self.stack[-1].layout):
+                    node.data = lay_out_block(node.data, f.indentation, self.indent)
                 f.el.children.append(node)
                 if kind == 'quoted':
                     self.pending = _Pending(lambda more, t=node: setattr(t, 'data', t.data + more))
@@ -694,14 +703,23 @@ class SmlReader:
         self.doc.standalone = value
 
     def d_indent(self, rest: str, ln: int) -> None:
-        self.header('indent', ln)
         value = strip_ht(rest)
         if value == 'tab':
-            self.indent = '\t'
+            unit = '\t'
         elif re.fullmatch(r'0|[1-9][0-9]?', value) and int(value) <= 16:
-            self.indent = ' ' * int(value)
+            unit = ' ' * int(value)
         else:
             raise SmlError('@indent takes tab or a width from 0 to 16', ln)
+        if self.stack:     # in an element: how much deeper its children are (§6.4)
+            f = self.decl_frame(ln, '@indent')
+            if self.indent is None:
+                raise SmlError('@indent in an element needs the @indent header', ln)
+            if f.local_step:
+                raise SmlError('@indent may appear only once per element', ln)
+            f.step, f.local_step = unit, True
+            return
+        self.header('indent', ln)
+        self.indent = unit
 
     def d_doctype(self, rest: str, ln: int) -> None:
         self.header('doctype', ln)
@@ -786,21 +804,21 @@ class SmlReader:
             raise SmlError('@noindent may appear only once per element', ln)
         f.noindent = True
 
-    def laid_out_depth(self) -> int | None:
-        """The depth of a comment just added, if its position is laid out (§6.4), else None."""
+    def laid_out_indentation(self) -> str | None:
+        """The indentation of a comment just added, if its position is laid out (§6.4), else None."""
         if self.indent is None:
             return None
         if not self.stack:
-            return 0
+            return ''
         f = self.stack[-1]
-        return f.depth + 1 if f.layout else None
+        return f.indentation + f.step if f.layout else None
 
     def d_comment(self, rest: str, ln: int) -> None:
         kind, value = self.parse_value_tail(rest, ln)
         node = Comment(self.value_of(kind, value, ln))
         self.add_child(node, False, ln)
-        if kind == 'block' and (depth := self.laid_out_depth()) is not None:
-            node.data = lay_out_comment(node.data, self.indent, depth)
+        if kind == 'block' and (indentation := self.laid_out_indentation()) is not None:
+            node.data = lay_out_block(node.data, indentation, self.indent)
         if kind == 'quoted':
             def append(more, c=node):
                 c.data += more
@@ -866,8 +884,9 @@ def content_nodes(el: Element) -> list:
     return out
 
 
-def matches_prediction(el: Element, depth: int, unit: str) -> bool:
-    nodes = content_nodes(el)
+def matches_layout(nodes: list, indentation: str, step: str) -> bool:
+    """Whether content nodes are laid out (§6.4): LF, the indentation, and the step before each non-text child,
+    and LF and the indentation before the end."""
     k = sum(1 for n in nodes if not isinstance(n, Text))
     if k == 0 or len(nodes) != 2 * k + 1:
         return False
@@ -876,11 +895,24 @@ def matches_prediction(el: Element, depth: int, unit: str) -> bool:
             if isinstance(node, Text):
                 return False
             continue
-        last = idx == 2 * k
-        want = '\n' + unit * (depth if last else depth + 1)
+        want = '\n' + indentation + ('' if idx == 2 * k else step)
         if not isinstance(node, Text) or node.data != want:
             return False
     return True
+
+
+def matches_prediction(el: Element, depth: int, unit: str) -> bool:
+    """Whether an element is laid out with every step equal to unit (used to choose @indent, rule 9)."""
+    return matches_layout(content_nodes(el), unit * depth, unit)
+
+
+def step_from(nodes: list, indentation: str) -> str | None:
+    """The step that an element's first whitespace suggests, if it is a possible @indent value (§6.4)."""
+    if nodes and isinstance(nodes[0], Text) and nodes[0].data.startswith('\n' + indentation):
+        step = nodes[0].data[1 + len(indentation):]
+        if step in INDENT_CANDIDATES:
+            return step
+    return None
 
 
 def choose_indent(doc: Document) -> str | None:
@@ -970,18 +1002,19 @@ def block_tag(value: str) -> str | None:
     return block_marker(value) if '\n' in value and value.strip('\n') else None
 
 
-def lay_out_comment(value: str, unit: str, depth: int) -> str:
-    """The data of a comment block in a laid-out position (§6.4): LF, each payload line indented one level deeper
-    than the comment (empty lines stay empty), LF, and the comment's own indentation."""
+def lay_out_block(value: str, indentation: str, unit: str) -> str:
+    """The data of a comment block, or of the block of a compact text element, in a laid-out position (§6.4): LF,
+    each payload line indented one unit deeper than the comment or element (empty lines stay empty), LF, and the
+    comment's or element's own indentation."""
     if value == '':
-        return '\n' + unit * depth
-    inner = unit * (depth + 1)
-    return '\n' + '\n'.join(inner + ln if ln else '' for ln in value.split('\n')) + '\n' + unit * depth
+        return '\n' + indentation
+    inner = indentation + unit
+    return '\n' + '\n'.join(inner + ln if ln else '' for ln in value.split('\n')) + '\n' + indentation
 
 
-def laid_out_comment_value(data: str, unit: str, depth: int) -> str | None:
-    """The block value that lay_out_comment turns into data, or None if the data does not have that layout."""
-    outer = unit * depth
+def laid_out_value(data: str, indentation: str, unit: str) -> str | None:
+    """The block value that lay_out_block turns into data, or None if the data does not have that layout."""
+    outer = indentation
     if not data.startswith('\n') or not data.endswith(outer) or len(data) < 1 + len(outer):
         return None
     middle = data[1:len(data) - len(outer)]
@@ -990,7 +1023,7 @@ def laid_out_comment_value(data: str, unit: str, depth: int) -> str | None:
     else:
         if not middle.endswith('\n'):
             return None
-        inner, lines = unit * (depth + 1), []
+        inner, lines = indentation + unit, []
         for ln in middle[:-1].split('\n'):
             if ln.startswith(inner):
                 lines.append(ln[len(inner):])
@@ -999,7 +1032,7 @@ def laid_out_comment_value(data: str, unit: str, depth: int) -> str | None:
             else:
                 return None
         value = '\n'.join(lines)
-    if block_marker(value) is None or lay_out_comment(value, unit, depth) != data:
+    if block_marker(value) is None or lay_out_block(value, indentation, unit) != data:
         return None
     return value
 
@@ -1042,9 +1075,9 @@ class SmlWriter:
             self.out.append('@standalone ' + d.standalone)
         if self.unit is not None:
             self.out.append('@indent ' + ('tab' if self.unit == '\t' else str(len(self.unit))))
-        self.items(d.prolog, 0, self.unit is not None)
-        self.element(d.root, 0)
-        self.items(d.epilog, 0, self.unit is not None)
+        self.items(d.prolog, 0, self.unit is not None, '')
+        self.element(d.root, 0, '', self.unit is not None)
+        self.items(d.epilog, 0, self.unit is not None, '')
         return '\n'.join(self.out) + '\n'
 
     def value(self, prefix: str, value: str, depth: int, allow_block: bool = True) -> None:
@@ -1071,9 +1104,9 @@ class SmlWriter:
         self.out.append(prefix + ' "' + segs[0] + '"')
         self.out.extend(ind + '  "' + seg + '"' for seg in segs[1:])
 
-    def items(self, nodes: list, depth: int, laid_out: bool) -> None:
+    def items(self, nodes: list, depth: int, laid_out: bool, indentation: str) -> None:
         """Writes content statements at depth; a run of two or more comments that comment_run_ok accepts is one
-        @comments block (canonical rule 11)."""
+        @comments block (canonical rule 11). In laid-out content, indentation is the children's indentation."""
         i = 0
         while i < len(nodes):
             j = i
@@ -1092,32 +1125,52 @@ class SmlWriter:
             if isinstance(node, Text):
                 self.value('  ' * depth + '=', node.data, depth)
             elif isinstance(node, Element):
-                self.element(node, depth)
+                self.element(node, depth, indentation, laid_out)
             else:
-                self.misc(node, depth, laid_out)
+                self.misc(node, depth, laid_out, indentation)
             i += 1
 
-    def comment(self, data: str, depth: int, laid_out: bool) -> None:
+    def block(self, prefix: str, value: str, depth: int) -> None:
+        """Writes prefix and value as a block whose payload is value's lines."""
+        ind, marker = '  ' * depth, block_marker(value)
+        self.out.append(prefix + ' ' + marker)
+        if value:
+            self.out.extend(ind + '  ' + ln if ln else '' for ln in value.split('\n'))
+        self.out.append(ind + marker)
+
+    def comment(self, data: str, depth: int, laid_out: bool, indentation: str) -> None:
         """Writes a comment; in a laid-out position a block has predicted edges (§6.4), so a block is used only
         for data in that layout, and other multi-line data is quoted."""
         ind = '  ' * depth
         if not laid_out or not data or (raw_ok(data) and len(ind) + 9 + len(data) <= LINE_LIMIT):
             self.value(ind + '@comment', data, depth, allow_block=not laid_out)
             return
-        value = laid_out_comment_value(data, self.unit, depth)
+        value = laid_out_value(data, indentation, self.unit)
         if value is None or not value.strip('\n'):
             self.value(ind + '@comment', data, depth, allow_block=False)
             return
-        marker = block_marker(value)
-        self.out.append(ind + '@comment ' + marker)
-        if value:
-            self.out.extend(ind + '  ' + ln if ln else '' for ln in value.split('\n'))
-        self.out.append(ind + marker)
+        self.block(ind + '@comment', value, depth)
 
-    def misc(self, item, depth: int, laid_out: bool = False) -> None:
+    def compact_text(self, prefix: str, data: str, depth: int, indentation: str, laid_out: bool) -> bool:
+        """Writes prefix and an element's only text in the compact form, and returns True; or returns False when
+        the element must use the normal form: in a laid-out position a compact block has predicted edges
+        (§6.4), so text that needs a literal block is written as an = statement instead (rule 6)."""
+        if self.unit is None or not laid_out or not data or (raw_ok(data) and len(prefix) + 1 + len(data) <= LINE_LIMIT):
+            self.value(prefix, data, depth)
+            return True
+        value = laid_out_value(data, indentation, self.unit)
+        if value is not None and value.strip('\n'):
+            self.block(prefix, value, depth)
+            return True
+        if block_tag(data) is not None:
+            return False
+        self.value(prefix, data, depth, allow_block=False)
+        return True
+
+    def misc(self, item, depth: int, laid_out: bool = False, indentation: str = '') -> None:
         ind = '  ' * depth
         if isinstance(item, Comment):
-            self.comment(item.data, depth, laid_out)
+            self.comment(item.data, depth, laid_out, indentation)
         elif isinstance(item, PI):
             self.value(ind + '@pi ' + item.target, item.data, depth, allow_block=False)
         elif isinstance(item, Doctype):
@@ -1128,13 +1181,20 @@ class SmlWriter:
                 line += ' SYSTEM ' + quote(item.system_id)
             self.out.append(line)
 
-    def element(self, el: Element, depth: int) -> None:
+    def element(self, el: Element, depth: int, indentation: str = '', laid_out_position: bool = False) -> None:
+        """Writes an element; indentation is its own indentation in the XML (§6.4), and laid_out_position says
+        whether whitespace before it is predicted."""
         ind, inner = '  ' * depth, '  ' * (depth + 1)
         nodes = content_nodes(el)
         k = sum(1 for n in nodes if not isinstance(n, Text))
-        noindent = False
+        noindent, laid_out, step, local = False, False, self.unit, None
         if self.unit is not None and k:
-            if matches_prediction(el, depth, self.unit):
+            laid_out = matches_layout(nodes, indentation, self.unit)
+            if not laid_out:
+                candidate = step_from(nodes, indentation)
+                if candidate is not None and candidate != self.unit and matches_layout(nodes, indentation, candidate):
+                    laid_out, step, local = True, candidate, candidate
+            if laid_out:
                 nodes = [n for n in nodes if not isinstance(n, Text)]
             elif not isinstance(nodes[0], Text):
                 noindent = True
@@ -1156,8 +1216,8 @@ class SmlWriter:
             if el.qname != 'end' and not nodes:
                 self.out.append(ind + opener + '/')
                 return
-            if el.qname != 'end' and len(nodes) == 1 and isinstance(nodes[0], Text):
-                self.value(ind + opener + ' =', nodes[0].data, depth)
+            if (el.qname != 'end' and len(nodes) == 1 and isinstance(nodes[0], Text)
+                    and self.compact_text(ind + opener + ' =', nodes[0].data, depth, indentation, laid_out_position)):
                 return
         if el.qname == 'end':
             self.out.append(ind + '@element end')
@@ -1171,10 +1231,11 @@ class SmlWriter:
                 self.out.append(inner + '@ns ' + ('' if p is None else p + ' ') + tok)
             for q, v in attrs:
                 self.value(inner + '.' + q, v, depth + 1)
+        if local is not None:
+            self.out.append(inner + '@indent ' + ('tab' if local == '\t' else str(len(local))))
         if noindent:
             self.out.append(inner + '@noindent')
-        laid_out = self.unit is not None and matches_prediction(el, depth, self.unit)
-        self.items(nodes, depth + 1, laid_out)
+        self.items(nodes, depth + 1, laid_out, indentation + (step or ''))
         self.out.append(ind + 'end')
 
 

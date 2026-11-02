@@ -104,11 +104,13 @@ class Generator:
             data += 'x'
         return S.Comment(data)
 
-    def laid_out_comment(self, depth: int, unit: str) -> S.Comment:
+    def laid_out_lines(self) -> str:
+        return '\n'.join(self.r.choice(['Created with an editor', 'http://example.org/', 'end', '"""', '', '  indented',
+                                         '# x']) for _ in range(self.r.randint(1, 4)))
+
+    def laid_out_comment(self, indentation: str, unit: str) -> S.Comment:
         """A comment in the layout a pretty-printer gives multi-line comments (§6.4)."""
-        lines = [self.r.choice(['Created with an editor', 'http://example.org/', 'end', '"""', '', '  indented', '# x'])
-                 for _ in range(self.r.randint(1, 4))]
-        return S.Comment(S.lay_out_comment('\n'.join(lines), unit, depth))
+        return S.Comment(S.lay_out_block(self.laid_out_lines(), indentation, unit))
 
     def pi(self) -> S.PI:
         data = self.value().replace('\r', '').replace('?>', '? >').lstrip(S.XML_WS)
@@ -124,8 +126,10 @@ class Generator:
             return S.Doctype(name, None, r.choice(SYSIDS))
         return S.Doctype(name, r.choice(PUBIDS), r.choice(SYSIDS))
 
-    def element(self, depth: int, ctx: dict) -> S.Element:
+    def element(self, depth: int, ctx: dict, indentation: str = '') -> S.Element:
         r = self.r
+        # This element's step: mostly the document's unit, sometimes another (a local @indent, §6.4).
+        step = None if self.unit is None else self.unit if r.random() < 0.85 else r.choice(UNITS)
         decls = {}
         if r.random() < 0.3:
             decls[None] = '' if ctx.get(None) and r.random() < 0.2 else r.choice(URIS)
@@ -157,7 +161,7 @@ class Generator:
             for _ in range(r.randint(0, 4 if depth < 2 else 2)):
                 pick = r.random()
                 if pick < 0.45:
-                    el.children.append(self.element(depth + 1, scope))
+                    el.children.append(self.element(depth + 1, scope, indentation + (step or '')))
                 elif pick < 0.75:
                     el.children.append(S.Text(self.value()))
                 elif pick < 0.87:
@@ -166,13 +170,21 @@ class Generator:
                     el.children.append(self.pi())
         if (self.unit is not None and el.children and not any(isinstance(c, S.Text) for c in el.children)
                 and r.random() < 0.8):
-            unit = self.unit if r.random() < 0.9 else r.choice(UNITS)
+            inner = indentation + step
             spaced = []
             for c in el.children:
                 if isinstance(c, S.Comment) and r.random() < 0.4:
-                    c = self.laid_out_comment(depth + 1, unit)
-                spaced += [S.Text('\n' + unit * (depth + 1)), c]
-            el.children = spaced + [S.Text('\n' + unit * depth)]
+                    c = self.laid_out_comment(inner, self.unit)
+                elif (isinstance(c, S.Element) and (not c.children or (len(c.children) == 1
+                      and isinstance(c.children[0], S.Text))) and r.random() < 0.5):
+                    # A text-only element pretty-printed like <p>\n  text\n</p>, sometimes without attributes so
+                    # that it is written in the compact form.
+                    c.children = [S.Text(S.lay_out_block(self.laid_out_lines(), inner, self.unit))]
+                    if r.random() < 0.5:
+                        c.attrs.clear()
+                        c.attr_expanded.clear()
+                spaced += [S.Text('\n' + inner), c]
+            el.children = spaced + [S.Text('\n' + indentation)]
         return el
 
     def document(self) -> S.Document:
@@ -181,7 +193,7 @@ class Generator:
         d.standalone = r.choice([None, None, 'yes', 'no'])
         d.prolog = [self.comment() if r.random() < 0.5 else self.pi() for _ in range(r.choice([0, 0, 1, 2, 3]))]
         if self.unit is not None and r.random() < 0.3:
-            d.prolog.append(self.laid_out_comment(0, self.unit))
+            d.prolog.append(self.laid_out_comment('', self.unit))
         if r.random() < 0.3:
             d.prolog.insert(r.randint(0, len(d.prolog)), self.doctype())
         d.root = self.element(0, dict(S.BASE_NS))

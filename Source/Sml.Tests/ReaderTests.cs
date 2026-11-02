@@ -326,6 +326,55 @@ public class ReaderTests
         Assert.Contains("@comment \"\\n  \"", SmlWriter.Write(laid));
     }
 
+    private static List<string> Texts(ElementNode element) =>
+        element.Children.OfType<TextNode>().Select(t => t.Data).ToList();
+
+    [Fact]
+    public void SV81_LocalIndent()
+    {
+        const string source = "@indent 2\ng\n  h\n    @indent 4\n    a/\n    b\n      c/\n    end\n  end\n  k\n    @indent tab\n    m/\n  end\nend\n";
+        SmlDocument doc = SmlReader.Read(source);
+        ElementNode h = doc.Root.Children.OfType<ElementNode>().ElementAt(0);
+        Assert.Equal(["\n      ", "\n      ", "\n  "], Texts(h));
+        Assert.Equal(["\n        ", "\n      "], Texts(h.Children.OfType<ElementNode>().ElementAt(1)));
+        Assert.Equal(["\n  \t", "\n  "], Texts(doc.Root.Children.OfType<ElementNode>().ElementAt(1)));
+        Assert.Equal("@sml 1.0-SVG-4\n" + source, SmlWriter.Write(doc));
+        Rejects("g\n  @indent 4\n  h/\nend\n", "needs the @indent header");
+        Rejects("@indent 2\ng\n  @indent 4\n  @indent 2\nend\n", "only once");
+        Rejects("@indent 2\ng\n  h/\n  @indent 4\nend\n", "after the element");
+        Rejects("@indent 2\ng\n  @indent 3x\nend\n", "width from 0 to 16");
+        Rejects("@indent 2\ng/\n@indent 4\n", "only allowed before the root");
+    }
+
+    [Fact]
+    public void SV82_LaidOutText()
+    {
+        const string source = "@indent 2\ng\n  p = \"\"\"\n    one\n\n    two\n  \"\"\"\n  q\n    @indent 4\n    r = \"\"\"\n      deep\n    \"\"\"\n  end\nend\n";
+        SmlDocument doc = SmlReader.Read(source);
+        List<ElementNode> elements = doc.Root.Children.OfType<ElementNode>().ToList();
+        Assert.Equal("\n    one\n\n    two\n  ", ((TextNode)elements[0].Children[0]).Data);
+        Assert.Equal("\n        deep\n      ", ((TextNode)elements[1].Children.OfType<ElementNode>().First().Children[0]).Data);
+        Assert.Equal("@sml 1.0-SVG-4\n" + source, SmlWriter.Write(doc));
+
+        // The normal form, @noindent parents, mixed content, and documents without @indent stay literal.
+        foreach (string literal in new[]
+        {
+            "@indent 2\ng\n  p\n    = \"\"\"\n      a\n      b\n    \"\"\"\n  end\nend\n",
+            "@indent 2\ng\n  @noindent\n  p = \"\"\"\n    a\n    b\n  \"\"\"\nend\n",
+            "@indent 2\ng\n  = x\n  p = \"\"\"\n    a\n    b\n  \"\"\"\nend\n",
+            "g\n  p = \"\"\"\n    a\n    b\n  \"\"\"\nend\n",
+        })
+            Assert.Equal("a\nb", ((TextNode)Root(literal).Children.OfType<ElementNode>().First().Children[0]).Data);
+
+        // In a laid-out position, text that needs a literal block uses the normal form; other text is quoted.
+        SmlDocument xml = XmlImporter.Read(Encoding.UTF8.GetBytes("<g>\n  <p>a\nb</p>\n  <p>\n  flush\n  </p>\n  <p>\n    x\n  </p>\n</g>"));
+        string sml = SmlWriter.Write(xml);
+        Assert.Contains("  p\n    = \"\"\"\n      a\n      b\n    \"\"\"\n  end\n", sml);
+        Assert.Contains("  p = \"\\n  flush\\n  \"\n", sml);
+        Assert.Contains("  p = \"\"\"\n    x\n  \"\"\"\n", sml);
+        Assert.Null(DocumentComparer.FirstDifference(xml, SmlReader.Read(sml)));
+    }
+
     [Fact]
     public void SupplementaryCharactersInNamesAndCodePointOrdering()
     {

@@ -69,6 +69,14 @@ public sealed partial class SmlReader
         public Dictionary<(ExpandedName Element, string Alias), string> Aliases { get; } = [];
         public bool NoIndent { get; set; }
         public bool? LaidOut { get; set; }
+
+        /// <summary>The element's own indentation (§6.4).</summary>
+        public string Indentation { get; set; } = "";
+
+        /// <summary>How much deeper its children are: the @indent unit, or the element's own @indent.</summary>
+        public string? Step { get; set; }
+
+        public bool LocalStep { get; set; }
     }
 
     /// <summary>A value that continuation lines (§6.5) may still extend.</summary>
@@ -403,11 +411,10 @@ public sealed partial class SmlReader
         if (isText && f.LaidOut == true)
             throw new SmlException("text in a laid-out element (§6.4); mark the element @noindent", ln);
         if (f.LaidOut == true)
-            f.Element.Children.Add(new TextNode("\n" + Repeat(_indent!, f.Depth + 1)));
+            f.Element.Children.Add(new TextNode("\n" + f.Indentation + f.Step));
         f.Element.Children.Add(node);
     }
 
-    private static string Repeat(string unit, int count) => string.Concat(Enumerable.Repeat(unit, count));
 
     private Frame OpenElement(string qname, List<(string Name, string Value, bool Quoted)> inline, string kind, int ln)
     {
@@ -419,6 +426,9 @@ public sealed partial class SmlReader
             parentNs = _stack[^1].Ns;
         }
         var f = new Frame(element, qname, parentNs, _stack.Count, ln);
+        if (_stack.Count > 0)
+            f.Indentation = _stack[^1].Indentation + (_stack[^1].Step ?? "");
+        f.Step = _indent;
         foreach (var (name, value, quoted) in inline)
         {
             if (name == "xmlns")
@@ -454,7 +464,7 @@ public sealed partial class SmlReader
         }
         CloseDeclarations(f, isText: true);
         if (f.LaidOut == true)
-            f.Element.Children.Add(new TextNode("\n" + Repeat(_indent!, f.Depth)));
+            f.Element.Children.Add(new TextNode("\n" + f.Indentation));
         _stack.RemoveAt(_stack.Count - 1);
         if (_stack.Count == 0)
             _phase = "epilog";
@@ -529,6 +539,8 @@ public sealed partial class SmlReader
         if (kind == ValueKind.Empty)
             return;
         var node = new TextNode(ValueOf(kind, value, ln));
+        if (kind == ValueKind.Block && _indent is not null && (_stack.Count == 0 || _stack[^1].LaidOut == true))
+            node.Data = LayOutBlock(node.Data, f.Indentation, _indent);
         f.Element.Children.Add(node);
         if (kind == ValueKind.Quoted)
             _pending = new Pending(more => node.Data += more);
@@ -661,15 +673,28 @@ public sealed partial class SmlReader
 
     private void Indent(string rest, int ln)
     {
-        Header("indent", ln);
         string value = XmlRules.StripSpacesAndTabs(rest);
+        string unit;
         if (value == "tab")
-            _indent = "\t";
+            unit = "\t";
         else if (value == "0" || (value.Length is 1 or 2 && value[0] is >= '1' and <= '9' && value.All(char.IsAsciiDigit)
                                   && int.Parse(value) <= 16))
-            _indent = new string(' ', int.Parse(value));
+            unit = new string(' ', int.Parse(value));
         else
             throw new SmlException("@indent takes tab or a width from 0 to 16", ln);
+        if (_stack.Count > 0)
+        {
+            // In an element: how much deeper its children are (§6.4).
+            Frame f = DeclarationFrame(ln, "@indent");
+            if (_indent is null)
+                throw new SmlException("@indent in an element needs the @indent header", ln);
+            if (f.LocalStep)
+                throw new SmlException("@indent may appear only once per element", ln);
+            (f.Step, f.LocalStep) = (unit, true);
+            return;
+        }
+        Header("indent", ln);
+        _indent = unit;
     }
 
     private void Doctype(string rest, int ln)
@@ -766,26 +791,27 @@ public sealed partial class SmlReader
         f.NoIndent = true;
     }
 
-    /// <summary>The data of a comment block in a laid-out position (§6.4): LF, each payload line indented one level
-    /// deeper than the comment (empty lines stay empty), LF, and the comment's own indentation.</summary>
-    public static string LayOutComment(string value, string unit, int depth)
+    /// <summary>The data of a comment block, or of the block of a compact text element, in a laid-out position
+    /// (§6.4): LF, each payload line indented one unit deeper than the comment or element (empty lines stay empty),
+    /// LF, and the comment's or element's own indentation.</summary>
+    public static string LayOutBlock(string value, string indentation, string unit)
     {
         if (value.Length == 0)
-            return "\n" + Repeat(unit, depth);
-        string inner = Repeat(unit, depth + 1);
+            return "\n" + indentation;
+        string inner = indentation + unit;
         return "\n" + string.Join('\n', value.Split('\n').Select(line => line.Length == 0 ? "" : inner + line))
-            + "\n" + Repeat(unit, depth);
+            + "\n" + indentation;
     }
 
-    /// <summary>The depth of a comment just added, if its position is laid out (§6.4), else null.</summary>
-    private int? LaidOutDepth()
+    /// <summary>The indentation of a comment just added, if its position is laid out (§6.4), else null.</summary>
+    private string? LaidOutIndentation()
     {
         if (_indent is null)
             return null;
         if (_stack.Count == 0)
-            return 0;
+            return "";
         Frame f = _stack[^1];
-        return f.LaidOut == true ? f.Depth + 1 : null;
+        return f.LaidOut == true ? f.Indentation + f.Step : null;
     }
 
     private void Comment(string rest, int ln)
@@ -793,8 +819,8 @@ public sealed partial class SmlReader
         var (kind, value) = ParseValueTail(rest, ln);
         var node = new CommentNode(ValueOf(kind, value, ln));
         AddChild(node, isText: false, ln);
-        if (kind == ValueKind.Block && LaidOutDepth() is { } depth)
-            node.Data = LayOutComment(node.Data, _indent!, depth);
+        if (kind == ValueKind.Block && LaidOutIndentation() is { } indentation)
+            node.Data = LayOutBlock(node.Data, indentation, _indent!);
         if (kind == ValueKind.Quoted)
             _pending = new Pending(more => node.Data += more, () => XmlRules.CheckComment(node.Data, ln));
         else

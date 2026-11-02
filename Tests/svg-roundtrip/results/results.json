@@ -502,6 +502,26 @@
       "notes": []
     },
     {
+      "id": "81-local-indent",
+      "xml_baseline": "PASS",
+      "lxml_crosscheck": "PASS",
+      "sml_round_trip": "PASS",
+      "xml_reimport": "PASS",
+      "stable": "PASS",
+      "kdl_2_0": "NOT_RUN",
+      "notes": []
+    },
+    {
+      "id": "82-laid-out-text",
+      "xml_baseline": "PASS",
+      "lxml_crosscheck": "PASS",
+      "sml_round_trip": "PASS",
+      "xml_reimport": "PASS",
+      "stable": "PASS",
+      "kdl_2_0": "NOT_RUN",
+      "notes": []
+    },
+    {
       "id": "X1-long-values",
       "xml_baseline": "PASS",
       "lxml_crosscheck": "PASS",
@@ -597,19 +617,18 @@
     }
   ],
   "unit_tests": {
-    "run": 58,
+    "run": 60,
     "failed": []
   },
   "fuzz": {
     "seed": 1,
     "documents": 300,
     "sml_mutants": 1200,
-    "sml_mutants_accepted": 318,
+    "sml_mutants_accepted": 306,
     "xml_mutants": 1200,
-    "xml_mutants_both_accepted": 318,
+    "xml_mutants_both_accepted": 336,
     "known_divergences": {
-      "libxml2 rejects namespace names that are not URI references; expat and the prototype accept them": 23,
-      "expat uses XML 1.0 4th-edition name characters and rejects names that 5th-edition parsers such as libxml2 accept": 1
+      "libxml2 rejects namespace names that are not URI references; expat and the prototype accept them": 27
     },
     "findings": []
   }

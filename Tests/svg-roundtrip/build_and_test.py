@@ -109,6 +109,43 @@ comment
 <rect/>
 
 <rect/></g></svg>''',
+'81-local-indent.svg':'''<svg xmlns="http://www.w3.org/2000/svg">
+  <metadata>
+    <info>
+        <a/>
+        <b>
+          <c/>
+        </b>
+    </info>
+  </metadata>
+  <g>
+  	<rect/>
+  </g>
+  <h>
+	<rect/>
+  </h>
+</svg>''',
+'82-laid-out-text.svg':'''<svg xmlns="http://www.w3.org/2000/svg">
+  <desc>
+    Pretty-printed text,
+    one line per line.
+  </desc>
+  <style type="text/css">
+    .a { fill: red; }
+    .b { fill: blue; }
+  </style>
+  <title>Short</title>
+  <desc>Starts at once
+    and goes on.</desc>
+  <desc x="1" y="2">
+  flush text is quoted
+  </desc>
+  <info xmlns="urn:x">
+      <p>
+        Inside a subtree with its own step
+      </p>
+  </info>
+</svg>''',
 '78-laid-out-comment.svg':'''<?xml version="1.0" encoding="UTF-8"?>
 <!--
   Prolog comment at depth 0
