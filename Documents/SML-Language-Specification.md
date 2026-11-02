@@ -3,27 +3,32 @@
 **Status:** Proposed normative revision (design baseline, not yet reference-parser certified)  
 **Revision:** 1.0-SVG-3 · 2026-11-02  
 **Goal:** Human-editable representation of SVG/XML with deterministic, information-preserving two-way translation  
-**Extension:** `.sml` (provisional; naming and extension choice are independent of syntax)
+**Extension:** `.sml` (provisional; naming and extension choice are independent of syntax)  
+**Naming note:** Both the name and the extension collide with existing uses: `.sml` is the standard extension for Standard ML source files, and "SML" is also W3C's XML-based Service Modeling Language. A distinct name and extension SHOULD be chosen before 1.0 is final.
 
-> **Conformance boundary:** This revision specifies a well-defined mapping for the **SVG-safe XML subset** described in §3. It does **not** promise lossless import of every legal XML document, original XML bytes, DTD internal subsets, external DTD content, or entity declaration syntax. The SVG converter MUST reject information outside the supported subset instead of silently deleting it.
+> **Conformance boundary:** This revision specifies a well-defined mapping for the **SVG-safe XML subset** described in §3. It does **not** promise lossless import of every legal XML document, original XML bytes, DTD internal subsets, external DTD content, or entity declaration syntax. A strict converter (§1.2) MUST reject information outside the supported subset instead of silently deleting it.
 
 The capitalized words **MUST**, **MUST NOT**, **SHOULD**, and **MAY** have their ordinary normative meanings.
 
 **Changes since 1.0-SVG-2:**
 
-1. **Marked alias invocation.** A named attribute block is invoked as `alias |`. A bare name line is always an element opener, so an alias can no longer capture a real child element, and `@element` is no longer needed to disambiguate alias collisions (§§5.2, 8.3, 12.1).
+1. **Marked alias invocation.** A named attribute block is invoked as `alias |`. The space before `|` is optional for every block marker (`data|`, `.d|`, `=|`). A bare name line is always an element opener, so an alias can no longer capture a real child element, and `@element` is no longer needed to disambiguate alias collisions (§§5.2, 8.3, 12.1).
 2. **Trimmed lines.** Leading and trailing spaces/tabs are removed from every line outside multiline blocks, and trailing spaces/tabs from every block payload line. Raw values therefore never begin or end with whitespace; such data MUST be quoted (§§4, 6.1, 6.2, 7, 12).
 3. **Processing instructions.** PI targets are `NCName`s, and PI data MUST NOT begin with XML whitespace, because neither survives an XML round trip (§§4, 9).
 4. **Formatting whitespace.** The new `@indent` header and `@noindent` directive let strict conversions of pretty-printed XML omit predictable whitespace-only text nodes without loss (§6.4). The readable (lossy) import profile is now specified (§3.1).
 5. **Document type declarations.** The new `@doctype` directive preserves a DOCTYPE that has no internal subset as opaque metadata. The external DTD is never loaded. Internal subsets remain rejected (§§2, 3, 11.1).
+6. **Namespaces.** All `@ns` lines come first in a declaration section, so an element resolves in a single pass. Compact forms can declare namespaces with inline `xmlns` entries. `.xmlns` attributes are forbidden. A raw namespace URI must contain `:`. The `xml` and `xmlns` prefix rules are explicit (§§5.1, 6.3, 10).
+7. **Values.** Inline raw values may contain balanced parentheses, e.g. `transform=translate(10,20)` (§6.3). Long quoted values can be wrapped exactly with continuation lines (§6.5). `\u{}` escapes are fully specified. A raw value cannot begin with `|` (§6.2).
+8. **Blocks and elements.** Blocks may use a custom terminator (`|EOT`) when the payload contains an `end` line (§7). `end QName` is an optional, checked close (§5.3). `end` can no longer be used as a compact element name (§5.2). The legacy `=` in `@block` declarations is removed (§8.1).
+9. **Conformance.** Conformance classes and profiles are defined (§1.2). A fully deterministic canonical form is specified (§14.2). Versioning, XML output, extension syntax, and optional extensions are specified (§§11, 13). Core parser fixtures (CP series) and a reverse round trip are added (§15).
 
-Conformance cases SV-51–SV-70 cover these changes. (1.0-SVG-2 introduced Core `@block` aliases and cases SV-33–SV-50.) All other SVG-safe XML preservation rules are retained.
+Conformance cases SV-51–SV-76 and CP-1–CP-24 cover these changes. (1.0-SVG-2 introduced Core `@block` aliases and cases SV-33–SV-50.) All other SVG-safe XML preservation rules are retained.
 
 ## 1. Core design
 
 SML is an alternate *serialization* of an XML-compatible document tree, **not** an SVG drawing language, a schema, a template system, or a geometry engine. SVG properties such as `d`, `viewBox`, `transform`, `points`, `style`, `href`, `xml:space` and CSS source are opaque Unicode strings to the converter. A renderer or editor may interpret them later; import/export MUST NOT normalize numbers, paths, styles, IDs, references, or geometry.
 
-Five inherited decisions remain in force:
+These design decisions are in force. Items 1–5 are inherited from earlier drafts; item 6 was added in 1.0-SVG-2.
 
 1. Ordinary elements are closed with an explicit `end`. Two intentionally compact forms (`name/` and `name = value`) close themselves.
 2. Inline text and parenthesized inline attributes are supported.
@@ -70,7 +75,7 @@ end
 
 `svg` and `g` are *laid out*: the reader inserts `LF` plus two spaces per depth level before each of their children and before their closing tags, reproducing the XML indentation exactly. `text` begins with a text statement, so its mixed content is taken exactly as written; the quoted `"Hello "` preserves the space before the `tspan`. Without the `@indent 2` line, the same statements would describe XML with no whitespace between elements.
 
-An equivalent, block-oriented path representation is available whenever an in-scope alias has been declared:
+A block-oriented path representation is available whenever an in-scope alias has been declared. It is not equivalent to the original; see below:
 
 ```sml
 svg
@@ -89,6 +94,24 @@ end
 
 Here `data | ... end` means the same as `.d | ... end`; the resulting attribute contains LF between the displayed commands. It is **not** text content or an SVG child element. A bare `data` line, without the `|` marker, would open a child element named `data`. This example's `d` value is not identical to the single-line original, since its whitespace differs; it illustrates authoring rather than an automatic fidelity-preserving rewrite. It also has no `@indent` header, so its XML contains no whitespace between elements.
 
+### 1.2 Conformance classes and profiles
+
+This specification defines requirements for these classes of software:
+
+- **SML reader:** parses SML into the information model (§2), or reports an error (§12.3).
+- **SML writer:** serializes a document as SML that a reader parses back to an equal document (§3).
+- **Canonical writer:** an SML writer whose output is the canonical form (§14.2), a function of the document alone.
+- **SML formatter:** rewrites SML source as SML source without changing the document (§14.1).
+- **XML importer:** converts XML to the information model. **XML exporter:** converts the information model to XML.
+
+It defines these profiles:
+
+- **Core:** the SML syntax itself. Core has no vocabulary-specific knowledge.
+- **Strict profile:** the information-preserving XML↔SML conversion of §§2–3, including preservation of namespace prefixes and declaration locations. This document also calls it the *SVG-safe* profile; despite the name, its rules are generic XML, and SVG is its primary test corpus. Strict importers and exporters MUST implement it. In this document, "strict" always refers to this profile.
+- **Readable import profile** (§3.1): a lossy, SVG-aware import option.
+
+Examples, notes, and §16 are informative; all other text is normative. Where an example conflicts with normative text, the normative text governs.
+
 ## 2. Core information model
 
 A document contains exactly one root **element**, plus an ordered sequence of top-level comments and processing instructions before/after the root, an optional document type declaration (name, optional public ID, optional system ID) positioned among the comments and PIs before the root (§11.1), and optional standalone declaration metadata. An element has:
@@ -99,7 +122,7 @@ A document contains exactly one root **element**, plus an ordered sequence of to
 
 Adjacent text nodes may be coalesced and zero-length text nodes ignored for semantic equality. All attribute and text characters otherwise remain exact, **including whitespace-only text**. Duplicate attribute expanded names are illegal.
 
-**SVG-safe prefix rule:** Unlike a minimal namespace-only XML model, the mandatory SVG profile retains **the original lexical prefixes and the places where `xmlns` bindings are declared**, including unused bindings. These can affect QName-like values, prefix-sensitive content, vendor metadata, or CSS. The writer MUST NOT arbitrarily rename/rebind prefixes. This stronger rule is a conservative SVG interoperability guarantee; it does not mean full byte-level XML source preservation.
+**SVG-safe prefix rule:** Unlike a minimal namespace-only XML model, the strict profile (§1.2) retains **the original lexical prefixes and the places where `xmlns` bindings are declared**, including unused bindings. These can affect QName-like values, prefix-sensitive content, vendor metadata, or CSS. The writer MUST NOT arbitrarily rename/rebind prefixes. This stronger rule is a conservative SVG interoperability guarantee; it does not mean full byte-level XML source preservation.
 
 ## 3. Supported SVG/XML subset and round-trip promise
 
@@ -116,7 +139,7 @@ ParseSML(WriteSML(D))  ≡  D
 ParseXML(WriteXML(D))  ≡  D
 ```
 
-The equality `≡` includes the ordered content, the SVG-safe prefix/declaration contract above, and the document type declaration's name, public ID, system ID, and position among prolog comments/PIs. It excludes merely lexical XML trivia such as indentation outside element text, attribute order, self-closing notation, character-reference spelling, CDATA boundaries, and the quotation marks around DOCTYPE literals. SML representation choices (`@block` aliases, `@indent`/`@noindent`, raw versus quoted values, inline versus vertical attributes) are not part of `D`.
+The equality `≡` includes the ordered content, the SVG-safe prefix/declaration contract above, and the document type declaration's name, public ID, system ID, and position among prolog comments/PIs. It excludes merely lexical XML trivia such as indentation outside element text, attribute order, self-closing notation, character-reference spelling, CDATA boundaries, and the quotation marks around DOCTYPE literals. SML representation choices are not part of `D`. These include `@block` aliases, `@indent`/`@noindent`, raw versus quoted values, continuation lines, block terminators, inline versus vertical attributes and namespace declarations, and `end QName`.
 
 **Do not confuse SVG rendering equivalence with information equivalence:** the XML text `<path d="M0 0 L2 2"/>` and `<path d="M0,0L2,2"/>` may render alike, but are not string-identical and MUST NOT be silently substituted during conversion.
 
@@ -137,13 +160,14 @@ These conditions are deliberately conservative. Whitespace between `tspan` eleme
 
 ## 4. Encoding, lines, names, and structural model
 
-- SML source MUST be valid UTF-8; a UTF-8 BOM is permitted. Invalid byte sequences are errors.
+- SML source MUST be valid UTF-8; a UTF-8 BOM is permitted on input, and writers MUST NOT emit one. Invalid byte sequences are errors.
 - CRLF and lone CR source *line separators* are normalized to LF for lexical processing. `\r` within a quoted value represents an actual U+000D data character.
+- Only LF, CR, and CRLF separate lines. U+0085 (NEL), U+2028 (LINE SEPARATOR), and U+2029 (PARAGRAPH SEPARATOR) are ordinary data characters. Writers SHOULD write them, the C1 control characters, and other invisible format characters (Unicode general category Cf, such as bidirectional controls) as `\u{…}` escapes in quoted values, so that no data is invisible.
 - Unicode normalization (NFC, NFD, etc.) MUST NOT be performed.
 - An ordinary statement is one physical line. Outside multiline blocks, **leading and trailing spaces/tabs are removed from every line** before it is interpreted; they never carry data. Data that begins or ends with a space or tab must therefore be quoted (§6.2). Blank lines outside blocks are ignored.
 - A name is an XML Namespaces 1.0 **QName** (`NCName` or `NCName:NCName`); names are case-sensitive. PI targets are **NCName**s: Namespaces in XML 1.0 §7 forbids colons in PI targets, and namespace-aware XML parsers reject them.
 - XML 1.0 character validity and namespace restrictions apply to all names and decoded values.
-- The parser maintains an element stack. Only `end` closes a normal element. Indentation is advisory and never closes a node.
+- The parser maintains an element stack. Only `end` (or a checked `end QName`, §5.3) closes a normal element. Indentation is advisory and never closes a node.
 - A line's first non-indentation token determines its statement kind; a value's interior characters are never rescanned as SML statements.
 
 ## 5. Statements and elements
@@ -156,30 +180,40 @@ These conditions are deliberately conservative. Whitespace between `tspan` eleme
 | `name = value` or `name(a=v) = value` | Element with exactly one text value, implicitly closed |
 | `.name value` | Attribute of the currently open element, allowed only in its declaration section |
 | `= value` | Text child of current element |
-| `@ns [prefix] URI` | Namespace declaration on current element, only in its declaration section |
+| `"more"` | Continuation line: appends a quoted string to the previous quoted value (§6.5) |
+| `@ns [prefix] URI` | Namespace declaration on current element, only at the start of its declaration section |
 | `@block element-qname alias .attribute-qname` | Core declaration mapping a named multiline block to an attribute on matching elements |
-| `alias \| ... end` | In a matching element's declaration section, supplies the declared attribute as a multiline value |
+| `alias \| ... end` | In a matching element's declaration section, supplies the declared attribute as a multiline value (`alias\|` is equivalent) |
 | `@noindent` | Marks the current element's content as exact: no predicted formatting whitespace is inserted (§6.4); only in its declaration section |
 | `@comment value` | Preserved XML comment node |
 | `@pi target [value]` | Preserved processing instruction |
 | `# ...` | Source-only comment (omitted from XML) |
-| `end` | Close current ordinary element |
+| `end` or `end QName` | Close current ordinary element; with a QName, the name is checked (§5.3) |
+| `\|` or `\|TAG` | Block marker after `.name`, `=`, `name =`, `@comment`, or an alias; `\|TAG` ends at a line `TAG` instead of `end` (§7) |
 | `@element QName` | Explicit normal element opener, required for an element named `end` |
-| `@sml 1.0` | Optional document version header |
+| `@sml VERSION` | Optional document version header; must come first (§11) |
 | `@standalone yes` / `@standalone no` | Optional XML standalone metadata |
 | `@indent N` / `@indent tab` | Optional header enabling the formatting-whitespace model (§6.4) |
 | `@doctype name [PUBLIC "pubid" "sysid" \| SYSTEM "sysid"]` | Optional document type declaration, preserved as opaque metadata (§11.1) |
-| `@use identifier version` | Opt-in extension declaration (see §13) |
+| `@use identifier version [optional]` | Opt-in extension declaration (see §13) |
+| `@identifier:name [value]` | Directive of a declared extension (see §13) |
 
-There is **no** `end name`, `@cdata`, `@encoding`, `@xml`, `|+`, or `|-` in this simplified Core. Those old exploratory forms are **not valid 1.0-SVG-3 syntax**. XML export always targets XML 1.0 in UTF-8.
+There is **no** `@cdata`, `@encoding`, `@xml`, `|+`, or `|-` in this simplified Core. Those old exploratory forms are **not valid 1.0-SVG-3 syntax**. XML export always targets XML 1.0 in UTF-8.
 
 ### 5.1 Declaration section
 
-A normal element opener is followed by a **declaration section** containing zero or more `@ns` namespace declarations, `@block` declarations, and ordinary/aliased attributes, plus at most one `@noindent` marker (§6.4), potentially interspersed with blank lines and source-only `#` comments. Ordinary dot-prefixed attributes may appear before or after `@ns` declarations. However, **all local `@ns` declarations MUST precede the first local `@block` declaration or aliased-block invocation**. This allows alias names and their target element names to resolve against stable, already-declared namespace bindings. Once the first actual child/text/`@comment`/`@pi` occurs, the declaration section closes. Any subsequent `.attribute`, `@ns`, `@block`, `@noindent`, or alias invocation (`alias |`) is an error. A bare name line is always an element opener, whether or not it matches an alias name (§8.3).
+A normal element opener is followed by a **declaration section**. It contains, in this order:
 
-Because namespaces may be declared *after* the element opener (and ordinary dot attributes), the parser MUST resolve the opener and all attributes after collecting the declaration section. A streaming `StartElement` event is emitted only after the parser has collected namespace bindings, block declarations, and all ordinary and aliased attributes. An alias invocation is recognized using the current element's resolved name with the namespace bindings established **before** that invocation; no local namespace declaration may follow the first alias invocation.
+1. zero or more `@ns` namespace declarations (§10), which **MUST come first**;
+2. then, in any order, `@block` declarations (§8), ordinary `.attribute` statements, alias invocations (`alias |`), and at most one `@noindent` marker (§6.4).
 
-An empty element (`name/`) and inline-text element (`name = value`) cannot have following dot attributes, `@ns`, or `@block` directives, or invoke a named block. For an element that declares namespaces or aliases, or needs vertical attributes, use the normal opener plus `end`, even if it is otherwise empty or text-only.
+Blank lines, `#` source comments, and extension directives (§13) may appear anywhere. An `@ns` line after any statement of the second group is an error.
+
+Because all of an element's namespace declarations precede everything else, its name, attributes, `@block` declarations, and alias invocations resolve against one fixed set of bindings in a single pass. Those declarations are the inline `xmlns` entries on the opener (§6.3) and the `@ns` lines. This is the only ordering rule for namespaces; other sections refer to it.
+
+Once the first actual child/text/`@comment`/`@pi` occurs, the declaration section closes. Any subsequent `.attribute`, `@ns`, `@block`, `@noindent`, or alias invocation is an error. A bare name line is always an element opener, whether or not it matches an alias name (§8.3). A streaming `StartElement` event is emitted when the declaration section closes, after the parser has collected namespace bindings, block declarations, and all ordinary and aliased attributes.
+
+An empty element (`name/`) and an inline-text element (`name = value`) have no declaration section. They cannot have `.attribute`, `@ns`, `@block`, or `@noindent` statements or invoke a named block, and they declare namespaces only through inline `xmlns` entries (§6.3). An element that needs vertical attributes, aliases, or `@ns` lines uses the normal opener plus `end`, even if it is otherwise empty or text-only.
 
 ### 5.2 Explicit element opener (`@element`)
 
@@ -194,6 +228,8 @@ end
 
 `@element` accepts any valid QName (including prefixed names), always opens a normal element, and requires a matching ordinary `end`. It has no inline-attribute, inline-text, or self-closing variants. It is not an alias invocation. A plain `end` line is always a terminator, never an opener.
 
+The unprefixed name `end` is **reserved** in ordinary element forms: `end()`, `end/`, `end(id=a)/`, and `end = x` are errors, not elements. `@element end` is the only way to open an element named `end`. Prefixed names such as `x:end` are not reserved.
+
 `@element` is **not** needed to distinguish a child element from a named attribute block. An alias invocation always carries the `|` marker (§8.3), so a bare `style` line opens a `style` child element even where a `style` alias is active:
 
 ```sml
@@ -206,6 +242,18 @@ body
   end
 end
 ```
+
+### 5.3 Checked end (`end QName`)
+
+`end QName` closes the current element exactly like `end`, and also asserts its name. The QName MUST be spelled identically to the element's opener (for `@element`, its operand); otherwise the reader reports an error. The check compares lexical spellings, not expanded names. It carries no information and is optional; writers MAY use it to label the ends of long elements.
+
+```sml
+g(id=layer)
+  path(d=M0 0 L10 10)/
+end g
+```
+
+Block terminators (§7) never take a name. Inside a block, a line `end path` is payload. `end` followed by anything other than a single QName is an error.
 
 ## 6. Attributes, text, and scalar values
 
@@ -233,17 +281,17 @@ text
 end
 ```
 
-The source `&lt;` is five literal characters in SML, not XML entity syntax. The XML writer performs any necessary escaping.
+The source `&lt;` is four literal characters in SML, not XML entity syntax. The XML writer performs any necessary escaping.
 
 ### 6.2 Values: exact interpretation rule
 
 After the syntactic separator, there are exactly three value modes:
 
-1. **Raw:** All characters from the first to the last non-space/tab character are literal, with no backslash escapes or entity decoding. A raw value never begins or ends with a space or tab (§4). This mode applies unless the value begins with `"` or is the exact block token `|`.
-2. **Quoted:** If the first value character is `"`, the **entire** value MUST be a correctly terminated double-quoted token with no characters after the closing quote. (Trailing spaces/tabs on the line were already removed by §4 and are permitted.) Quoted values support `\\`, `\"`, `\n`, `\r`, `\t`, and `\u{HEX}` (Unicode scalar value). Any other escape or unpaired surrogate is an error.
-3. **Block:** Only the exact, unquoted value marker `|` starts a multiline block (§7). To represent the literal single character `|`, write `"|"`.
+1. **Raw:** All characters from the first to the last non-space/tab character are literal, with no backslash escapes or entity decoding. A raw value never begins or ends with a space or tab (§4). This mode applies unless the value begins with `"` or `|`. In every position, including inline attributes, `@pi`, and `@ns`, a raw value cannot begin with `"` or `|`.
+2. **Quoted:** If the first value character is `"`, the **entire** value MUST be a correctly terminated double-quoted token with no characters after the closing quote. (Trailing spaces/tabs on the line were already removed by §4 and are permitted.) Quoted values support `\\`, `\"`, `\n`, `\r`, `\t`, and `\u{H…}`. In `\u{H…}`, `H…` is 1 to 6 hexadecimal digits in either case, naming a Unicode scalar value: not above U+10FFFF and not a surrogate code point (U+D800–U+DFFF). Any other escape, any surrogate, and any character that is not a valid XML 1.0 `Char` (such as `\u{0}`) is an error. A quoted value may continue on following lines (§6.5).
+3. **Block:** A value that is exactly `|`, or `|` immediately followed by an `NCName` terminator tag such as `|EOT`, starts a multiline block (§7). The space before the marker is optional: `.d|`, `=|`, `name =|`, `@comment|`, and `alias|` mean the same as `.d |`, `= |`, `name = |`, `@comment |`, and `alias |`. Any other value beginning with `|` is an error. To represent a value that begins with `|`, quote it, e.g. `"|"` or `"|x"`.
 
-No quoted/raw fallback is attempted for a malformed leading quotation mark; it is an error. A serializer MUST quote any value that begins or ends with a space or tab, begins with `"`, or is exactly `|`; written raw, such a value would be trimmed or reinterpreted.
+No quoted/raw fallback is attempted for a malformed leading quotation mark; it is an error. A serializer MUST quote any value that begins or ends with a space or tab, or begins with `"` or `|`; written raw, such a value would be trimmed or reinterpreted.
 
 For SVG information preservation, a value containing LF or CR cannot be raw: a writer MUST use quoted escapes or, where §7 permits, a block. XML output MUST encode U+000D in text and U+0009/U+000A/U+000D in attribute values as character references where required to survive XML parsing unchanged.
 
@@ -251,14 +299,29 @@ For SVG information preservation, a value containing LF or CR cannot be raw: a w
 
 The compact opener syntax is `QName(` *attributes* `)` with no whitespace between the element name and `(`. Inline attributes are comma-separated `QName=VALUE` pairs. Optional horizontal whitespace surrounds `=`, `,`, and the list. `name()` is legal. `name(x=)/` means an attribute with an empty value.
 
-Raw inline values may contain internal spaces, but **cannot** contain `,`, `)`, LF, or a leading `"`; leading/trailing horizontal whitespace is ignored. If those characters, exact outer whitespace, or a literal leading quote are needed, use a quoted inline string or a vertical `.attribute`.
+A raw inline value runs to the next `,` or `)` that is **not inside balanced parentheses**. Each `(` in the value opens a group that a later `)` closes, and a `,` inside a group is data. So `transform=translate(10,20)` and `fill=url(#grad)` need no quotes. A raw inline value:
+
+- has its leading and trailing spaces/tabs removed;
+- cannot begin with `"` or `|`;
+- cannot contain an unbalanced parenthesis.
+
+Values that need any of these use a quoted inline string or a vertical `.attribute`. `#` is an ordinary character and needs no quoting.
 
 ```sml
-rect(x=10, y=20, width=100, height=50, fill="#4477cc")/
+rect(x=10, y=20, width=100, height=50, fill=#4477cc)/
+use(href=#icon, transform=translate(10,20) rotate(45))/
 text(x=20, y=50) = Hello
 ```
 
-Quoted inline strings obey the same escaping rules as other quoted values. `(` and `#` are ordinary characters in an inline raw value; `)` and `,` are delimiters. Duplicate attributes, including collisions across inline and vertical forms, are errors by expanded name.
+Quoted inline strings obey the same escaping rules as other quoted values, without continuation lines. Duplicate attributes, including collisions across inline and vertical forms, are errors by expanded name.
+
+**Inline namespace declarations.** An inline entry named `xmlns` or `xmlns:prefix` is a namespace declaration, not an attribute. It is equivalent to `@ns URI` or `@ns prefix URI` and obeys every rule of §10. It is the only way to declare a namespace on a compact element:
+
+```sml
+p:x(xmlns:p=urn:vendor)/
+```
+
+Inline declarations count as made before the element's `@ns` lines. Declaring the same prefix both inline and with `@ns` is an error.
 
 **Mandatory parsing rule:** If an opener attempts an inline attribute list but it is malformed, it is an error. It MUST NOT be reinterpreted as a plain element name. The same rule applies to malformed quoted values.
 
@@ -321,9 +384,26 @@ is the XML:
 
 Each case reproduces the element's content exactly, so the round trip of §3 holds. Elements without non-text children are written explicitly, as without `@indent`.
 
+### 6.5 Long values: quoted continuation lines
+
+A quoted value may be split across lines. A line whose first character (after trimming) is `"` is a **continuation line**. It MUST consist of exactly one quoted string, which is appended, with nothing in between, to the value of the statement on the immediately preceding line. That statement MUST be an `.attribute`, `=`, inline-text, `@comment`, or `@pi` statement whose value is quoted, or another continuation line. No blank line or `#` comment may come between them. Continuation lines are not available for inline attributes, `@ns`, or `@doctype`.
+
+```sml
+image
+  .href "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAAB"
+    "CAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="
+end
+path
+  .d "M 10 10 C 20 30 40 30 50 10 "
+    "S 80 -10 90 10 Z"
+end
+```
+
+Spaces at a split point are visible inside the quotes, so the joined value is exact, even for values such as base64 data that contain no spaces. Indentation of continuation lines is advisory, as everywhere.
+
 ## 7. Multiline literal blocks — one form only
 
-A value exactly equal to `|` begins a multiline block. The block terminates at the first subsequent physical line whose trimmed content is exactly `end`, regardless of its indentation. This `end` belongs to the *value*, not to the surrounding element. There is no nested block syntax.
+A value exactly equal to `|` begins a multiline block; the space before the marker may be omitted (§6.2). The block terminates at the first subsequent physical line whose trimmed content is exactly `end`, regardless of its indentation. This `end` belongs to the *value*, not to the surrounding element, and never takes a name (§5.3). There is no nested block syntax.
 
 ```sml
 style = |
@@ -332,11 +412,23 @@ style = |
 end
 ```
 
+**Custom terminator.** `|TAG`, where `TAG` is an `NCName` other than `end`, starts a block that ends at the first line whose trimmed content is exactly `TAG`. Use it when the payload contains a line `end`:
+
+```sml
+desc = |EOT
+  if fill is none then
+    use stroke
+  end
+EOT
+```
+
+The `desc` text is `if fill is none then\n  use stroke\nend`. Everything else about the block is unchanged.
+
 **Dedentation algorithm:** collect all physical payload lines preceding the terminator; remove trailing spaces/tabs from each line (as in §4, they never carry data); determine the longest shared character prefix consisting only of spaces/tabs among all *nonblank* payload lines; remove that prefix from every nonblank line; convert blank lines (all spaces/tabs) to empty lines; join with LF. Do **not** automatically add a terminal LF. For zero lines, the result is the empty string. Tabs and spaces are compared as characters, never visual columns.
 
-This transformation deliberately strips *shared* leading whitespace. Therefore, for values where leading indentation itself is significant (particularly a one-line value or CSS whose first character must be a space), and for values in which any line ends with a space or tab, use a quoted value with explicit `\n` and `\t` escapes. A line consisting only of `end` cannot appear literally in a block, and must likewise use quoted escapes. This avoids making indentation structural in contradiction with §4.
+This transformation deliberately strips *shared* leading whitespace. Therefore, for values where leading indentation itself is significant (particularly a one-line value or CSS whose first character must be a space), and for values in which any line ends with a space or tab, use a quoted value with explicit `\n` and `\t` escapes. A line consisting only of `end` cannot appear in a block opened with a plain `|`; use a custom terminator or a quoted value. This avoids making indentation structural in contradiction with §4.
 
-Blocks may be used for `.attribute`, `=`, inline text, and `@comment`. For a compact `name = |` statement, the `end` closes the value *and* implicitly closes the inline element; no second terminator is needed.
+Blocks may be used for `.attribute`, `=`, inline text, `@comment`, and alias invocations. For a compact `name = |` statement, the terminator closes the value *and* implicitly closes the inline element; no second terminator is needed.
 
 ## 8. Named attribute blocks (`@block`) — SML Core
 
@@ -344,27 +436,13 @@ Blocks may be used for `.attribute`, `=`, inline text, and `@comment`. For a com
 
 ### 8.1 Declaration syntax and examples
 
-The canonical declaration is:
+The declaration is:
 
 ```sml
 @block element-qname alias-name .attribute-qname
 ```
 
-For compatibility with the earlier draft of this feature, the separator `=` between `alias-name` and `.attribute-qname` is **OPTIONAL** in a reader. A canonical SML writer MUST omit it:
-
-Canonical form:
-
-```sml
-@block svg:path data .d
-```
-
-Also accepted by readers, but not emitted by canonical writers:
-
-```sml
-@block svg:path data = .d
-```
-
-These are **alternative spellings** of one declaration. Declaring both forms for the same element and alias in one scope is an error. SML does not support inline `#` comments.
+For example, `@block svg:path data .d`. The `=` separator accepted by earlier drafts (`@block svg:path data = .d`) is no longer valid.
 
 The operands are:
 
@@ -380,7 +458,7 @@ The element QName is resolved **at declaration time** against the in-scope names
 
 The target attribute QName uses ordinary XML attribute rules: an unprefixed `.style` or `.d` has **no namespace**, regardless of the default namespace. A prefixed attribute QName requires its prefix to be bound in scope. Both element and attribute names are stored as expanded names, along with their lexical prefix information where the SVG-safe profile requires it.
 
-Because a current element's `@ns` declarations apply to that entire element, all `@ns` directives in the declaration section MUST appear before the first `@block` declaration or named-block invocation. They MAY follow ordinary `.attributes` if necessary. A later shadowing of a prefix or default namespace in a descendant does not retroactively alter an already resolved alias mapping.
+Because an element's `@ns` lines precede its `@block` declarations (§5.1), the bindings a declaration resolves against are final. A later shadowing of a prefix or default namespace in a descendant does not retroactively alter an already resolved alias mapping.
 
 Examples:
 
@@ -426,7 +504,7 @@ end
 
 ### 8.3 Invocation and value semantics
 
-An alias invocation is a physical line consisting of the `alias-name`, one or more spaces/tabs, and the block marker `|`. As for every line, leading and trailing spaces/tabs are removed first (§4). An invocation is valid only in the **declaration section of a matching normal element**. It is followed by payload lines and a terminating standalone `end`. It is exactly equivalent to `.attribute-qname |` followed by the same payload and block terminator.
+An alias invocation is a physical line consisting of the `alias-name`, optional spaces/tabs, and a block marker (`|` or `|TAG`, §7), so `data |` and `data|` are the same invocation. As for every line, leading and trailing spaces/tabs are removed first (§4). An invocation is valid only in the **declaration section of a matching normal element**. It is followed by payload lines and a terminating standalone `end` (or `TAG`). It is exactly equivalent to `.attribute-qname` followed by the same marker, payload, and terminator.
 
 ```sml
 path
@@ -441,7 +519,7 @@ end
 
 Given `@block path data .d` in scope with an appropriate default namespace, this sets `d` to the exact string `M 10 10\nL 100 100\nZ` (where `\n` in this explanation denotes LF). The block consumes its own `end`; the enclosing element still needs a separate `end`.
 
-The standard §7 dedentation, LF joining, termination, and exact-value fallback rules apply **unchanged**. No implicit SVG command parsing, folding, trimming, whitespace optimization, escaping, or type conversion occurs. A block may hold arbitrary XML-compatible string data, not only SVG path commands.
+The §7 rules for dedentation, LF joining, and termination, including custom terminators, apply **unchanged**. No implicit SVG command parsing, folding, trimming, whitespace optimization, escaping, or type conversion occurs. A block may hold arbitrary XML-compatible string data, not only SVG path commands.
 
 A named block is an **attribute declaration** for ordering and duplicate detection, so additional ordinary attributes may follow it. An invocation after child content has begun is an error, and so is an invocation when no active alias of that name matches the current element. A bare `alias-name` line without the marker is never an invocation: it is always an ordinary element opener, inside the declaration section or after it. An alias therefore never changes how a line without `|` parses, and a real child element whose name equals an alias needs no special spelling.
 
@@ -456,9 +534,9 @@ A named block is an **attribute declaration** for ordering and duplicate detecti
 
 ### 8.5 XML-to-SML writer requirements
 
-An XML-to-SML writer MAY introduce or use `@block` aliases as a formatting choice. It MUST emit any required alias declaration at an ancestor where the target element and attribute names resolve correctly, before any invocation. The result MUST remain self-contained: decoding it cannot depend on an external alias registry.
+An XML-to-SML writer MAY introduce or use `@block` aliases as a formatting choice. It MUST emit any required alias declaration on the invoking element itself or on an ancestor, where the target element and attribute names resolve correctly, before any invocation. The result MUST remain self-contained: decoding it cannot depend on an external alias registry.
 
-A writer MUST choose a named block only if the complete attribute string can be represented **exactly** by §7's dedentation and delimiter rules. Otherwise it MUST fall back to an ordinary `.attribute` value, usually quoted with explicit escapes. It MUST preserve XML namespace prefixes/declaration locations under the SVG-safe profile. Because invocations carry the `|` marker, a real child element whose name equals an active alias is written as an ordinary element. Writers MUST NOT alter the text of SVG `d`, CSS `style`, `points`, or any other attribute to make an alias representation possible.
+A writer MUST choose a named block only if the complete attribute string can be represented **exactly** by §7's dedentation and terminator rules, using a custom terminator if a payload line is `end`. Otherwise it MUST fall back to an ordinary `.attribute` value, usually quoted with explicit escapes. It MUST preserve XML namespace prefixes/declaration locations under the SVG-safe profile. Because invocations carry the `|` marker, a real child element whose name equals an active alias is written as an ordinary element. Writers MUST NOT alter the text of SVG `d`, CSS `style`, `points`, or any other attribute to make an alias representation possible.
 
 ### 8.6 Invalid and ambiguous cases
 
@@ -512,7 +590,7 @@ container
 end
 ```
 
-This is invalid because the prefix is not bound before its use:
+This is invalid because the prefix is not bound before its use, and because `@ns` follows another declaration statement (§5.1):
 
 ```sml
 container
@@ -525,7 +603,7 @@ The XML information model contains no alias declarations, so XML-to-SML-to-XML i
 
 ## 9. XML comments, PIs and source comments
 
-`#` introduces an SML-only source comment when it is the first non-indentation character. It is discarded on XML export; `#` within any value is ordinary data.
+`#` introduces an SML-only source comment when it is the first non-indentation character. There are no end-of-line comments: `#` later in a line, and anywhere in a value, is ordinary data. Source comments are discarded on XML export, so they do not survive an SML → XML → SML round trip. A project that relies on `#` comments must keep the SML file as its source of truth.
 
 `@comment VALUE` creates an XML comment node. It may use raw, quoted, or block value syntax. XML comment constraints apply: no `--`, the final character cannot be `-`, and the decoded comment **cannot contain CR (U+000D)**. A literal XML source CR is normalized to LF before XML parsing, while XML character references are not decoded inside comments; thus an SML comment containing CR cannot be represented without information loss, and SML readers MUST reject it. Empty comments are permitted. Comments inside or outside the root are preserved in order. Comment text that begins or ends with a space, as in the common `<!-- text -->`, must be quoted: `@comment " text "`.
 
@@ -544,7 +622,15 @@ The namespace directive in an element declaration section is:
 @ns prefix URI
 ```
 
-`@ns URI` binds the default namespace; `@ns prefix URI` binds a named prefix. `@ns ""` explicitly clears the default namespace. The URI follows §6 value rules; if it contains whitespace, quote it. Repeated declarations of the same prefix on the same element are errors. The built-in `xml` prefix is fixed to `http://www.w3.org/XML/1998/namespace`; `xmlns` is reserved. Undeclaring a nondefault prefix is not supported under Namespaces 1.0.
+`@ns URI` binds the default namespace; `@ns prefix URI` binds a named prefix. `@ns ""` explicitly clears the default namespace. Repeated declarations of the same prefix (or of the default namespace) on the same element are errors, whether written with `@ns` or inline (§6.3). Undeclaring a nondefault prefix is not supported under Namespaces 1.0.
+
+**Operands.** `@ns` takes one or two operands separated by spaces/tabs. Each operand is either raw, containing no spaces or tabs, or quoted. With two operands, the first is the prefix (an `NCName`) and the second the URI. With one, it is the default-namespace URI. Any other number of operands is an error, so a URI containing whitespace must be quoted.
+
+**Raw URIs must look absolute.** A namespace URI written raw, in `@ns` or in an inline `xmlns` entry, MUST contain a `:`. A relative or empty namespace name MUST be quoted (`@ns ""`, `@ns "relative"`). This catches `@ns s`, where a prefix was written but its URI forgotten. Relative namespace URIs are deprecated by Namespaces in XML 1.0 but remain representable.
+
+**Reserved names.** The `xml` prefix is bound to `http://www.w3.org/XML/1998/namespace` without any declaration. A document MAY declare it explicitly (`@ns xml http://www.w3.org/XML/1998/namespace`), and the strict profile preserves that declaration like any other; declaring `xml` with any other URI is an error. The prefix `xmlns` MUST NOT be declared. No other prefix, and not the default namespace, may be bound to `http://www.w3.org/XML/1998/namespace` or `http://www.w3.org/2000/xmlns/`.
+
+**`xmlns` is never an attribute.** Names `xmlns` and `xmlns:*` denote namespace declarations. In an inline list they declare namespaces (§6.3); as a vertical `.xmlns` or `.xmlns:prefix` statement they are an error.
 
 A declaration applies to the *declaring element* and all descendants in scope, including its own name and attributes. Default namespaces apply to unprefixed **element names**, not unprefixed attributes.
 
@@ -560,11 +646,20 @@ end
 
 Every namespace used by a prefixed element or attribute must be bound in scope. An unprefixed element name in `@block` resolves through the current default namespace (or no namespace when absent); an unprefixed attribute target has no namespace. The bindings required by `@block` MUST already be in scope when that declaration is read (§8). The strict SVG importer/exporter MUST preserve prefixes and the namespace declaration locations as represented by the source XML, including otherwise-unused prefixes; names are still additionally resolved to expanded names for collision detection. QName-like values remain opaque strings and are **not** automatically renamed.
 
-**Special-case rule:** If an SVG XML element declares a namespace of its own, it cannot use an SML self-closing or inline-text form (which have no declaration section); it must use an ordinary opener with `@ns` and `end`. This is a syntactic lengthening, not a loss of information.
+**Compact forms:** An element that declares namespaces of its own can still use a self-closing or inline-text form by declaring them inline, e.g. `p:x(xmlns:p=urn:vendor)/` (§6.3). Otherwise it uses an ordinary opener with `@ns` and `end`.
 
 ## 11. Document metadata and external XML content
 
-`@sml 1.0` MAY appear once before the root, otherwise 1.0 is assumed. `@standalone yes|no` MAY appear once before the root to preserve an explicitly present XML standalone declaration. `@indent` (§6.4) and `@doctype` (§11.1) MAY each appear once before the root. If absent, the standalone state is unspecified. All XML output uses version 1.0 and UTF-8; the literal presence of the original `<?xml ...?>` declaration, its quote style, and its original encoding are not retained.
+**Version header.** `@sml VERSION` MAY appear once. If present, it MUST precede every other statement except blank lines and `#` source comments.
+
+- `VERSION` is `1.0-SVG-3` for documents written to this draft revision, or `1.0` for the final 1.0 specification.
+- A reader implementing this revision MUST accept `1.0-SVG-3`. It MUST reject any other draft identifier, such as `1.0-SVG-2`, whose syntax differs.
+- Until 1.0 is final, a reader treats `@sml 1.0` or a missing header as this revision.
+- Writers SHOULD emit `@sml 1.0-SVG-3` while the specification is a draft.
+
+**Other headers.** `@standalone yes|no` MAY appear once before the root to preserve an explicitly present XML standalone declaration; if it is absent, the standalone state is unspecified. `@indent` (§6.4) and `@doctype` (§11.1) MAY each appear once before the root, and `@use` (§13) MAY appear before the root.
+
+**XML output.** All XML output uses version 1.0 and UTF-8 without a BOM. It begins with the declaration `<?xml version="1.0" encoding="UTF-8"?>`, adding `standalone="yes"` or `standalone="no"` when recorded. Top-level items (the declaration, prolog and epilog comments and PIs, the DOCTYPE, and the root) are separated by single LFs, and the output ends with an LF. The literal presence of the original `<?xml ...?>` declaration, its quote style, and its original encoding are not retained.
 
 Top-level `@comment` and `@pi` before or after the root are valid and their relative order is preserved. Ordinary text, attributes, and extra root elements outside the root are errors. XML permits prolog/epilog whitespace between markup; the strict importer need not preserve that top-level lexical whitespace because it is outside this information model.
 
@@ -607,102 +702,176 @@ The following is normative **together with** the lexical value rules in §§4–
 
 After UTF-8 decoding and line-ending normalization, process each logical line. Outside blocks, strip its leading and trailing spaces/tabs and skip it if nothing remains. Then:
 
-1. If currently inside **either** an ordinary `|` multiline value or a named-attribute block, interpret the line as a block payload line or exact `end` delimiter; do not recognize other statements there.
+1. If currently inside a block (an ordinary `|`/`|TAG` value or a named-attribute block), interpret the line as a payload line or as the block's terminator (`end`, or `TAG`); do not recognize other statements there.
 2. `#...` is a source-only comment.
-3. Exactly `end` closes the current ordinary element; it is an error when none is open.
-4. `.QName...` declares an attribute in the current declaration section.
-5. `=...` appends a text child.
-6. `@...` dispatches a known directive (`@sml`, `@standalone`, `@indent`, `@doctype`, `@ns`, **`@block`**, `@noindent`, `@comment`, `@pi`, `@element`, `@use`) or an activated extension; unknown directives are errors.
-7. A statement consisting of an `NCName`, one or more spaces/tabs, and `|` is an **alias invocation**. It is an error unless the current element is still in its declaration section and an active `@block` alias with that name matches the current element's resolved expanded name. Otherwise, parse the following lines as that attribute's literal block (§8). A statement without the `|` marker is never an alias invocation.
-8. Otherwise, require a legal `QName`, optional immediately attached `(...)` inline attributes, then exactly one of: end-of-line (open), terminal `/` (empty), or whitespace + `=` + value (inline text). Anything else is invalid.
+3. `"...` is a continuation line (§6.5). It is an error unless the immediately preceding line was a value-bearing statement ending in a quoted value, or another continuation line.
+4. `end`, or `end` followed by spaces/tabs and a single QName, closes the current ordinary element; the QName, if present, is checked (§5.3). This is an error when no element is open. `end` followed by anything else is an error.
+5. `.QName...` declares an attribute in the current declaration section.
+6. `=...` appends a text child.
+7. `@...` dispatches a known directive (`@sml`, `@standalone`, `@indent`, `@doctype`, `@ns`, **`@block`**, `@noindent`, `@comment`, `@pi`, `@element`, `@use`) or a directive `@identifier:name` of a declared extension (§13). Unknown directives are errors.
+8. A statement consisting of an `NCName`, optional spaces/tabs, and a block marker (`|` or `|TAG`) is an **alias invocation**. It is an error unless the current element is still in its declaration section and an active `@block` alias with that name matches the current element's resolved expanded name. Otherwise, parse the following lines as that attribute's literal block (§8). A statement without a block marker is never an alias invocation.
+9. Otherwise, require a legal `QName` other than the reserved unprefixed `end` (§5.2), optional immediately attached `(...)` inline attributes, then exactly one of: end-of-line (open), terminal `/` (empty), or whitespace + `=` + value (inline text). Anything else is invalid.
 
-The `end` check is exact after line trimming: `end foo` is an error in this revision. A normal element named `end` must use `@element end`. The parser maintains a scoped block-alias table; alias declarations are resolved when encountered, before matched invocations. Local `@ns` directives are forbidden after the first `@block` declaration or named-block invocation in the same element.
+The parser maintains a scoped block-alias table; alias declarations are resolved when encountered, before matched invocations. Namespace ordering follows §5.1.
 
 ### 12.2 Statement grammar (lexically parameterized EBNF)
 
 ```ebnf
 Document          = Prolog, RootElement, Epilog, EOF ;
-Prolog            = { PrologItem }, [ Doctype, { PrologItem } ] ;
-PrologItem        = Blank | SourceComment | Header | XMLComment | PI ;
-Epilog            = { Blank | SourceComment | XMLComment | PI } ;
+Prolog            = { Blank | SourceComment }, [ SmlHeader ],
+                    { PrologItem }, [ Doctype, { PrologItem } ] ;
+PrologItem        = Blank | SourceComment | Header | XMLComment | PI
+                  | ExtensionDirective ;
+Epilog            = { Blank | SourceComment | XMLComment | PI
+                    | ExtensionDirective } ;
 RootElement       = Element ;
 Element           = Normal | Empty | InlineText | ExplicitElement ;
-Normal            = Opener, EOL, { DeclarationOrContent }, EndLine ;
+Normal            = Opener, EOL, DeclarationSection, { Content }, EndLine ;
 Empty             = Opener, "/", EOL ;
 InlineText        = Opener, HSpace, "=", ValueTail ;
 ExplicitElement   = "@element", HSpace, QName, EOL,
-                    { DeclarationOrContent }, EndLine ;
-Opener            = QName, [ InlineAttributes ] ;
-InlineAttributes  = "(", [ InlineAttribute,
-                    { ",", InlineAttribute } ], ")" ;
+                    DeclarationSection, { Content }, EndLine ;
+Opener            = QName, [ InlineAttributes ] ;   (* QName is not "end" *)
+InlineAttributes  = "(", HSpaceOpt, [ InlineAttribute,
+                    { HSpaceOpt, ",", HSpaceOpt, InlineAttribute } ],
+                    HSpaceOpt, ")" ;
 InlineAttribute   = QName, HSpaceOpt, "=", HSpaceOpt, InlineValue ;
-DeclarationOrContent = Blank | SourceComment | Attribute | Namespace
-                    | BlockDeclaration | NamedAttributeBlock | NoIndent
-                    | Element | Text | XMLComment | PI ;
-NoIndent          = "@noindent", EOL ;
+DeclarationSection = { Neutral | Namespace },
+                    { Neutral | Attribute | BlockDeclaration
+                    | NamedAttributeBlock | NoIndent } ;
+Content           = Neutral | Element | Text | XMLComment | PI ;
+Neutral           = Blank | SourceComment | ExtensionDirective ;
 Attribute         = ".", QName, ValueTail ;
+Namespace         = "@ns", HSpace, [ NCName, HSpace ], NsOperand, EOL ;
+NsOperand         = RawToken | Quoted ;
 BlockDeclaration  = "@block", HSpace, QName, HSpace, NCName,
-                    HSpace, [ "=", HSpace ], ".", QName, EOL ;
-NamedAttributeBlock = AliasName, HSpace, "|", EOL, { BlockLine }, EndLine ;
+                    HSpace, ".", QName, EOL ;
+NamedAttributeBlock = AliasName, HSpaceOpt, Block ;
+NoIndent          = "@noindent", EOL ;
 Text              = "=", ValueTail ;
 XMLComment        = "@comment", ValueTail ;
-ValueTail         = EOL | HSpace, ScalarValue, EOL
-                  | HSpace, Block ;
-ScalarValue       = Raw | Quoted ;
-Block             = "|", EOL, { BlockLine }, EndLine ;
-Namespace         = "@ns", HSpace, [ NCName, HSpace ], ScalarValue, EOL ;
 PI                = "@pi", HSpace, NCName,
-                    [ HSpace, PIValue ], EOL ;
-EndLine           = "end", EOL ;
-Header            = "@sml", HSpace, "1.0", EOL
-                  | "@standalone", HSpace, ("yes"|"no"), EOL
+                    [ HSpace, ( Raw | QuotedValue ) ], EOL ;
+ValueTail         = EOL
+                  | HSpace, Raw, EOL
+                  | HSpace, QuotedValue, EOL
+                  | HSpaceOpt, Block ;
+QuotedValue       = Quoted, { EOL, Quoted } ;      (* continuation, §6.5 *)
+Block             = "|", [ BlockTag ], EOL, { BlockLine }, BlockEnd ;
+BlockTag          = NCName ;                        (* not "end" *)
+BlockEnd          = ( "end" | BlockTag ), EOL ;     (* the tag given, else "end" *)
+EndLine           = "end", [ HSpace, QName ], EOL ;
+SmlHeader         = "@sml", HSpace, SmlVersion, EOL ;
+SmlVersion        = "1.0" | "1.0-SVG-", Digits ;
+Header            = "@standalone", HSpace, ( "yes" | "no" ), EOL
                   | "@indent", HSpace, ( "tab" | IndentWidth ), EOL
-                  | "@use", HSpace, Identifier, HSpace, Version, EOL ;
+                  | "@use", HSpace, Identifier, HSpace, Version,
+                    [ HSpace, "optional" ], EOL ;
 Doctype           = "@doctype", HSpace, XMLName,
                     [ HSpace, ExternalId ], EOL ;
 ExternalId        = "PUBLIC", HSpace, Quoted, HSpace, Quoted
                   | "SYSTEM", HSpace, Quoted ;
+ExtensionDirective = "@", Identifier, ":", NCName, ValueTail ;
+Identifier        = NCName ;
+Version           = Digits, ".", Digits ;
+Digits            = Digit, { Digit } ;
+SourceComment     = "#", { AnyChar }, EOL ;
+Blank             = EOL ;                           (* empty after trimming *)
+EOL               = LF | EOF ;
 ```
 
-`QName`, `NCName`, and `XMLName` use the XML/Namespaces productions; `AliasName` is an `NCName` that must name an active, matching block alias in the containing element's still-open declaration section (otherwise the statement is an error); `HSpace` is one or more spaces or tabs; `IndentWidth` is a decimal integer from 1 to 16 without leading zeros. `Raw`, `Quoted`, `InlineValue`, `PIValue`, and `BlockLine` are defined by the deterministic scanner in §§6–9. `ValueTail` consumes the block terminator **instead of** an additional statement EOL; this prevents a double-terminator ambiguity. Namespace and PI payloads use scalar values only (no `|` block). For `@ns`, an optional `NCName` prefix is recognized only when **two** tokens are present (the prefix and its URI); a single token is the default URI. Structural `EOL` may also be EOF where no open construct remains and no block delimiter is missing. Leading and trailing spaces/tabs are removed from **every** line outside blocks, including value-bearing lines (§4); block payload lines lose trailing spaces/tabs and their shared indentation (§7). Comments/blank lines do not end a declaration section; a preserved XML comment or PI does. Document headers and `@doctype` are allowed only in the prolog; `@ns`, `@block`, and `@noindent` are allowed only inside a normal element's declaration section. `@ns` MUST precede the first local `@block` declaration or alias invocation. The optional `=` in `BlockDeclaration` is a legacy spelling; canonical writers omit it.
+Notes on the grammar:
+
+- `QName`, `NCName`, and `XMLName` use the XML/Namespaces productions. `Digit` is `0`–`9`, `LF` is U+000A, and `AnyChar` is any character except LF.
+- `AliasName` is an `NCName` that must name an active, matching block alias in the containing element's still-open declaration section; otherwise the statement is an error.
+- `HSpace` is one or more spaces or tabs, and `HSpaceOpt` is zero or more. `IndentWidth` is a decimal integer from 1 to 16 without leading zeros.
+- `Raw`, `RawToken` (a raw value containing no spaces or tabs), `Quoted`, `InlineValue`, and `BlockLine` are defined by the deterministic scanner in §§6–9. `Raw`, `RawToken`, and `InlineValue` never begin with `"` or `|`.
+- A `Block` consumes its terminator **instead of** an additional statement EOL; this prevents a double-terminator ambiguity. Namespace, PI, and DOCTYPE operands have no block form.
+- For `@ns`, an optional `NCName` prefix is recognized only when **two** operands are present (§10).
+- `EOL` may be EOF where no open construct remains.
+- Leading and trailing spaces/tabs are removed from **every** line outside blocks (§4). Block payload lines lose trailing spaces/tabs and their shared indentation (§7).
+- `Neutral` statements (blank lines, source comments, extension directives) never end a declaration section; a preserved XML comment or PI does. `DeclarationSection` encodes the `@ns`-first rule of §5.1.
 
 The EBNF is a *statement grammar*, not a substitute for XML name validity, UTF-8 validity, whitespace and delimiter interpretation, namespace resolution, or semantic validation.
 
 ### 12.3 Error behavior
 
-Strict readers MUST reject malformed syntax, duplicate expanded attributes (including aliased duplicates), unbound prefixes in `@block` declarations, conflicting aliases within a lexical scope, alias invocations with no matching active alias or after the declaration section has closed, invalid comments/PIs (including PI targets containing colons and PI data beginning with whitespace), text statements in a laid-out element (§6.4), repeated or misplaced `@indent`, `@noindent`, or `@doctype`, malformed `@doctype` identifiers, attribute/namespace/block declarations after content, namespace declarations after a local `@block` declaration or alias invocation, unsupported extensions, document content outside the root, and unclosed elements/blocks. No implicit recovery or HTML-like repair is allowed. Editors MAY maintain a separately flagged recovery tree for interactive editing.
+SML readers MUST reject, among other malformed syntax:
+
+- **Names and structure:** unbound prefixes anywhere; invalid names or characters; use of the reserved name `end` in ordinary element forms; mismatched `end QName`; document content outside the root; unclosed elements or blocks.
+- **Attributes and namespaces:** duplicate expanded attributes (including aliased duplicates); `.xmlns` attributes; namespace declarations that break §10 (repeated, reserved, or raw-relative URIs, or the wrong number of `@ns` operands); `@ns` after another declaration statement; attribute, namespace, or block declarations after content.
+- **Aliases:** unbound prefixes in `@block` declarations; conflicting aliases within a lexical scope; the legacy `=` separator; alias invocations with no matching active alias or after the declaration section has closed.
+- **Values:** malformed escapes; raw values beginning with `"` or `|`; misplaced continuation lines; unbalanced parentheses in inline raw values.
+- **Comments and PIs:** invalid comments or PIs, including PI targets containing colons and PI data beginning with whitespace.
+- **Headers:** text statements in a laid-out element (§6.4); repeated or misplaced `@sml`, `@indent`, `@noindent`, or `@doctype`; unknown draft versions; malformed `@doctype` identifiers.
+- **Extensions:** unknown directives, and required extensions the reader does not implement.
+
+No implicit recovery or HTML-like repair is allowed. Editors MAY maintain a separately flagged recovery tree for interactive editing.
 
 ## 13. Extensions and implementation contracts
 
-Extensions remain opt-in (`@use identifier version`) and MAY define additional `@` directives or validation/transformations. **`@block` is Core syntax and MUST function without `@use` or any extension.** They MUST NOT redefine ordinary SML element, attribute, text, value, namespace, or `end` semantics. The core SVG round-trip pipeline MUST operate without extensions. No include, interpolation, template, schema, typed scalar, or arbitrary code execution is included in Core.
+Extensions are opt-in and are declared in the prolog with `@use identifier version` (a *required* extension) or `@use identifier version optional`. `identifier` is an `NCName`; `version` is `major.minor`. **`@block` is Core syntax and MUST function without `@use` or any extension.** The core SVG round-trip pipeline MUST operate without extensions. No include, interpolation, template, schema, typed scalar, or arbitrary code execution is included in Core.
+
+- **Directive names.** An extension's directives are spelled `@identifier:name` and use the ordinary value syntax: nothing, a raw or quoted value, or a block. Extensions cannot define bare-name statements or new value syntax. They MUST NOT redefine ordinary SML element, attribute, text, value, namespace, alias, or `end` semantics. A directive whose `identifier` was not declared by `@use` is an error.
+- **Placement.** Extension directives may appear wherever a `#` source comment may. They neither close a declaration section nor count as content.
+- **Required extensions.** A reader that does not implement a required extension MUST reject the document. A required extension MAY add validation or transformations, which it documents.
+- **Optional extensions.** A reader that does not implement an optional extension MUST skip that extension's directives, including any block payloads. An optional extension MUST NOT change the document a Core reader produces, so skipping it is always safe.
 
 A reader SHOULD expose streaming events `StartDocument`, `DocumentType`, `StartElement`, `Text`, `Comment`, `ProcessingInstruction`, `EndElement`, `EndDocument`, with expanded + lexical names, namespace declaration metadata, attributes, source positions, and exact text. It buffers the *current element's declarations*, including ordinary attributes and decoded named-attribute blocks, before emitting `StartElement`. Alias definitions are held in a scoped mapping table and never emitted as XML nodes. Self-closing and inline-text elements emit matching start/end events. Whitespace predicted by `@indent` (§6.4) is emitted as ordinary `Text` events. A DOM preserves heterogeneous ordered children. A writer MUST never inject XML formatting whitespace into element content in strict mode.
 
 Source locations SHOULD include original UTF-8 byte offsets and 1-based line/Unicode-scalar columns. Parsers SHOULD be linear-time in input length, with configurable limits on document bytes, depth, attribute count, and value length. XML import MUST disable network entity fetching, loading of external DTD subsets, DTD processing, automatic XInclude, and processing-instruction execution. `@doctype` records the external identifier only (§11.1).
 
-## 14. Canonical writer rules
+## 14. Writer rules and canonical form
+
+### 14.1 General writer rules
 
 SML writers SHOULD emit:
 
-- Two-space indentation, LF physical line endings, UTF-8, and plain `end`.
+- Two-space indentation, LF line endings, UTF-8 without BOM, and plain `end`. `end QName` (§5.3) MAY label the ends of long elements.
+- Attributes in the order the input supplied them, when it supplied one.
 - `.attribute` on its own line when values contain spaces or are long; compact inline attributes only when their delimiters and strings are unambiguous.
-- `name = value` for a short text-only element *only if* it has no local `@ns` directives and no other children.
-- `name/` only if it has no local namespace declarations and no children.
-- Quoted values for text or attributes containing CR/LF/TAB. Quoting is **required** (§6.2) for values that begin or end with a space or tab, begin with `"`, or are exactly `|`.
-- All namespace declarations explicitly at their original scopes and lexical prefixes retained for SVG imports.
-- Literal blocks, including named-attribute blocks, only if the shared-indent rule reproduces the exact source value, no payload line collides with `end`, and no payload line ends with a space or tab.
-- `@block element-qname alias .attribute-qname` without `=`, preceding its uses; a normal `.attribute` fallback when a value cannot be represented faithfully as a block.
-- Alias invocations as `alias |`. Preserve alias declarations during source-only reformatting or rewrite their invocations consistently. `@element` only for elements named `end`.
-- `@indent` with the unit (tab, or 1–16 spaces) that matches the most elements, preferring two spaces on a tie, with `@noindent` and explicit text exactly as §6.4's writer rule requires. Omit `@indent` when no element matches.
-- `@doctype` exactly as recorded, at its original prolog position.
+- `name = value` for a short text-only element and `name/` for an empty one, declaring any namespaces with inline `xmlns` entries (§6.3).
+- Value forms by this precedence:
+  1. **Raw** when §6.2 allows it and the value contains no TAB and none of the characters §4 says to escape.
+  2. **A block** when the value contains LF and §7 reproduces it exactly, with a custom terminator if a payload line is `end`.
+  3. **Quoted** otherwise, split with continuation lines (§6.5) when long.
 
-SML formatters MUST be idempotent and MUST NOT modify element, text, comment/PI order or values, SVG strings, namespace declaration locations, or lexical prefixes under the strict SVG profile. Canonicalization MAY change alias spelling/layout only if it preserves every attribute value. Because alias invocations carry the `|` marker, introducing an alias cannot change how an existing child-element opener parses.
+  Quoting is **required** (§6.2) for values that begin or end with a space or tab, or begin with `"` or `|`.
+- All namespace declarations explicitly at their original scopes, with lexical prefixes retained, under the strict profile.
+- `@block` declarations preceding their uses, and alias invocations written with a space before the marker (`alias |`). Use a normal `.attribute` when a value cannot be represented faithfully as a block.
+- A space before every block marker (`.attribute |`, `= |`, `name = |`, `@comment |`); readers also accept the forms without the space.
+- `@element` only for elements named `end`.
+- `@indent` and `@noindent` as §6.4's writer rule requires, and `@doctype` exactly as recorded, at its original prolog position.
+
+SML formatters MUST be idempotent. Under the strict profile they MUST NOT modify element, text, comment, or PI order or values, SVG strings, namespace declaration locations, or lexical prefixes. They SHOULD preserve `#` comments, blank-line grouping, and alias declarations, and MAY change alias spelling or layout only if every attribute value is preserved. Because alias invocations carry the `|` marker, introducing an alias cannot change how an existing child-element opener parses.
+
+### 14.2 Canonical form
+
+The canonical form is a function of the document alone: canonical writers MUST produce byte-identical output for equal documents. It is intended for diffing, hashing, and conformance testing. Canonical output follows these rules:
+
+1. **File.** UTF-8 without BOM, LF line endings, and a final LF. No blank lines, `#` comments, `@block` aliases, `end QName`, or `@use`.
+2. **Prolog.** `@sml 1.0-SVG-3`, then `@standalone` if recorded, then `@indent` if chosen (rule 9), then the prolog comments, PIs, and `@doctype` in document order. The epilog follows the root in document order.
+3. **Indentation.** Two spaces per element depth. Block payload lines and continuation lines are indented one level deeper than their statement; a block terminator is at the statement's level.
+4. **Order.** Namespace declarations come first: the default namespace, then prefixes in ascending code-point order. Then attributes: those without a namespace by local name, then namespaced ones by namespace URI and then local name, all in ascending code-point order. This is the attribute order of Canonical XML.
+5. **Inline or vertical.** An element's namespace declarations and attributes are written inline, as one list, when every value is representable as a raw inline value (§6.3) under rule 7 and the opener line is at most 100 code points including indentation. Otherwise all are vertical: `@ns` lines, then `.attribute` lines.
+6. **Element form.** For an element with an inline list, or with no declarations or attributes: `name/` if it has no content; `name = value` if its only content is one text node. Otherwise the normal form with `end`. An element named `end` is always written `@element end` in the normal form.
+7. **Value form.** Each value is written in the first form that applies:
+   1. **Raw:** §6.2 allows it, it contains none of TAB, CR, LF, or the characters §4 says to escape, and the statement line is at most 100 code points.
+   2. **Block:** it contains LF but no CR, and §7 reproduces it exactly. The marker is `|`, or, if a payload line is `end`, the first of `|EOT`, `|EOT1`, `|EOT2`, … that no payload line equals. TAB is literal in block payloads.
+   3. **Quoted:** otherwise.
+8. **Quoted values.** Escapes are used only where required (`\\`, `\"`) and for CR, LF, TAB, and the characters listed in §4. They are written `\r`, `\n`, `\t`, and `\u{…}` with uppercase hexadecimal digits and no leading zeros. When a quoted value's statement line would exceed 100 code points, the value is split into continuation lines (§6.5). Each segment takes as many source characters as fit in 80 code points, ends after the last space within that span if there is one, and never splits an escape.
+9. **Whitespace model.** `@indent` uses the unit that makes the most elements laid out (§6.4). Ties are broken in this order: two spaces, four spaces, tab, then other widths ascending. `@indent` is omitted if no element would be laid out. `@noindent` and explicit text follow §6.4's writer rule.
+10. **Text.** Adjacent text nodes are coalesced and empty ones dropped. Each remaining text node is one `=` statement.
+
+### 14.3 XML output
 
 SVG XML writers MUST encode character data and attribute values according to XML 1.0, including preserving CR characters in text through character references and preserving TAB/LF/CR in attributes using character references. The XML emitter MUST NOT insert indentation/newline text nodes for pretty-printing in strict round-trip mode.
 
-## 15. SVG-specific tests and acceptance gates
+## 15. Conformance tests and acceptance gates
 
-Use the existing 18-fixture SVG corpus as the initial positive baseline, **plus** the following mandatory new fixtures:
+The tests are in two groups: **SV** fixtures, which exercise XML↔SML conversion under the strict profile, and **CP** fixtures (§15.1), which exercise the SML reader and writers alone and need no XML.
+
+The prototype's 18-fixture SVG corpus (SV-1–SV-18, the earlier RT-1 subset) is maintained outside this document and is the initial positive baseline. It MUST be published with the conformance suite before any conformance claim is made. The following fixtures are also mandatory:
 
 | ID | Fixture | Required assertion |
 |---|---|---|
@@ -713,17 +882,17 @@ Use the existing 18-fixture SVG corpus as the initial positive baseline, **plus*
 | SV-23 | Text including CR, LF and TAB | Exact XML-reparsed characters |
 | SV-24 | Attribute containing CR, LF and TAB | Correct character-reference round trip |
 | SV-25 | XML `<end>` foreign element | `@element end` supported |
-| SV-26 | CSS/style payload with a physical line `end` | Canonical writer selects quoted fallback |
-| SV-27 | Namespace declared directly on an XML empty element | SML writer uses ordinary open/`@ns`/`end` |
+| SV-26 | CSS/style payload with a physical line `end` | Canonical writer uses a custom terminator (`\|EOT`) |
+| SV-27 | Namespace declared directly on an XML empty element | Writer uses `name(xmlns:p=…)/` or open/`@ns`/`end`; both round-trip |
 | SV-28 | DTD internal subset (including empty `[ ]`), custom entity, or external resource expansion attempt | Strict import refuses without loading resources |
 | SV-29 | Unknown foreign attributes/elements, nested prefixes | Preserved without interpretation |
 | SV-30 | Original `standalone="no"` and `"yes"` cases | Declaration state preserved if present |
 | SV-31 | An SML XML comment or PI containing `\r` | SML reader rejects nonrepresentable data |
-| SV-32 | Attribute with multiple aliases for same URI | Lexical QName and declarations remain stable |
+| SV-32 | Attribute whose namespace is bound to several prefixes | Lexical QName and declarations remain stable |
 | SV-33 | No-default-namespace `@block div style .style` | Alias targets no-namespace `div` and no-namespace `style` attribute |
 | SV-34 | Default-namespace unprefixed `@block path data .d` | Alias targets the current default namespace, but attribute `d` remains unqualified |
 | SV-35 | Prefixed `@block s:path data .d` | Resolves bound prefix to expanded element name; descendant prefix changes do not retarget mapping |
-| SV-36 | Missing or later prefix declaration | Reject alias with unbound prefix or `@ns` after local `@block` |
+| SV-36 | Missing or later prefix declaration | Reject alias with unbound prefix, or `@ns` after any other declaration statement |
 | SV-37 | Alias `data` vs. real XML `<data>` child | Bare `data` opens the child; `data \|` creates the attribute only; no `@element` needed |
 | SV-38 | Named block after another dot attribute | Both attributes retained; declaration section remains open |
 | SV-39 | Named block and `.d` in same element | Duplicate expanded-name attribute error |
@@ -731,9 +900,9 @@ Use the existing 18-fixture SVG corpus as the initial positive baseline, **plus*
 | SV-41 | Alias declared after child content | Reject late `@block` |
 | SV-42 | Alias name `end` | Reject reserved alias name |
 | SV-43 | Inherited alias shadowed in nested scope | Nearest mapping applies; same-scope duplicate declaration fails |
-| SV-44 | Named block containing bare `end` as data | Writer falls back to quoted `.attribute` with escapes |
+| SV-44 | Named block containing bare `end` as data | Writer uses `alias \|EOT` |
 | SV-45 | Named block with significant leading spaces or terminal LF | Writer falls back if dedentation/termination would change exact string |
-| SV-46 | Optional legacy `=` in declaration | Parses identically; canonical writer omits `=` |
+| SV-46 | Legacy `=` separator in a `@block` declaration | Rejected |
 | SV-47 | `style \|` after the declaration section closed | Rejected; a bare `style` line there is a child element |
 | SV-48 | Block aliases under two default namespace scopes | Expanded-name lookup distinguishes namespaces without SVG-specific code |
 | SV-49 | XML → SML with generated alias → XML | Prefix/declaration scope and exact attribute values unchanged |
@@ -758,18 +927,64 @@ Use the existing 18-fixture SVG corpus as the initial positive baseline, **plus*
 | SV-68 | DOCTYPE between prolog comments/PIs | Position preserved |
 | SV-69 | External-ID DOCTYPE with an undeclared entity reference such as `&nbsp;` | Strict import rejects; no skipped-entity loss |
 | SV-70 | `@doctype` with a non-normalized public ID, or a system ID containing both quote kinds | SML reader rejects |
+| SV-71 | `data\|`, `.d\|`, `=\|`, `name =\|`, `@comment\|` | Parsed identically to the spaced forms; canonical writer emits the space |
+| SV-72 | `.d\|EOT` and `.d \|EOT`; `.d \|x y` | First two start a block ending at a line `EOT`; third rejected (quote values beginning with `\|`) |
+| SV-73 | `]]>` in text, including text from CDATA sections | Escaped correctly on export; exact round trip |
+| SV-74 | `xmlns=""` on the root element | Preserved as `@ns ""` |
+| SV-75 | Explicit `xmlns:xml="http://www.w3.org/XML/1998/namespace"` | Preserved |
+| SV-76 | SML-authored corpus using blocks, custom terminators, aliases, continuation lines, inline `xmlns`, and `@indent` | SML → XML → SML → XML preserves information (reverse round trip) |
 
-**Mandatory round-trip acceptance:** strict XML parse → write SML → parse SML → write SVG XML → parse XML → compare a normalized tree that includes lexical prefix bindings, declaration locations, ordered comments/PIs including root-external ones, all attributes and exact text; then repeat for idempotent information equality. Reject—not drop—unsupported input. Rendering comparisons are useful supplements, **not** substitutes for tree equality. Readable imports (§3.1) are expressly **lossy** and cannot claim this strict profile.
+**Mandatory round-trip acceptance:**
 
-The existing prototype's 18/18 result establishes only an earlier restricted **RT-1 element-tree** subset. The SV-33–SV-70 tests are **specified but have not been executed against a conforming implementation**. It does **not** certify this revision's full syntax, document-level information, or SVG-safe prefix rules. A new independent conformant SML parser and XML converter are needed before claiming verified full round-trip conformance.
+- **Forward:** strict XML parse → write SML → parse SML → write SVG XML → parse XML → compare a normalized tree that includes lexical prefix bindings, declaration locations, ordered comments/PIs including root-external ones, the DOCTYPE, all attributes, and exact text. Then repeat for idempotent information equality.
+- **Reverse:** parse SML → write XML → parse XML → write SML → parse SML → compare information, for SML-authored documents (SV-76).
+
+Reject—not drop—unsupported input. Rendering comparisons are useful supplements, **not** substitutes for tree equality. Readable imports (§3.1) are expressly **lossy** and cannot claim the strict profile.
+
+### 15.1 Core parser and writer fixtures (CP)
+
+| ID | Fixture | Required assertion |
+|---|---|---|
+| CP-1 | Source with and without a UTF-8 BOM | Same document; writers emit no BOM |
+| CP-2 | CRLF and lone CR line endings | Same document as with LF |
+| CP-3 | U+0085, U+2028, U+2029 inside a raw value | Ordinary characters, not line breaks |
+| CP-4 | `\u{}` with 0, 1, 6, and 7 digits; upper- and lowercase hex; `\u{D800}`; `\u{110000}`; `\u{0}` | 1–6 digits in either case accepted; surrogates, out-of-range values, and XML-invalid characters rejected |
+| CP-5 | Unknown escape such as `\x` | Rejected |
+| CP-6 | `end()`, `end/`, `end(id=a)/`, `end = x`; `x:end/` | First four rejected; prefixed name accepted |
+| CP-7 | `end g` matching, `end g` mismatching, `end g h` | Accepted, rejected, rejected |
+| CP-8 | Block payload line `end path` | Payload, not a terminator |
+| CP-9 | `\|EOT` with `end` payload lines; `\|end`; `\|` followed by a non-NCName | Exact value; rejected; rejected |
+| CP-10 | Raw value beginning with `\|` or `"` in an inline list, `@pi`, and `@ns` | Rejected; quoted forms accepted |
+| CP-11 | `a( x = 1 , y=2 )` | Accepted |
+| CP-12 | `transform=translate(10,20)`, `fill=url(#a)`; `a=(x`; `a=x)y` | First two accepted with exact values; last two rejected |
+| CP-13 | Continuation lines after `.attr`, `=`, inline text, `@comment`, and `@pi` with quoted values; after a raw value; after a blank or `#` line; after `@ns` | Joined exactly; rejected; rejected; rejected |
+| CP-14 | Blocks with blank lines, whitespace-only lines, mixed tab/space indentation, and no payload lines | Dedented per §7; an empty block is the empty string |
+| CP-15 | Alias invoked inside an element opened with `@element` | Works as for any element |
+| CP-16 | `@ns` after `.attr`, `@block`, an alias invocation, or `@noindent` | Rejected |
+| CP-17 | `@ns s`; `@ns a b c`; `@ns ""`; `@ns "relative"`; inline `xmlns=s` | Rejected; rejected; accepted; accepted; rejected |
+| CP-18 | Vertical `.xmlns` and `.xmlns:p`; inline `xmlns` and `xmlns:p` on compact forms; the same prefix inline and in `@ns` | Rejected; namespace declarations; rejected |
+| CP-19 | `@ns xml http://www.w3.org/XML/1998/namespace`; `xml` with another URI; any prefix or the default namespace bound to the XML or xmlns namespace URI; declaring `xmlns` | Accepted; rejected; rejected; rejected |
+| CP-20 | `@sml` after another statement; `@sml 1.0-SVG-2`; `@sml 1.0-SVG-3`; `@sml 1.0`; no header | Rejected; rejected; accepted; accepted as this revision; accepted as this revision |
+| CP-21 | Unknown required extension; unknown optional extension with directives (including a block value) in the prolog, a declaration section, and content | Rejected; directives skipped and the document is identical to one without them |
+| CP-22 | Extension directive between two `.attribute` lines | Declaration section stays open |
+| CP-23 | Documents equal in information but differing in attribute order, quoting, inline/vertical form, aliases, `end QName`, and comments | Canonical writer output byte-identical |
+| CP-24 | Canonical writer applied to its own output | Byte-identical (idempotent) |
+
+The prototype's 18/18 result establishes only an earlier restricted **RT-1 element-tree** subset. The SV-33–SV-76 and CP-1–CP-24 tests are **specified but have not been executed against a conforming implementation**. It does **not** certify this revision's full syntax, document-level information, or SVG-safe prefix rules. A new independent conformant SML parser and XML converter are needed before claiming verified full round-trip conformance.
 
 ## 16. Worked edge cases
 
-**Namespaced, empty XML element** (cannot self-close in SML because it has a declaration):
+**Namespaced, empty XML element** (self-closes with an inline `xmlns` entry):
 
 ```xml
 <p:x xmlns:p="urn:vendor"/>
 ```
+
+```sml
+p:x(xmlns:p=urn:vendor)/
+```
+
+The normal form is equivalent:
 
 ```sml
 p:x
@@ -802,22 +1017,7 @@ path
 end
 ```
 
-**Core `@block` applied to CSS-like attribute text without a namespace:**
-
-```sml
-body
-  @block div style .style
-  div
-    style |
-      margin: 10 0 10 0;
-      padding: 0 5 0 5;
-      font-weight: bold;
-    end
-  end
-end
-```
-
-This represents a no-namespace `body` element containing a `div` with the unqualified `style` attribute value `margin: 10 0 10 0;\npadding: 0 5 0 5;\nfont-weight: bold;`. Whether these CSS lengths are valid is an application concern, not SML syntax validation.
+**Core `@block` applied to CSS-like attribute text without a namespace:** see the first example in §8.2.
 
 **SVG-prefixed alias with an ordinary `path` element in the default SVG namespace:**
 
@@ -851,11 +1051,28 @@ body
 end
 ```
 
-**Multiline style with literal `end` line:** the serializer must use quoted `\n`, not a block whose first bare `end` line would close the value:
+**Multiline text with a literal `end` line:** a plain `|` block would end at that line, so the writer uses a custom terminator:
 
 ```sml
-style = "line one\nend\nline three"
+style = |EOT
+  line one
+  end
+  line three
+EOT
 ```
+
+A quoted value is equivalent: `style = "line one\nend\nline three"`.
+
+**Long values wrapped exactly:**
+
+```sml
+path
+  .d "M 0 0 C 10 20 30 40 50 60 S 70 80 90 100 S 110 120 130 140 "
+    "S 150 160 170 180 Z"
+end
+```
+
+The `d` value is the two quoted segments joined with nothing in between; the space at the split point is inside the first segment.
 
 **Metadata and XML comment:**
 
@@ -901,7 +1118,10 @@ The comment's surrounding spaces are data, so it is quoted. The DOCTYPE is prese
 
 ## 17. Remaining limitations and open engineering tasks
 
-This revision removes the identified *design-level* contradictions, but it cannot guarantee the absence of all implementation bugs before a reference parser, differential XML comparison suite, and fuzzing exist. In particular:
+This revision addresses the design-level issues identified in review so far. It cannot guarantee the absence of further design issues or of implementation bugs before a reference parser, differential XML comparison suite, and fuzzing exist. In particular:
+
+- The language name and file extension collide with Standard ML and with W3C's Service Modeling Language; a final name is still to be chosen.
+- The 18-fixture baseline corpus (SV-1–SV-18) must be published with the conformance suite (§15).
 
 - The Core `@block` feature requires parser/conformance tests for namespace resolution, declaration ordering, alias shadowing, real-child collisions, duplicate target attributes, and exact multiline value decoding. No implementation-level certification is claimed yet.
 - A production lexer needs an executable definition of the full Unicode `QName`/`Name` productions and detailed diagnostics for malformed compact syntax.
@@ -921,4 +1141,4 @@ This revision removes the identified *design-level* contradictions, but it canno
 
 ---
 
-**Status after this revision:** SML 1.0-SVG-3 is a compact, SVG-first design baseline with generic, explicitly marked `@block` aliases integrated into Core, whitespace-trimmed raw values, an indentation model for readable strict conversions, and opaque DOCTYPE preservation. Its required acceptance criterion is an information-preserving *strict SVG-safe round trip*, not simply readable generated text or visual similarity.
+**Status after this revision:** SML 1.0-SVG-3 is a compact, SVG-first design baseline. It has generic, explicitly marked `@block` aliases in Core, whitespace-trimmed raw values, an indentation model for readable strict conversions, opaque DOCTYPE preservation, exact long-value wrapping, a deterministic canonical form, and defined conformance classes. Its required acceptance criterion is an information-preserving *strict-profile round trip* in both directions, not simply readable generated text or visual similarity.
