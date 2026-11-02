@@ -15,6 +15,8 @@ The capitalized words **MUST**, **MUST NOT**, **SHOULD**, and **MAY** have their
 1. **Block marker.** A multiline block is written between two lines of three quotation marks, `"""`, instead of `|` and `end` (§7). A block whose payload contains a line `"""` uses a longer marker, such as `""""`; custom terminator tags such as `|EOT` are gone. `end` now closes only elements, so a payload line `end` needs no special form. Alias invocations are written `alias """` (§8.3). `|` no longer starts a block, but a raw value still cannot begin with `|`, so a 1.0-SVG-3 block is reported as an error rather than misread (§6.2). The canonical form changes accordingly (§14.2). Cases CP-8, CP-9, SV-44, SV-71, and SV-72 cover the new marker.
 2. **Comment runs.** `@comments """` writes several XML comments, one per line, such as a comment banner. It is exactly equivalent to one `@comment` per line, and the canonical form uses it for two or more consecutive one-line comments (§§9, 14.2). Case SV-77 covers it.
 3. **Laid-out comment blocks.** Under `@indent`, a `@comment` block in a laid-out position gets predicted edges: a line break, its lines indented one level deeper than the comment, and a line break and the comment's own indentation. This is how pretty-printers lay out multi-line comments, so such comments become readable blocks instead of quoted strings (§6.4). Case SV-78 covers it.
+4. **Unindented layout.** `@indent 0` describes XML that puts each child on its own line without indentation, as many design tools export it. The predicted whitespace is a single LF, so such documents need no text statements for it (§6.4). Case SV-79 covers it.
+5. **Line breaks quoted.** A value made only of line breaks, such as a text node `\n`, is written quoted (`= "\n"`) instead of as a block of blank lines (§14.2). Case SV-80 covers it.
 
 **Changes in 1.0-SVG-3, since 1.0-SVG-2** (blocks are spelled here as 1.0-SVG-3 wrote them, with `|`):
 
@@ -354,7 +356,7 @@ Inline declarations count as made before the element's `@ns` lines. Declaring th
 
 Strict conversion preserves every whitespace-only text node (§3). In pretty-printed XML those nodes sit between nearly all elements, and writing each one as `= "\n  "` would make the SML hard to read. The optional `@indent` header states the indentation pattern once, and the reader regenerates the nodes. Like `@block`, this is an SML representation choice: `@indent` and `@noindent` are not part of the information model and never appear in XML output.
 
-**Header.** `@indent N`, where `N` is a decimal integer from 1 to 16 without leading zeros meaning `N` spaces, or `@indent tab`, MAY appear once in the prolog. It sets the indent unit `I`. Without `@indent`, the reader never inserts whitespace, and every text node is written explicitly.
+**Header.** `@indent N`, where `N` is a decimal integer from 0 to 16 without leading zeros meaning `N` spaces, or `@indent tab`, MAY appear once in the prolog. `@indent 0` describes XML that puts each child on its own line without indentation, as many design tools export it: the predicted whitespace is then a single LF. It sets the indent unit `I`. Without `@indent`, the reader never inserts whitespace, and every text node is written explicitly.
 
 **Laid-out and exact elements.** When `@indent` is present, an element `E` is **laid out** when both of the following hold:
 
@@ -866,7 +868,7 @@ Notes on the grammar:
 
 - `QName`, `NCName`, and `XMLName` use the XML/Namespaces productions. `Digit` is `0`–`9`, `LF` is U+000A, and `AnyChar` is any character except LF.
 - `AliasName` is an `NCName` that must name an active, matching block alias in the containing element's still-open declaration section; otherwise the statement is an error.
-- `HSpace` is one or more spaces or tabs, and `HSpaceOpt` is zero or more. `IndentWidth` is a decimal integer from 1 to 16 without leading zeros.
+- `HSpace` is one or more spaces or tabs, and `HSpaceOpt` is zero or more. `IndentWidth` is a decimal integer from 0 to 16 without leading zeros.
 - `Raw`, `RawToken` (a raw value containing no spaces or tabs), `Quoted`, `InlineValue`, and `BlockLine` are defined by the deterministic scanner in §§6–9. `Raw`, `RawToken`, and `InlineValue` never begin with `"` or `|` (§6.2).
 - A `Block` consumes its closing marker **instead of** an additional statement EOL; this prevents a double-terminator ambiguity. A `QuotedValue` never consists of three or more quotation marks alone; such a value is a `Marker`. Namespace, PI, and DOCTYPE operands have no block form.
 - For `@ns`, an optional `NCName` prefix is recognized only when **two** operands are present (§10).
@@ -915,7 +917,7 @@ SML writers SHOULD emit:
 - `name = value` for a short text-only element and `name/` for an empty one, declaring any namespaces with inline `xmlns` entries (§6.3).
 - Value forms by this precedence:
   1. **Raw** when §6.2 allows it and the value contains no TAB and none of the characters §4 says to escape.
-  2. **A block** when the value contains LF and §7 reproduces it exactly, with a longer marker if a payload line is `"""`.
+  2. **A block** when the value contains LF and something else, and §7 reproduces it exactly, with a longer marker if a payload line is `"""`. A value of line breaks only is clearer quoted (`"\n"`) than as a block of blank lines.
   3. **Quoted** otherwise, split with continuation lines (§6.5) when long.
 
   Quoting is **required** (§6.2) for values that begin or end with a space or tab, or begin with `"` or `|`.
@@ -940,12 +942,12 @@ The canonical form is a function of the document alone: canonical writers MUST p
 6. **Element form.** For an element with an inline list, or with no declarations or attributes: `name/` if it has no content; `name = value` if its only content is one text node. Otherwise the normal form with `end`. An element named `end` is always written `@element end` in the normal form.
 7. **Value form.** Each value is written in the first form that applies:
    1. **Raw:** §6.2 allows it, it contains none of TAB, CR, LF, or the characters §4 says to escape, and the statement line is at most 100 code points.
-   2. **Block:** it contains LF but no CR, and §7 reproduces it exactly. The marker is the shortest of `"""`, `""""`, `"""""`, … that no payload line equals after trimming. TAB is literal in block payloads.
+   2. **Block:** it contains LF and a character other than LF, but no CR, and §7 reproduces it exactly. The marker is the shortest of `"""`, `""""`, `"""""`, … that no payload line equals after trimming. TAB is literal in block payloads.
    3. **Quoted:** otherwise.
 
-   A comment in a laid-out position (§6.4) is written raw by 7.1; otherwise as a laid-out comment block if its data has that layout, with the marker chosen as in 7.2 for the block's payload; otherwise quoted. It is never written as a literal block, which would be read with predicted edges.
+   A comment in a laid-out position (§6.4) is written raw by 7.1; otherwise as a laid-out comment block if its data has that layout and the block's payload contains a character other than LF, with the marker chosen as in 7.2 for the payload; otherwise quoted. It is never written as a literal block, which would be read with predicted edges.
 8. **Quoted values.** Escapes are used only where required (`\\`, `\"`) and for CR, LF, TAB, and the characters listed in §4. They are written `\r`, `\n`, `\t`, and `\u{…}` with uppercase hexadecimal digits and no leading zeros. When a quoted value's statement line would exceed 100 code points, the value is split into continuation lines (§6.5). Each segment takes as many source characters as fit in 80 code points, ends after the last space within that span if there is one, and never splits an escape.
-9. **Whitespace model.** `@indent` uses the unit that makes the most elements laid out (§6.4). Ties are broken in this order: two spaces, four spaces, tab, then other widths ascending. `@indent` is omitted if no element would be laid out. `@noindent` and explicit text follow §6.4's writer rule.
+9. **Whitespace model.** `@indent` uses the unit that makes the most elements laid out (§6.4). Ties are broken in this order: two spaces, four spaces, tab, then the other widths ascending from 0. `@indent` is omitted if no element would be laid out. `@noindent` and explicit text follow §6.4's writer rule.
 10. **Text.** Adjacent text nodes are coalesced and empty ones dropped. Each remaining text node is one `=` statement.
 11. **Comment runs.** Each maximal run of two or more consecutive comments that can be `@comments` lines is one `@comments` block. Consecutive means adjacent in the written statements: prolog or epilog items next to each other, or children with nothing between them but predicted whitespace (§6.4). A comment can be such a line when its data is not empty, contains no LF or CR, does not begin or end with a space or tab, and contains none of the characters §4 says to escape. The marker is chosen as in rule 7.2, and each comment is a payload line.
 
@@ -1015,7 +1017,7 @@ The following fixtures are mandatory in addition to the baseline corpus:
 | SV-61 | Mixed content beginning with an element, e.g. `<text><tspan>A</tspan> B</text>`, under `@indent` | Writer emits `@noindent`; exact round trip |
 | SV-62 | Minified children (no whitespace) inside an otherwise indented document | Writer emits `@noindent`; exact round trip |
 | SV-63 | Irregular indentation, blank lines between elements, missing final newline before a closing tag | Affected elements written exactly; exact round trip |
-| SV-64 | Text statement in a laid-out element; `@noindent` after content; repeated `@indent`; `@indent 0` | Rejected |
+| SV-64 | Text statement in a laid-out element; `@noindent` after content; repeated `@indent`; `@indent 17`; `@indent 01` | Rejected |
 | SV-65 | Readable import of whitespace between `tspan`s, inside `xml:space="preserve"`, and in `foreignObject` | Whitespace preserved in ineligible elements; output marked lossy |
 | SV-66 | SVG 1.1 `PUBLIC` DOCTYPE | `@doctype` preserved; DTD never fetched (verified with network access disabled) |
 | SV-67 | `SYSTEM`-only DOCTYPE and bare `<!DOCTYPE svg>` | Preserved exactly |
@@ -1030,6 +1032,8 @@ The following fixtures are mandatory in addition to the baseline corpus:
 | SV-76 | SML-authored corpus using blocks, `end` payload lines, aliases, continuation lines, inline `xmlns`, and `@indent` | SML → XML → SML → XML preserves information (reverse round trip) |
 | SV-77 | Runs of one-line comments in the prolog and in laid-out and exact elements, including lines `# x`, `end`, and `"""`; a comment with spaces at its ends; `@comments` with a blank line, without a block, or with `--` | One `@comments` block per run of two or more (marker `""""` when a line is `"""`); the spaced comment is quoted on its own; the three invalid forms rejected |
 | SV-78 | Pretty-printed multi-line comments at depths 0, 1, and 2 under `@indent`, one with an empty line; a multi-line comment whose lines are not indented one level deeper; a comment block without `@indent`, under `@noindent`, and in mixed content | Laid-out comment blocks, read back with the same data; the unindented one quoted; the last three literal blocks |
+| SV-79 | XML that puts each child on its own line without indentation, including a pretty-printed multi-line comment | `@indent 0`, no text statements, and a laid-out comment block; reads back with the same whitespace |
+| SV-80 | Text, attribute, and comment values made only of line breaks, in exact elements and in a laid-out position | Quoted (`= "\n"`, `.a "\n"`, `@comment "\n"`), never blocks of blank lines; a block of blank lines is still read |
 
 **Mandatory round-trip acceptance:**
 

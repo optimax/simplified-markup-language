@@ -665,10 +665,11 @@ public sealed partial class SmlReader
         string value = XmlRules.StripSpacesAndTabs(rest);
         if (value == "tab")
             _indent = "\t";
-        else if (value.Length is 1 or 2 && value[0] is >= '1' and <= '9' && value.All(char.IsAsciiDigit) && int.Parse(value) <= 16)
+        else if (value == "0" || (value.Length is 1 or 2 && value[0] is >= '1' and <= '9' && value.All(char.IsAsciiDigit)
+                                  && int.Parse(value) <= 16))
             _indent = new string(' ', int.Parse(value));
         else
-            throw new SmlException("@indent takes tab or a width from 1 to 16", ln);
+            throw new SmlException("@indent takes tab or a width from 0 to 16", ln);
     }
 
     private void Doctype(string rest, int ln)

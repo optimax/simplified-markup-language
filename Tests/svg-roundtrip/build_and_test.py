@@ -87,6 +87,28 @@ fixtures = {
   <g><!--a--><!--b--><!--"""--></g>
   <rect width="1"/>
 </svg>''',
+'79-indent-0.svg':'''<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M15 15V29" stroke="url(#a)"/>
+<g>
+<path d="M1 1L2 2"/>
+<!--
+two-line
+comment
+-->
+</g>
+<defs>
+<linearGradient id="a">
+<stop stop-color="#000"/>
+</linearGradient>
+</defs>
+</svg>''',
+'80-line-break-values.svg':'''<svg xmlns="http://www.w3.org/2000/svg"><text>
+</text><g data-x="&#10;"/><g>
+<!--
+-->
+<rect/>
+
+<rect/></g></svg>''',
 '78-laid-out-comment.svg':'''<?xml version="1.0" encoding="UTF-8"?>
 <!--
   Prolog comment at depth 0

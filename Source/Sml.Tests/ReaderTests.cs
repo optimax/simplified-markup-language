@@ -224,7 +224,8 @@ public class ReaderTests
         Assert.Equal("\n  ", ((TextNode)svg.Children[0]).Data);
         Assert.Equal("\n    ", ((TextNode)((ElementNode)svg.Children[1]).Children[0]).Data);
         Rejects("@indent 2\ng\n  h/\n  = x\nend\n", "laid-out");
-        Rejects("@indent 0\ng/\n");
+        Root("@indent 0\ng/\n");
+        Rejects("@indent 01\ng/\n");
     }
 
     [Fact]
@@ -294,6 +295,35 @@ public class ReaderTests
             Assert.Contains("@comment \"", sml);
             Assert.Null(DocumentComparer.FirstDifference(xml, SmlReader.Read(sml)));
         }
+    }
+
+    [Fact]
+    public void SV79_Indent0()
+    {
+        ElementNode g = Root("@indent 0\ng\n  h/\n  k\n    m/\n  end\nend\n");
+        Assert.Equal(["\n", "\n", "\n"], g.Children.OfType<TextNode>().Select(t => t.Data).ToList());
+        Assert.Equal(["\n", "\n"], g.Children.OfType<ElementNode>().ElementAt(1).Children.OfType<TextNode>().Select(t => t.Data).ToList());
+        SmlDocument doc = XmlImporter.Read(Encoding.UTF8.GetBytes("<g>\n<h/>\n<k>\n<m/>\n</k>\n<!--\nline\n-->\n</g>"));
+        string sml = SmlWriter.Write(doc);
+        Assert.Equal("@sml 1.0-SVG-4\n@indent 0\ng\n  h/\n  k\n    m/\n  end\n  @comment \"\"\"\n    line\n  \"\"\"\nend\n", sml);
+        Assert.Null(DocumentComparer.FirstDifference(doc, SmlReader.Read(sml)));
+    }
+
+    [Fact]
+    public void SV80_LineBreaksAreQuoted()
+    {
+        Assert.Null(SmlWriter.BlockTag("\n"));
+        Assert.Null(SmlWriter.BlockTag("\n\n"));
+        Assert.Equal("\"\"\"", SmlWriter.BlockTag("a\n"));
+        SmlDocument doc = XmlImporter.Read(Encoding.UTF8.GetBytes("<g a=\"&#10;\"><t>\n</t><h/>\n\n<h/><!--\n--></g>"));
+        string sml = SmlWriter.Write(doc);
+        foreach (string fragment in new[] { ".a \"\\n\"", "t = \"\\n\"", "= \"\\n\\n\"", "@comment \"\\n\"" })
+            Assert.Contains(fragment, sml);
+        Assert.DoesNotContain("\"\"\"", sml);
+        Assert.Null(DocumentComparer.FirstDifference(doc, SmlReader.Read(sml)));
+        Assert.Equal("\n", Root("g\n  = \"\"\"\n\n\n  \"\"\"\nend\n").Children.OfType<TextNode>().First().Data);
+        SmlDocument laid = XmlImporter.Read(Encoding.UTF8.GetBytes("<g>\n  <!--\n  -->\n</g>"));
+        Assert.Contains("@comment \"\\n  \"", SmlWriter.Write(laid));
     }
 
     [Fact]

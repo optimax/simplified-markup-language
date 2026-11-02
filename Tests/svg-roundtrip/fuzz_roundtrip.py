@@ -56,7 +56,7 @@ CHARS = list('aZ0 \t\n\r"\'\\|(),#=&<>]-./:;@`~{}') + [
 PI_TARGETS = ['app', 'x-y', 'a.b', 'proc', 'é', 'xml-stylesheet', 'XMLish']
 PUBIDS = ['-//W3C//DTD SVG 1.1//EN', "-//A B//X'Y//EN", 'x (y) +,./:=?;!*#@$_%']
 SYSIDS = ['svg11.dtd', 'http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd', 'a"b', "a'b", 'é.dtd']
-UNITS = ['  ', '    ', '\t', ' ', '   ']
+UNITS = ['  ', '    ', '\t', ' ', '   ', '']
 
 SML_TOKENS = ['|', '"', '\\', '(', ')', ',', '=', '.', '@', '#', ' ', '\t', '\n', 'end', '/', ':',
               'x', '"""', '""""', '\\u{', '@ns ', '@comments """\n', '@block g x .y\n', '@noindent\n', '@indent 2\n', 'xmlns=',
@@ -164,7 +164,8 @@ class Generator:
                     el.children.append(self.comment())
                 else:
                     el.children.append(self.pi())
-        if self.unit and el.children and not any(isinstance(c, S.Text) for c in el.children) and r.random() < 0.8:
+        if (self.unit is not None and el.children and not any(isinstance(c, S.Text) for c in el.children)
+                and r.random() < 0.8):
             unit = self.unit if r.random() < 0.9 else r.choice(UNITS)
             spaced = []
             for c in el.children:
@@ -179,7 +180,7 @@ class Generator:
         d = S.Document()
         d.standalone = r.choice([None, None, 'yes', 'no'])
         d.prolog = [self.comment() if r.random() < 0.5 else self.pi() for _ in range(r.choice([0, 0, 1, 2, 3]))]
-        if self.unit and r.random() < 0.3:
+        if self.unit is not None and r.random() < 0.3:
             d.prolog.append(self.laid_out_comment(0, self.unit))
         if r.random() < 0.3:
             d.prolog.insert(r.randint(0, len(d.prolog)), self.doctype())
@@ -437,7 +438,7 @@ class VariantWriter:
             forms.append('empty')
         if reader_raw_ok(v):
             forms += ['raw', 'raw']
-        tag = S.block_tag(v) if block else None
+        tag = S.block_marker(v) if block and '\n' in v else None   # also blocks of blank lines
         if tag is not None:
             forms += ['block', 'block']
         form = r.choice(forms)
@@ -516,7 +517,7 @@ class VariantWriter:
                 self.emit(inner + ns_entry(p, u, False))
         aliases = 0
         for q, v in vertical_attrs:
-            if S.block_tag(v) is not None and r.random() < 0.4:
+            if '\n' in v and S.block_marker(v) is not None and r.random() < 0.4:
                 name = f'v{aliases}'
                 aliases += 1
                 self.emit(inner + f'@block {el.qname} {name} .{q}')

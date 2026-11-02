@@ -698,10 +698,10 @@ class SmlReader:
         value = strip_ht(rest)
         if value == 'tab':
             self.indent = '\t'
-        elif re.fullmatch(r'[1-9][0-9]?', value) and int(value) <= 16:
+        elif re.fullmatch(r'0|[1-9][0-9]?', value) and int(value) <= 16:
             self.indent = ' ' * int(value)
         else:
-            raise SmlError('@indent takes tab or a width from 1 to 16', ln)
+            raise SmlError('@indent takes tab or a width from 0 to 16', ln)
 
     def d_doctype(self, rest: str, ln: int) -> None:
         self.header('doctype', ln)
@@ -849,7 +849,7 @@ def read_sml(source) -> Document:
 # ---------------------------------------------------------------------------------------------
 # Canonical SML writer (§14.2)
 
-INDENT_CANDIDATES = ['  ', '    ', '\t'] + [' ' * n for n in (1, 3) + tuple(range(5, 17))]
+INDENT_CANDIDATES = ['  ', '    ', '\t'] + [' ' * n for n in (0, 1, 3) + tuple(range(5, 17))]
 
 
 def content_nodes(el: Element) -> list:
@@ -965,8 +965,9 @@ def block_marker(value: str) -> str | None:
 
 
 def block_tag(value: str) -> str | None:
-    """The marker to write a value that contains LF as a block (canonical rule 7.2), or None."""
-    return block_marker(value) if '\n' in value else None
+    """The marker to write a value that contains LF and something else as a block (canonical rule 7.2), or None.
+    A value of line breaks only would be a block of blank lines; it is clearer quoted."""
+    return block_marker(value) if '\n' in value and value.strip('\n') else None
 
 
 def lay_out_comment(value: str, unit: str, depth: int) -> str:
@@ -1104,7 +1105,7 @@ class SmlWriter:
             self.value(ind + '@comment', data, depth, allow_block=not laid_out)
             return
         value = laid_out_comment_value(data, self.unit, depth)
-        if value is None:
+        if value is None or not value.strip('\n'):
             self.value(ind + '@comment', data, depth, allow_block=False)
             return
         marker = block_marker(value)

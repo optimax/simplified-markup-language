@@ -328,8 +328,8 @@ class SmlSideFixtures(Base):
         self.rejects('@indent 2\ng\n  h/\n  = x\nend\n', 'laid-out')
         self.rejects('@indent 2\ng\n  h/\n  @noindent\nend\n', 'after the element')
         self.rejects('@indent 2\n@indent 2\ng/\n', 'only once')
-        self.rejects('@indent 0\ng/\n')
         self.rejects('@indent 17\ng/\n')
+        self.rejects('@indent 01\ng/\n')
 
     def test_SV70_doctype_identifiers(self):
         self.rejects('@doctype svg PUBLIC " -//W3C//DTD SVG 1.1//EN" "x"\nsvg/\n', 'not normalized')
@@ -389,6 +389,29 @@ class SmlSideFixtures(Base):
             out = S.write_sml(doc)
             self.assertIn('@comment "', out)
             self.assertEqual(S.signature(read(out)), S.signature(doc))
+
+    def test_SV79_indent_0(self):
+        el = root('@indent 0\ng\n  h/\n  k\n    m/\n  end\nend\n')
+        self.assertEqual([c.data for c in el.children if isinstance(c, S.Text)], ['\n', '\n', '\n'])
+        self.assertEqual([c.data for c in kids(el)[1].children if isinstance(c, S.Text)], ['\n', '\n'])
+        doc = S.read_xml(b'<g>\n<h/>\n<k>\n<m/>\n</k>\n<!--\nline\n-->\n</g>')
+        out = S.write_sml(doc)
+        self.assertEqual(out, '@sml 1.0-SVG-4\n@indent 0\ng\n  h/\n  k\n    m/\n  end\n  @comment """\n    line\n  """\nend\n')
+        self.assertEqual(S.signature(read(out)), S.signature(doc))
+
+    def test_SV80_line_breaks_are_quoted(self):
+        self.assertIsNone(S.block_tag('\n'))
+        self.assertIsNone(S.block_tag('\n\n'))
+        self.assertEqual(S.block_tag('a\n'), '"""')
+        doc = S.read_xml(b'<g a="&#10;"><t>\n</t><h/>\n\n<h/><!--\n--></g>')
+        out = S.write_sml(doc)
+        for fragment in ('.a "\\n"', 't = "\\n"', '= "\\n\\n"', '@comment "\\n"'):
+            self.assertIn(fragment, out)
+        self.assertNotIn('"""', out)
+        self.assertEqual(S.signature(read(out)), S.signature(doc))
+        self.assertEqual(kids(root('g\n  = """\n\n\n  """\nend\n'), S.Text)[0].data, '\n')   # still readable
+        laid = S.read_xml(b'<g>\n  <!--\n  -->\n</g>')
+        self.assertIn('@comment "\\n  "', S.write_sml(laid))
 
     def test_SV76_reverse_round_trip(self):
         src = ('@sml 1.0-SVG-4\n@indent 2\n@comment " authored in SML "\n'

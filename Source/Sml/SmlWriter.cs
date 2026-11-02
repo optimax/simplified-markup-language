@@ -10,7 +10,7 @@ public sealed class SmlWriter
     private const int SegmentLimit = 80;
 
     private static readonly string[] IndentCandidates =
-        ["  ", "    ", "\t", .. new[] { 1, 3, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 }.Select(n => new string(' ', n))];
+        ["  ", "    ", "\t", .. new[] { 0, 1, 3, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 }.Select(n => new string(' ', n))];
 
     private readonly SmlDocument _doc;
     private readonly List<string> _out = [];
@@ -312,8 +312,10 @@ public sealed class SmlWriter
         return depth == 0;
     }
 
-    /// <summary>The marker to write a value that contains LF as a block (canonical rule 7.2), or null.</summary>
-    public static string? BlockTag(string value) => value.Contains('\n') ? BlockMarker(value) : null;
+    /// <summary>The marker to write a value that contains LF and something else as a block (canonical rule 7.2), or
+    /// null. A value of line breaks only would be a block of blank lines; it is clearer quoted.</summary>
+    public static string? BlockTag(string value) =>
+        value.Contains('\n') && value.AsSpan().ContainsAnyExcept('\n') ? BlockMarker(value) : null;
 
     /// <summary>The marker to write a value as a block's payload (§7): the shortest run of three or more quotation
     /// marks that no payload line equals, or null if a block cannot reproduce the value. The empty value has no
@@ -494,7 +496,7 @@ public sealed class SmlWriter
             return;
         }
         string? value = LaidOutCommentValue(data, _unit!, depth);
-        if (value is null)
+        if (value is null || !value.AsSpan().ContainsAnyExcept('\n'))
         {
             Value(ind + "@comment", data, depth, allowBlock: false);
             return;
