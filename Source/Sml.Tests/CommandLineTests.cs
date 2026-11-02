@@ -105,4 +105,133 @@ public sealed class CommandLineTests : IDisposable
         Assert.Contains("Usage: smlxml", Run("--help").Out);
         Assert.Contains("SML 1.0-SVG-3", Run("--version").Out);
     }
+
+    [Fact]
+    public void ShowsUsageWhenRunWithoutArguments()
+    {
+        var (code, output, error) = Run();
+        Assert.Equal(CommandLine.UsageError, code);
+        Assert.Contains("Usage: smlxml", output);
+        Assert.Contains("wildcards", output);
+        Assert.Empty(error);
+    }
+
+    private void Create(params string[] relativePaths)
+    {
+        foreach (string relative in relativePaths)
+        {
+            string path = PathOf(relative);
+            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+            File.WriteAllText(path, relative.EndsWith(".sml", StringComparison.Ordinal) ? "svg(xmlns=http://www.w3.org/2000/svg)/\n" : SvgXml);
+        }
+    }
+
+    private string[] Existing(string extension) =>
+        Directory.GetFiles(_dir, "*" + extension, SearchOption.AllDirectories)
+            .Select(f => Path.GetRelativePath(_dir, f).Replace('\\', '/')).Order(StringComparer.Ordinal).ToArray();
+
+    [Fact]
+    public void ExpandsStarAndQuestionMarkInFileNames()
+    {
+        Create("a1.svg", "a22.svg", "b.svg", "c.xml");
+        Assert.Equal(CommandLine.Success, Run(PathOf("a?.svg")).Code);
+        Assert.Equal(["a1.sml"], Existing(".sml"));
+        Assert.Equal(CommandLine.Success, Run("--force", PathOf("*.svg"), PathOf("*.xml")).Code);
+        Assert.Equal(["a1.sml", "a22.sml", "b.sml", "c.sml"], Existing(".sml"));
+    }
+
+    [Fact]
+    public void ExpandsWildcardsInFolderNamesAndDoubleStarAcrossFolders()
+    {
+        Create("f1/a.svg", "f2/a.svg", "g/a.svg", "top.svg", "deep/x/y/z.svg");
+        Assert.Equal(CommandLine.Success, Run(Path.Join(_dir, "f*", "a.svg")).Code);
+        Assert.Equal(["f1/a.sml", "f2/a.sml"], Existing(".sml"));
+        Assert.Equal(CommandLine.ConversionFailed, Run(Path.Join(_dir, "**", "*.svg")).Code);   // f1 and f2 already converted
+        Assert.Equal(["deep/x/y/z.sml", "f1/a.sml", "f2/a.sml", "g/a.sml", "top.sml"], Existing(".sml"));
+    }
+
+    [Fact]
+    public void ReportsPatternsThatMatchNothingAndStillConvertTheRest()
+    {
+        Create("a.svg");
+        var (code, _, error) = Run(PathOf("*.nothing"), PathOf("a.svg"));
+        Assert.Equal(CommandLine.ConversionFailed, code);
+        Assert.Contains("*.nothing: error: no files match", error);
+        Assert.Equal(["a.sml"], Existing(".sml"));
+    }
+
+    [Fact]
+    public void ConvertsAFileMatchedTwiceOnlyOnce()
+    {
+        Create("a.svg");
+        Assert.Equal(CommandLine.Success, Run(PathOf("*.svg"), PathOf("a.svg"), PathOf("?.svg")).Code);
+    }
+
+    [Fact]
+    public void SkipsHiddenFilesUnlessThePatternStartsWithADot()
+    {
+        Create(".hidden.svg", "shown.svg");
+        Assert.Equal(CommandLine.Success, Run(PathOf("*.svg")).Code);
+        Assert.Equal(["shown.sml"], Existing(".sml"));
+        Assert.Equal(CommandLine.Success, Run(PathOf(".h*.svg")).Code);
+        Assert.Equal([".hidden.sml", "shown.sml"], Existing(".sml"));
+    }
+
+    [Fact]
+    public void RefusesOutputsThatAreAlsoInputsOfTheSameRun()
+    {
+        Create("a.svg", "a.sml");
+        string sml = File.ReadAllText(PathOf("a.sml"));
+        var (code, _, error) = Run("--force", PathOf("*"));
+        Assert.Equal(CommandLine.ConversionFailed, code);
+        Assert.Contains("is also an input of this run", error);
+        Assert.Equal(sml, File.ReadAllText(PathOf("a.sml")));
+        Assert.Equal(SvgXml, File.ReadAllText(PathOf("a.svg")));
+    }
+
+    [Fact]
+    public void AllowsOutputOnlyWhenAPatternMatchesOneFile()
+    {
+        Create("only.svg", "x1.xml", "x2.xml");
+        Assert.Equal(CommandLine.Success, Run("-o", PathOf("out.sml"), PathOf("o*.svg")).Code);
+        Assert.Equal(CommandLine.UsageError, Run("-o", PathOf("out2.sml"), PathOf("x*.xml")).Code);
+    }
+
+    [Fact]
+    public void PrefersAnExistingFileWhoseNameContainsWildcardCharacters()
+    {
+        if (OperatingSystem.IsWindows())
+            return;     // * and ? cannot appear in Windows file names
+        Create("a*b.svg", "aXb.svg");
+        Assert.Equal(CommandLine.Success, Run(PathOf("a*b.svg")).Code);
+        Assert.Equal(["a*b.sml"], Existing(".sml"));
+    }
+}
+
+public class FileExpanderTests
+{
+    [Theory]
+    [InlineData("a.svg", "*.svg", true)]
+    [InlineData("a.svgx", "*.svg", false)]
+    [InlineData("a.svg", "*", true)]
+    [InlineData("abc", "a*b*c", true)]
+    [InlineData("acb", "a*b*c", false)]
+    [InlineData("ab", "a?", true)]
+    [InlineData("a", "a?", false)]
+    [InlineData("aaab", "*a*b", true)]
+    [InlineData(".x.svg", "*.svg", false)]
+    [InlineData("x.svg", "", false)]
+    public void MatchesNames(string name, string pattern, bool expected) => Assert.Equal(expected, FileExpander.Matches(name, pattern));
+
+    [Fact]
+    public void ComparesCaseAccordingToThePlatform() =>
+        Assert.Equal(OperatingSystem.IsWindows() || OperatingSystem.IsMacOS(), FileExpander.Matches("A.SVG", "*.svg"));
+
+    [Fact]
+    public void RecognizesPatterns()
+    {
+        Assert.True(FileExpander.IsPattern("art/*.svg"));
+        Assert.True(FileExpander.IsPattern("a?.svg"));
+        Assert.False(FileExpander.IsPattern("art/a.svg"));
+    }
 }
