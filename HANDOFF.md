@@ -21,16 +21,13 @@ Provide `smlxml`, a two-way SML ↔ XML/SVG command-line converter in C# on .NET
   - C# ports of the CP and key SV tests;
   - command-line tests, including wildcards, output patterns, and the matcher (`FileExpanderTests`).
 - **`Tests/svg-roundtrip/crosscheck_csharp.py`** compares the C# and Python implementations on random documents, non-canonical SML spellings, and SML mutants.
+- **`Tests/svg-corpus`** holds 505 real-world SVG files from 16 MIT-, ISC-, and BSD-licensed projects: icon sets, emoji, flags, animated icons, and the W3C SVG 1.1 and resvg test suites. They are kept as examples; no automated test reads them yet. Sources and exact license texts are in its `THIRD-PARTY-NOTICES.md`, and the selection and expected results in its `README.md`.
 - Solution-wide environment, conventions, decisions, and traps are in `implementation.md`.
 
-## Files changed in recent tasks (output patterns; `-v`; banner; license; publish profile; 32/64-bit)
+## Files changed in the last task (SVG corpus)
 
-- 32- and 64-bit executables, Any CPU assemblies: `win-x64.pubxml` renamed to `windows.pubxml`; `SmlXml.csproj` gains `PlatformTarget`, `RuntimeIdentifiers`, and the `PublishAdditionalRuntimes` target; docs in `implementation.md`, `Source/SmlXml/README.md`, `Source/SmlXml/implementation.md`.
-- One publish profile: `Source/SmlXml/Properties/PublishProfiles/FolderProfile.pubxml` removed; the remaining profile gains Visual Studio's folder-profile properties and a project-relative `PublishDir`. Docs: `implementation.md`, `Source/SmlXml/README.md`, `Source/SmlXml/implementation.md`.
-- MIT license: new `LICENSE.md` at the root, published beside `smlxml.exe` (`Source/SmlXml/SmlXml.csproj`); `implementation.md`, `Source/SmlXml/README.md`, `Source/SmlXml/implementation.md`.
-- Banner at the start of every run (`-v` prints only the banner): `Source/SmlXml/CommandLine.cs` (`Run`, new `WriteBanner`), `Source/SmlXml/SmlXml.csproj` and `Source/Sml/Sml.csproj` (`Company`, `Copyright`), `Source/Sml.Tests/CommandLineTests.cs`, `Source/SmlXml/README.md`, `Source/SmlXml/implementation.md`, `implementation.md` (licensing).
-- `-v` is the short form of `--version`: `Source/SmlXml/CommandLine.cs` (`Run`, usage text), `Source/SmlXml/README.md`, `Source/Sml.Tests/CommandLineTests.cs`.
-- Changed: `Source/SmlXml/CommandLine.cs` (`Run`, `Convert`, new `RunContext` and `ApplyOutputPattern`, `WriteAtomically` creates a missing output folder, usage text), `Source/Sml.Tests/CommandLineTests.cs`, `Source/SmlXml/README.md`, `Source/SmlXml/implementation.md`.
+- New `Tests/svg-corpus/`: the SVG files in one folder per source, `README.md`, `THIRD-PARTY-NOTICES.md`, and `.gitattributes`, which keeps the files byte-identical by turning off line-end conversion.
+- `implementation.md`: the corpus in Products, and a licensing rule for it.
 
 ## Build and test results
 
@@ -41,6 +38,10 @@ Provide `smlxml`, a two-way SML ↔ XML/SVG command-line converter in C# on .NET
 - `dotnet publish Source/SmlXml/SmlXml.csproj -p:PublishProfile=windows` produced `publish/smlxml/win-x64/smlxml.exe` (PE32+ x86-64) and `publish/smlxml/win-x86/smlxml.exe` (PE32 Intel 80386), each with `LICENSE.md`. This held both from the repository root and from the project folder. The assemblies' CLR headers confirm Any CPU. `windows.pubxml` is the only publish profile and also serves Visual Studio; Visual Studio itself was not run, and neither executable was run on Windows. Visual Studio's Publish page shows "Target runtime: win-x64" for the profile; that is expected and documented, and each Publish writes both builds.
 - `python build_and_test.py`: 47/47 fixtures, 9/9 rejections, 54/54 unit tests, 0 fuzz findings.
 - `crosscheck_csharp.py` seeds 1–10 (8,500 documents, 34,000 SML mutants): 0 differences between the implementations.
+- `Tests/svg-corpus` was checked by hand, with a script that is not in the repository:
+  - Python and C# both accept 495 of the 505 files. Each round-trips XML → SML → XML to the same document, and the canonical SML is byte-identical between the implementations.
+  - Both reject the same 10 files, which have DTD internal subsets.
+  - `smlxml "svg-corpus/**/*.svg"` followed by `smlxml -o "*.out.svg" "svg-corpus/**/*.sml"` on a copy gave the same result.
 
 ## Unresolved
 
@@ -50,7 +51,10 @@ Provide `smlxml`, a two-way SML ↔ XML/SVG command-line converter in C# on .NET
 - Encoding names follow each importer's XML library. The Python importer accepts `UTF8`, while System.Xml may reject it. The cross-check only feeds both importers UTF-8.
 - SV-49 (writer-generated aliases) and SV-65 (readable import) are not implemented in either implementation.
 - The language name still collides with Standard ML and W3C SML.
+- The SVG corpus has no Inkscape or Illustrator files with editor metadata. None were found under an MIT-like license on hosts reachable from Claude Cloud.
 
 ## Recommended next step
 
-Run `smlxml` on real Inkscape and Illustrator SVG files on Windows, and decide the open specification questions.
+- Run `smlxml` on real Inkscape and Illustrator SVG files on Windows.
+- Decide the open specification questions.
+- Consider running `Tests/svg-corpus` automatically in `build_and_test.py` and in the xUnit tests.

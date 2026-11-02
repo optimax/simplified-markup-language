@@ -7,6 +7,7 @@
 | SML specification | `Documents/SML-Language-Specification.md` | The language: SML 1.0-SVG-3 |
 | `smlxml` | `Source/SmlXml/` (command line), `Source/Sml/` (library) | Two-way SML ↔ XML/SVG converter in C# |
 | Python prototype and test harness | `Tests/svg-roundtrip/` | Reference implementation, fixture corpus, fuzz and differential tests |
+| SVG corpus | `Tests/svg-corpus/` | 505 third-party real-world SVG files, kept as examples |
 
 ## Development environment
 
@@ -50,6 +51,7 @@ The publish profile writes two framework-dependent single-file executables, each
   - `smlxml` is distributed under the MIT license in `LICENSE.md` at the root, Copyright (c) 2026 Optimax Technologies, Inc. The same copyright is in `<Company>` and `<Copyright>` in the C# project files and in the banner.
   - `SmlXml.csproj` copies `LICENSE.md` to the build and publish output, beside `smlxml.exe`.
   - The shipped `smlxml` uses no third-party packages; xUnit and the test SDK are test-only and not redistributed.
+  - `Tests/svg-corpus` holds third-party files under MIT, ISC, and BSD-3-Clause licenses, with their exact license texts in its `THIRD-PARTY-NOTICES.md`. It is distributed with the source only, never with `smlxml`. A file added to it must come from a source under an MIT-like license, and its license text must be added to the notices. Brand logos are kept out because they are trademarks.
 
 ## Known traps
 
