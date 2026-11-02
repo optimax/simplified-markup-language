@@ -10,6 +10,7 @@ The script rewrites the fixture files, runs every check, and exits with status 1
 | `build_and_test.py` | The harness and the fixture definitions it writes to `corpus/` and `corpus-negative/` |
 | `test_sml_core.py` | CP-1–CP-24 and the SML-only SV fixtures of the specification's §15 |
 | `fuzz_roundtrip.py` | Seeded fuzz and differential tests (see below); findings are shrunk and saved to `results/fuzz-findings/` |
+| `crosscheck_csharp.py` | Differential test between this prototype and the C# converter `smlxml` (`Source/`); needs a Release build of `Source/SmlXml` |
 | `corpus/` | Positive SVG fixtures. The numeric prefix is the SV number in the specification (`01`–`18` are the original baseline); `X` fixtures are extra coverage |
 | `corpus-negative/` | Inputs a strict importer must reject |
 | `results/*.sml` | Canonical SML generated for each positive fixture |

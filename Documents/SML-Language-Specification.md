@@ -878,6 +878,7 @@ The fixtures are in this repository under `Tests/svg-roundtrip/`:
 - `test_sml_core.py` holds the CP fixtures (§15.1) and the SV fixtures that need only SML.
 - `fuzz_roundtrip.py` runs seeded fuzz and differential tests: random documents, random mutations of SML and XML, and comparison with an independent XML parser.
 - `build_and_test.py` runs all of them against the prototype in `sml_prototype.py` and writes `results/REPORT.md`.
+- A second implementation, the C# converter `smlxml` in `Source/`, runs the same corpus in `Source/Sml.Tests`, and `crosscheck_csharp.py` compares the two implementations on random documents and mutants.
 
 The following fixtures are mandatory in addition to the baseline corpus:
 

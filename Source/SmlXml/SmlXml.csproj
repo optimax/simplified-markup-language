@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>SmlXml</RootNamespace>
+    <AssemblyName>smlxml</AssemblyName>
+    <Version>1.0.0</Version>
+    <Product>smlxml</Product>
+    <Description>Two-way converter between SML 1.0-SVG-3 and XML/SVG.</Description>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <InvariantGlobalization>true</InvariantGlobalization>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Sml\Sml.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -726,7 +726,7 @@ class SmlReader:
     def d_use(self, rest: str, ln: int) -> None:
         self.header('use', ln)
         toks = [t for t, q in self.tokens(rest, ln)]
-        if len(toks) not in (2, 3) or not is_ncname(toks[0]) or not re.fullmatch(r'\d+\.\d+', toks[1]):
+        if len(toks) not in (2, 3) or not is_ncname(toks[0]) or not re.fullmatch(r'[0-9]+\.[0-9]+', toks[1]):
             raise SmlError('@use takes: identifier major.minor [optional]', ln)
         if len(toks) == 3 and toks[2] != 'optional':
             raise SmlError("the third @use operand can only be 'optional'", ln)
@@ -764,7 +764,7 @@ class SmlReader:
 
     def d_block(self, rest: str, ln: int) -> None:
         f = self.decl_frame(ln, '@block')
-        toks = rest.split()
+        toks = [t for t in re.split(r'[ \t]+', rest) if t]
         if len(toks) == 4 and toks[2] == '=':
             raise SmlError("the '=' separator in @block is no longer valid", ln)
         if len(toks) != 3 or not toks[2].startswith('.'):
