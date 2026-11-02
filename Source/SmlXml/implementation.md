@@ -10,6 +10,7 @@
   `smlxml 1.0.0 (SML 1.0-SVG-3)`, `Copyright (c) 2026 Optimax Technologies, Inc.`, `Freely distributed under MIT license.`
 - `--output` accepts a `*` pattern, so that `smlxml *.svg` followed by `smlxml -o *.out.svg *.sml` leaves `name.sml` and `name.out.svg` beside each `name.svg`.
 - `--profile` converts XML to SML with an SML profile, which defines blocks for path `d`, polyline `points`, and other SVG values that are more readable one item per line. The `svg` profile ships with `smlxml`.
+- `--verbose` writes every attribute and namespace declaration on its own line, never in a `name(...)` list.
 - The profile is exact by default. `--reflow` switches to the readable, lossy form. This "both, switchable" design was the user's choice over always reflowing and over exact output only.
 
 ## Behavior
@@ -40,10 +41,14 @@
   - The profile is parsed once, before any conversion. A missing or invalid profile is a usage error (exit 2), reported as `file(line): error: message`.
   - It applies to XML input only; SML input converts as usual.
   - `-r` / `--reflow` needs `--profile`.
-  - `SmlWriter.Write(doc, profile, reflow)` does the work; the format and the writer rules are in `SmlProfile` and the README.
+  - `SmlWriter.Write(doc, SmlWriterOptions)` does the work; the format and the writer rules are in `SmlProfile` and the README.
   - Without reflow, the output reads back as the same document. Values with a layout and at least two items are quoted with a continuation line per item; values that need a block use the profile's alias.
   - With reflow, values become one item per line (specification §3.2), and the first line is a `#` comment naming the attributes reflowed.
   - Aliases are declared only on the root, only for aliases actually used, and only where the root's namespace declarations name the element and attribute. One declaration serves the whole document, and the output never depends on the profile.
+- **Verbose.** `--verbose` sets `SmlWriterOptions.VerticalAttributes`. It replaces canonical rule 5 (inline or vertical) with "always vertical" and changes nothing else.
+  - Value forms and the compact forms of elements without declarations (`g/`, `title = Text`) are as in the canonical form.
+  - It combines with `--profile` and applies to XML input only.
+  - It has no short form, because `-v` is `--version` and `-V` would be easy to confuse with it.
 - **No arguments** prints the usage text on standard output and exits with 2, because nothing was converted. `--help` exits with 0.
 - **Errors** are reported on standard error as `file(line): error: message`, a format Visual Studio can jump to, and conversion continues with the next file.
 - **Exit codes:** 0 when every file converted, 1 when at least one conversion failed or a pattern matched no file, 2 for an invalid command line or no arguments.
@@ -52,9 +57,9 @@
 
 - `Program.cs` calls `CommandLine.Run`, which is public so that `Source/Sml.Tests/CommandLineTests.cs` can test the command line without starting a process.
 - `FileExpander` (wildcards) is public for the same reason; `FileExpanderTests` covers its matcher.
-- All format logic is in `Source/Sml` (`SmlReader`, `SmlWriter`, `XmlImporter`, `XmlExporter`, `SmlProfile`, `ValueLayout`).
+- All format logic is in `Source/Sml` (`SmlReader`, `SmlWriter` with `SmlWriterOptions`, `XmlImporter`, `XmlExporter`, `SmlProfile`, `ValueLayout`).
 - `svg.smlprofile` is the built-in profile. `SmlXml.csproj` copies every `*.smlprofile` to the build and publish output; `ExcludeFromSingleFile` keeps the profile beside the executable rather than inside the single-file bundle.
-- `Source/Sml.Tests/ProfileTests.cs` covers the layouts, the profile format, and the writer. It runs both modes over every fixture in `Tests/svg-roundtrip/corpus` and every file in `Tests/svg-corpus`.
+- `Source/Sml.Tests/ProfileTests.cs` covers the layouts, the profile format, and the writer. It runs both modes over every fixture in `Tests/svg-roundtrip/corpus` and every file in `Tests/svg-corpus`. `WriterOptionsTests.cs` does the same for vertical attributes.
 
 ## Build
 

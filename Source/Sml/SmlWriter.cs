@@ -17,6 +17,7 @@ public sealed class SmlWriter
     private readonly string? _unit;
     private readonly SmlProfile? _profile;
     private readonly bool _reflow;
+    private readonly bool _vertical;
 
     /// <summary>The alias declarations written on the root: element QName, alias, and attribute QName.</summary>
     private readonly List<(string Element, string Alias, string Attribute)> _aliasDeclarations = [];
@@ -27,28 +28,35 @@ public sealed class SmlWriter
     /// <summary>The lexical names of the attributes whose values were reflowed.</summary>
     private readonly SortedSet<string> _reflowed = new(Comparer<string>.Create(XmlRules.CompareCodePoints));
 
-    private SmlWriter(SmlDocument doc, SmlProfile? profile, bool reflow)
+    private SmlWriter(SmlDocument doc, SmlWriterOptions options)
     {
         _doc = doc;
         _unit = ChooseIndent(doc);
-        _profile = profile;
-        _reflow = reflow && profile is not null;
-        if (profile is not null)
-            PlanAliases(profile);
+        _profile = options.Profile;
+        _reflow = options.Reflow && _profile is not null;
+        _vertical = options.VerticalAttributes;
+        if (_profile is not null)
+            PlanAliases(_profile);
     }
 
     /// <summary>Writes the canonical form of the document.</summary>
-    public static string Write(SmlDocument doc) => new SmlWriter(doc, null, false).Write();
+    public static string Write(SmlDocument doc) => new SmlWriter(doc, new SmlWriterOptions()).Write();
 
-    /// <summary>Writes the document with a profile's aliases and layouts; the output is not canonical.
-    /// <para>Without reflow the output reads back as the same document. A value written as a block uses the
-    /// profile's alias for its attribute, declared on the root element. A value with a layout and at least two
-    /// items is quoted, with a continuation line for each item (§6.5).</para>
+    /// <summary>Writes the document with options; anything but the default options gives output that is not
+    /// canonical.
+    /// <para>With a profile and without reflow, the output reads back as the same document. A value written as a
+    /// block uses the profile's alias for its attribute, declared on the root element. A value with a layout and
+    /// at least two items is quoted, with a continuation line for each item (§6.5).</para>
     /// <para>With reflow, the readable conversion of §3.2: each value with a layout is written with one item per
     /// line, so the output reads back as a different document whose values contain line breaks. The output then
-    /// starts with a <c>#</c> comment that names the attributes reflowed.</para></summary>
+    /// starts with a <c>#</c> comment that names the attributes reflowed.</para>
+    /// <para>With vertical attributes, every attribute and namespace declaration is on its own line; the output
+    /// reads back as the same document.</para></summary>
+    public static string Write(SmlDocument doc, SmlWriterOptions options) => new SmlWriter(doc, options).Write();
+
+    /// <summary>Writes the document with a profile: the options overload with Profile and Reflow set.</summary>
     public static string Write(SmlDocument doc, SmlProfile profile, bool reflow = false) =>
-        new SmlWriter(doc, profile, reflow).Write();
+        Write(doc, new SmlWriterOptions { Profile = profile, Reflow = reflow });
 
     private string Write()
     {
@@ -449,7 +457,7 @@ public sealed class SmlWriter
             .Concat(attributeEntries)
             .ToList();
         bool isEnd = element.QualifiedName == "end";
-        bool inline = !isEnd && entries.All(e =>
+        bool inline = !isEnd && !_vertical && entries.All(e =>
             RawInlineOk(e.Value) && (!e.IsNamespace || e.Value.Contains(':')) && !Segmented(e.Value, e.Layout));
         string opener = element.QualifiedName;
         if (entries.Count > 0 && inline)
