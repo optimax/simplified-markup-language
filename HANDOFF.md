@@ -23,8 +23,9 @@ Provide `smlxml`, a two-way SML ↔ XML/SVG command-line converter in C# on .NET
 - **`Tests/svg-roundtrip/crosscheck_csharp.py`** compares the C# and Python implementations on random documents, non-canonical SML spellings, and SML mutants.
 - Solution-wide environment, conventions, decisions, and traps are in `implementation.md`.
 
-## Files changed in recent tasks (output patterns; `-v` for `--version`)
+## Files changed in recent tasks (output patterns; `-v`; banner; license)
 
+- MIT license: new `LICENSE.md` at the root, published beside `smlxml.exe` (`Source/SmlXml/SmlXml.csproj`); `implementation.md`, `Source/SmlXml/README.md`, `Source/SmlXml/implementation.md`.
 - Banner at the start of every run (`-v` prints only the banner): `Source/SmlXml/CommandLine.cs` (`Run`, new `WriteBanner`), `Source/SmlXml/SmlXml.csproj` and `Source/Sml/Sml.csproj` (`Company`, `Copyright`), `Source/Sml.Tests/CommandLineTests.cs`, `Source/SmlXml/README.md`, `Source/SmlXml/implementation.md`, `implementation.md` (licensing).
 - `-v` is the short form of `--version`: `Source/SmlXml/CommandLine.cs` (`Run`, usage text), `Source/SmlXml/README.md`, `Source/Sml.Tests/CommandLineTests.cs`.
 - Changed: `Source/SmlXml/CommandLine.cs` (`Run`, `Convert`, new `RunContext` and `ApplyOutputPattern`, `WriteAtomically` creates a missing output folder, usage text), `Source/Sml.Tests/CommandLineTests.cs`, `Source/SmlXml/README.md`, `Source/SmlXml/implementation.md`.
@@ -35,13 +36,12 @@ Provide `smlxml`, a two-way SML ↔ XML/SVG command-line converter in C# on .NET
 - `dotnet test`: 182/182 passed.
 - The real executable was also exercised on Linux with quoted relative patterns (`*.svg`, `art/**/*.svg`, an unmatched pattern, no arguments), simulating how Windows shells pass them.
 - `smlxml *.svg` then `smlxml -o *.out.svg *.sml` over all 47 corpus fixtures produced 47 `.out.svg` files; the Python importer found each equal in information to its original.
-- `dotnet publish Source/SmlXml/SmlXml.csproj -p:PublishProfile=win-x64` produced `publish/smlxml/smlxml.exe` (252 KB, PE32+ x86-64 console). It was built on Linux and **not run on Windows**.
+- `dotnet publish Source/SmlXml/SmlXml.csproj -p:PublishProfile=win-x64` produced `publish/smlxml/smlxml.exe` (about 260 KB, PE32+ x86-64 console) and `LICENSE.md` beside it; `FolderProfile` also includes `LICENSE.md`. It was built on Linux and **not run on Windows**.
 - `python build_and_test.py`: 47/47 fixtures, 9/9 rejections, 54/54 unit tests, 0 fuzz findings.
 - `crosscheck_csharp.py` seeds 1–10 (8,500 documents, 34,000 SML mutants): 0 differences between the implementations.
 
 ## Unresolved
 
-- The banner states the MIT license, but the repository has no `LICENSE` file. MIT requires the license text to accompany copies, so a `LICENSE` file (and shipping it with `smlxml.exe`) is still needed.
 - Spec decisions still open:
   - should namespace names be required to be URI references (libxml2 enforces this)?
   - should the spec carry a portability note on XML 1.0 5th-edition name characters?

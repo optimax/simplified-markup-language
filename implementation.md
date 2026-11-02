@@ -25,7 +25,7 @@ python Tests/svg-roundtrip/build_and_test.py
 python Tests/svg-roundtrip/crosscheck_csharp.py --docs 1000
 ```
 
-The publish profile writes one framework-dependent `publish/smlxml/smlxml.exe` (requires the .NET 10 runtime). `crosscheck_csharp.py` needs a Release build of `Source/SmlXml` first.
+The publish profile writes one framework-dependent `publish/smlxml/smlxml.exe` (requires the .NET 10 runtime), with `LICENSE.md` beside it. `crosscheck_csharp.py` needs a Release build of `Source/SmlXml` first.
 
 ## Conventions
 
@@ -39,11 +39,15 @@ The publish profile writes one framework-dependent `publish/smlxml/smlxml.exe` (
 - **The library is split from the command line** so that the format logic can be tested directly and reused by future tools such as an editor.
 - **The XML importer turns off System.Xml namespace processing.** It uses `XmlTextReader` with `Namespaces = false`, wrapped with character checking, and validates names and namespaces itself with `XmlRules`, as the SML reader does. With namespace processing on, System.Xml rejects `xml:space` values other than `default` and `preserve`, which are well-formed opaque values without a DTD.
 - **External DTDs are never loaded** (`XmlResolver = null`). DTD internal subsets are rejected, including an empty `[]`, which System.Xml cannot distinguish from no subset; `XmlImporter.HasInternalSubset` scans the prolog for it.
-- **Licensing.** `smlxml` is distributed under the MIT license, as its banner states, and is Copyright (c) 2026 Optimax Technologies, Inc. (`<Company>` and `<Copyright>` in the C# project files). The repository has no `LICENSE` file yet. The shipped `smlxml` uses no third-party packages; xUnit and the test SDK are test-only and not redistributed.
+- **Licensing.**
+  - `smlxml` is distributed under the MIT license in `LICENSE.md` at the root, Copyright (c) 2026 Optimax Technologies, Inc. The same copyright is in `<Company>` and `<Copyright>` in the C# project files and in the banner.
+  - `SmlXml.csproj` copies `LICENSE.md` to the build and publish output, beside `smlxml.exe`.
+  - The shipped `smlxml` uses no third-party packages; xUnit and the test SDK are test-only and not redistributed.
 
 ## Known traps
 
 - **`--self-contained false` is not honored.** With SDK 10.0.114, `dotnet publish -r win-x64 --self-contained false` produced a 73 MB self-contained executable. `--no-self-contained`, `-p:SelfContained=false`, or the `win-x64` publish profile produce the 250 KB framework-dependent `smlxml.exe`.
+- **Single-file publishing bundles content files.** With `PublishSingleFile`, a file marked `CopyToPublishDirectory` is embedded in the executable unless it has `ExcludeFromSingleFile="true"`, as `LICENSE.md` does in `SmlXml.csproj`.
 - **System.Xml reports an empty internal subset (`[]`) exactly like no subset.** See `HasInternalSubset`.
 - **XML parsers disagree at the edges.** Recorded by the Python fuzzer as known divergences:
   - libxml2 rejects namespace names that are not URI references;

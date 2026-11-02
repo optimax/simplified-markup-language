@@ -20,4 +20,11 @@
     <ProjectReference Include="..\Sml\Sml.csproj" />
   </ItemGroup>
 
+  <!-- The MIT license ships beside smlxml.exe. ExcludeFromSingleFile keeps it a separate file when publishing
+       as a single file (the win-x64 profile); otherwise it would be bundled inside the executable. -->
+  <ItemGroup>
+    <None Include="..\..\LICENSE.md" Link="LICENSE.md" CopyToOutputDirectory="PreserveNewest"
+          CopyToPublishDirectory="PreserveNewest" ExcludeFromSingleFile="true" />
+  </ItemGroup>
+
 </Project>
