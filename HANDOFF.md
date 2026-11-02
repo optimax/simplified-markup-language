@@ -37,16 +37,13 @@ Provide `smlxml`, a two-way SML ↔ XML/SVG command-line converter in C# on .NET
 - **`README.md`** at the root introduces the project on GitHub. It assumes a public repository under the MIT license.
 - Solution-wide environment, conventions, decisions, and traps are in `implementation.md`.
 
-## Files changed in the last task (smlxml --verbose)
+## Files changed in the last task (spaced path data in --reflow)
 
-- New `Source/Sml/SmlWriterOptions.cs`: Profile, Reflow, and VerticalAttributes.
-- `Source/Sml/SmlWriter.cs`:
-  - new overload `Write(doc, SmlWriterOptions)`;
-  - `Write(doc, profile, reflow)` is now shorthand for it;
-  - `Element` skips inline lists when `VerticalAttributes` is set.
-- `Source/SmlXml/CommandLine.cs`: `--verbose`, `RunContext` holds the writer options, `Convert`, and the usage text.
-- Tests: new `Source/Sml.Tests/WriterOptionsTests.cs`; `CommandLineTests.cs` (verbose); `ProfileTests.cs` (`TestsFolder` shared).
-- Docs: `Source/SmlXml/README.md`, `Source/SmlXml/implementation.md`.
+- `Source/Sml/ValueLayout.cs`:
+  - `Reflow` spaces each path command;
+  - new `SpacePathCommand` puts a space after the command letter and after each comma (`M10,20` becomes `M 10, 20`).
+- `Source/Sml.Tests/ProfileTests.cs` (`ReflowsOneItemPerLineOnlyWhenThatIsClean`).
+- `Documents/SML-Language-Specification.md` §3.2, `Source/SmlXml/README.md`, `Source/SmlXml/svg.smlprofile` (comment).
 
 ## Build and test results
 

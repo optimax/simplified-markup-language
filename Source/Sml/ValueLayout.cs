@@ -62,7 +62,7 @@ public static class ValueLayout
 
     /// <summary>The value with its items joined by LF, one item per line (§3.2), or null if the layout does not
     /// apply: the value does not have the layout's form, has fewer than two items, or an item contains TAB, LF,
-    /// or CR.</summary>
+    /// or CR. Path commands are also spaced (<see cref="SpacePathCommand"/>).</summary>
     public static string? Reflow(string value, Layout layout)
     {
         List<(int Start, int End)>? items = Items(value, layout);
@@ -71,7 +71,24 @@ public static class ValueLayout
         var texts = items.Select(item => value[item.Start..item.End]).ToList();
         if (texts.Any(text => text.AsSpan().ContainsAny('\t', '\n', '\r')))
             return null;
+        if (layout.Kind == LayoutKind.Path)
+            texts = texts.ConvertAll(SpacePathCommand);
         return string.Join('\n', texts);
+    }
+
+    /// <summary>A path command with a space after its letter and after each comma, where there is none and more
+    /// follows: "M10,20" becomes "M 10, 20". Path syntax allows whitespace in both places (§3.2).</summary>
+    public static string SpacePathCommand(string command)
+    {
+        var result = new System.Text.StringBuilder(command.Length + 8);
+        for (int i = 0; i < command.Length; i++)
+        {
+            result.Append(command[i]);
+            bool spaceAfter = i == 0 || command[i] == ',';
+            if (spaceAfter && i + 1 < command.Length && command[i + 1] != ' ')
+                result.Append(' ');
+        }
+        return result.ToString();
     }
 
     private static bool IsWhite(char c) => c is ' ' or '\t' or '\n' or '\r';
