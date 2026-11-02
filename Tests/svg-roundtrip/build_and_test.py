@@ -75,6 +75,45 @@ fixtures = {
 '75-explicit-xml-prefix.svg':'''<svg xmlns="http://www.w3.org/2000/svg" xmlns:xml="http://www.w3.org/XML/1998/namespace"><text xml:space="preserve"> x </text></svg>''',
 'X1-long-values.svg':'''<svg xmlns="http://www.w3.org/2000/svg"><path d="M 0 0 C 10 20 30 40 50 60 S 70 80 90 100 S 110 120 130 140 S 150 160 170 180 S 190 200 210 220 Z"/><image href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="/></svg>''',
 'X2-inline-parens.svg':'''<svg xmlns="http://www.w3.org/2000/svg"><g transform="translate(10,20) rotate(45)" clip-path="url(#c)" fill="url(#grad)"><rect/></g></svg>''',
+'77-comment-run.svg':'''<?xml version="1.0" encoding="UTF-8"?>
+<!--=== prolog banner ===-->
+<!--= second line =-->
+<svg xmlns="http://www.w3.org/2000/svg">
+  <!--==========================================-->
+  <!--=  Example test case                     =-->
+  <!--# looks like a source comment-->
+  <!--==========================================-->
+  <!-- spaced -->
+  <g><!--a--><!--b--><!--"""--></g>
+  <rect width="1"/>
+</svg>''',
+'78-laid-out-comment.svg':'''<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Prolog comment at depth 0
+-->
+<svg xmlns="http://www.w3.org/2000/svg">
+  <!--
+    Created with an editor
+    second line
+
+    after an empty line
+  -->
+  <g>
+    <!--
+      deeper comment
+    -->
+    <rect/>
+  </g>
+  <!--
+  flush lines are not laid out
+  -->
+  <text><!--
+    in mixed content
+  -->x</text>
+</svg>
+<!--
+  epilog
+-->''',
 }
 
 # Inputs a strict importer MUST reject (SV-28, SV-57, SV-69, and general XML/namespace errors).

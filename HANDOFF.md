@@ -22,7 +22,7 @@ Provide `smlxml`, a two-way SML ↔ XML/SVG command-line converter in C# on .NET
   - With `--verbose`, it writes every attribute and namespace declaration on its own line.
 
   Behavior and requirements are in `Source/SmlXml/implementation.md`, usage and the profile format in `Source/SmlXml/README.md`.
-- **`Source/Sml.Tests`** has 1,551 xUnit tests:
+- **`Source/Sml.Tests`** has 1,563 xUnit tests:
   - the corpus, compared byte for byte with the Python reference output;
   - both round trips;
   - the negative corpus;
@@ -37,27 +37,26 @@ Provide `smlxml`, a two-way SML ↔ XML/SVG command-line converter in C# on .NET
 - **`README.md`** at the root introduces the project on GitHub. It assumes a public repository under the MIT license.
 - Solution-wide environment, conventions, decisions, and traps are in `implementation.md`.
 
-## Files changed in the last task (W3C files removed from the corpus)
+## Files changed in the last task (comment runs and laid-out comment blocks, still 1.0-SVG-4)
 
-- `Tests/svg-corpus/w3c-svg11/` deleted (120 files). The files carry W3C's "All Rights Reserved" notice, which does not show that they may be freely distributed.
-- `Tests/svg-corpus/gather_corpus.py`:
-  - the `w3c-svg11` source is removed;
-  - new `reserved`: `ok` refuses files with an "All Rights Reserved" notice, and `main` stops if a file selected by name has one.
-
-  No other candidate in the remaining sources has such a notice, so their selection is unchanged.
-- `Tests/svg-corpus/THIRD-PARTY-NOTICES.md` regenerated: 15 sources, MIT and ISC only.
-- Docs: `Tests/svg-corpus/README.md`, `README.md`, `implementation.md`.
-- **History rewritten:** `main` was then rewritten and force-pushed so that no commit ever contained the W3C files.
-  - From the first corpus commit on, every commit has a new ID. Files, authors, dates, and messages are unchanged.
-  - Claude's commits were re-signed and show as Verified.
-  - A clone made before the rewrite must not pull or push. Reset it with `git fetch origin` and `git reset --hard origin/main`, or clone again.
+- **Specification:** new change-list items 2 and 3; §5 table; §6.4 (laid-out comment blocks); §7; §9 (`@comments`); §11; §12.1, §12.2 (`XMLComments`), and §12.3; §14.1; §14.2 (rule 7 for comments, new rule 11); §15 (SV-77, SV-78).
+- **Python:**
+  - `sml_prototype.py`: new `block_marker`, `lay_out_comment`, `laid_out_comment_value`, and `comment_run_ok`; reader `d_comments`, `laid_out_depth`, and `d_comment`; writer `items`, `comment`, `misc`, `element`, and `write`;
+  - `build_and_test.py`: fixtures `77-comment-run.svg` and `78-laid-out-comment.svg`, with their `results`;
+  - `test_sml_core.py`: SV-77 and SV-78;
+  - `fuzz_roundtrip.py`: the generator makes laid-out comments, the variant writer writes `@comments` runs, and a new mutation token;
+  - `README.md`.
+- **C#:**
+  - `SmlReader.cs`: `LayOutComment`, `LaidOutDepth`, `Comment`, and `Comments`;
+  - `SmlWriter.cs`: `BlockMarker`, `CommentRunOk`, `LaidOutCommentValue`, `Items`, `Comment`, `Misc`, `Write`, and `Element`;
+  - `ReaderTests.cs`: SV-77 and SV-78.
 
 ## Build and test results
 
 - `dotnet build SimplifiedMarkupLanguage.slnx -c Release`: 0 warnings, 0 errors.
-- `dotnet test`: 1,551/1,551 passed, including the byte-for-byte comparison with the regenerated Python reference SML.
+- `dotnet test`: 1,563/1,563 passed, including the byte-for-byte comparison with the regenerated Python reference SML.
 - `fuzz_roundtrip.py --docs 2000 --seed 7`: 0 findings (only the known parser divergences).
-- `crosscheck_csharp.py` seeds 1–3 after the 1.0-SVG-4 change (3,000 documents, 12,000 SML mutants): 0 differences.
+- `crosscheck_csharp.py` seeds 1–3 after the comment changes (3,000 documents, 12,000 SML mutants): 0 differences.
 - `smlxml --verbose` over a copy of `Tests/svg-corpus`: the Python prototype read all 381 accepted files back equal to their originals.
 - Profiles over a copy of `Tests/svg-corpus` with the real executable, checked by the Python prototype (script not in the repository):
   - `smlxml -p svg` output read back equal to the original for all 381 accepted files;
@@ -66,7 +65,8 @@ Provide `smlxml`, a two-way SML ↔ XML/SVG command-line converter in C# on .NET
 - The real executable was also exercised on Linux with quoted relative patterns (`*.svg`, `art/**/*.svg`, an unmatched pattern, no arguments), simulating how Windows shells pass them.
 - `smlxml *.svg` then `smlxml -o *.out.svg *.sml` over all 47 corpus fixtures produced 47 `.out.svg` files; the Python importer found each equal in information to its original.
 - `dotnet publish Source/SmlXml/SmlXml.csproj -p:PublishProfile=windows` produced `publish/smlxml/win-x64/smlxml.exe` (PE32+ x86-64) and `publish/smlxml/win-x86/smlxml.exe` (PE32 Intel 80386), each with `LICENSE.md` and `svg.smlprofile`. This held both from the repository root and from the project folder. The assemblies' CLR headers confirm Any CPU. `windows.pubxml` is the only publish profile and also serves Visual Studio; Visual Studio itself was not run, and neither executable was run on Windows. Visual Studio's Publish page shows "Target runtime: win-x64" for the profile; that is expected and documented, and each Publish writes both builds.
-- `python build_and_test.py`: 47/47 fixtures, 9/9 rejections, 54/54 unit tests, 0 fuzz findings.
+- `python build_and_test.py`: 49/49 fixtures, 9/9 rejections, 56/56 unit tests, 0 fuzz findings.
+- `fuzz_roundtrip.py --docs 1500 --seed 11` after the comment changes: 0 findings (only the known parser divergences).
 - `Tests/svg-corpus` was checked by hand, with a script that is not in the repository:
   - Python and C# both accept 381 of the 385 files. Each round-trips XML → SML → XML to the same document, and the canonical SML is byte-identical between the implementations.
   - Both reject the same 4 files (resvg), which have DTD internal subsets.

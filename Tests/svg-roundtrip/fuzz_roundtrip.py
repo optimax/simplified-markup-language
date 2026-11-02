@@ -59,7 +59,7 @@ SYSIDS = ['svg11.dtd', 'http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd', 'a"b'
 UNITS = ['  ', '    ', '\t', ' ', '   ']
 
 SML_TOKENS = ['|', '"', '\\', '(', ')', ',', '=', '.', '@', '#', ' ', '\t', '\n', 'end', '/', ':',
-              'x', '"""', '""""', '\\u{', '@ns ', '@block g x .y\n', '@noindent\n', '@indent 2\n', 'xmlns=',
+              'x', '"""', '""""', '\\u{', '@ns ', '@comments """\n', '@block g x .y\n', '@noindent\n', '@indent 2\n', 'xmlns=',
               '\r', '\ufeff', 'end g\n', '@element end\n', '"\n']
 # Inserted right after a quote character: targets value constraints at value edges
 # (leading/trailing whitespace, CR, '-' and '--' in comments, '?>' in PIs).
@@ -103,6 +103,12 @@ class Generator:
         if data.endswith('-'):
             data += 'x'
         return S.Comment(data)
+
+    def laid_out_comment(self, depth: int, unit: str) -> S.Comment:
+        """A comment in the layout a pretty-printer gives multi-line comments (§6.4)."""
+        lines = [self.r.choice(['Created with an editor', 'http://example.org/', 'end', '"""', '', '  indented', '# x'])
+                 for _ in range(self.r.randint(1, 4))]
+        return S.Comment(S.lay_out_comment('\n'.join(lines), unit, depth))
 
     def pi(self) -> S.PI:
         data = self.value().replace('\r', '').replace('?>', '? >').lstrip(S.XML_WS)
@@ -162,6 +168,8 @@ class Generator:
             unit = self.unit if r.random() < 0.9 else r.choice(UNITS)
             spaced = []
             for c in el.children:
+                if isinstance(c, S.Comment) and r.random() < 0.4:
+                    c = self.laid_out_comment(depth + 1, unit)
                 spaced += [S.Text('\n' + unit * (depth + 1)), c]
             el.children = spaced + [S.Text('\n' + unit * depth)]
         return el
@@ -171,6 +179,8 @@ class Generator:
         d = S.Document()
         d.standalone = r.choice([None, None, 'yes', 'no'])
         d.prolog = [self.comment() if r.random() < 0.5 else self.pi() for _ in range(r.choice([0, 0, 1, 2, 3]))]
+        if self.unit and r.random() < 0.3:
+            d.prolog.append(self.laid_out_comment(0, self.unit))
         if r.random() < 0.3:
             d.prolog.insert(r.randint(0, len(d.prolog)), self.doctype())
         d.root = self.element(0, dict(S.BASE_NS))
@@ -383,13 +393,40 @@ class VariantWriter:
             self.emit(r.choice(['@sml 1.0-SVG-4', '@sml 1.0']))
         if d.standalone:
             self.emit('@standalone ' + d.standalone)
-        for item in d.prolog:
-            self.misc(item, '')
+        self.items(d.prolog, '')
         self.element(d.root, '')
-        for item in d.epilog:
-            self.misc(item, '')
+        self.items(d.epilog, '')
         newline = r.choice(['\n', '\n', '\r\n'])
         return ('\ufeff' if r.random() < 0.05 else '') + newline.join(self.out) + newline
+
+    def items(self, nodes: list, ind: str) -> None:
+        """Emits content; a run of comments that can be @comments lines (§9) is sometimes one @comments block."""
+        r, i = self.r, 0
+        while i < len(nodes):
+            j = i
+            while j < len(nodes) and isinstance(nodes[j], S.Comment) and S.comment_run_ok(nodes[j].data):
+                j += 1
+            if j > i and r.random() < 0.6:
+                k = r.randint(i + 1, j)
+                lines = [n.data for n in nodes[i:k]]
+                marker = S.block_marker('\n'.join(lines))
+                longer = marker + '"' * r.randint(1, 2)
+                if r.random() < 0.3 and longer not in {S.strip_ht(x) for x in lines}:
+                    marker = longer
+                self.emit(ind + '@comments' + r.choice([' ', '', '  ']) + marker)
+                pad = ind + r.choice(['  ', '    ', '\t', ' '])
+                self.out.extend(pad + x for x in lines)
+                self.out.append(ind + r.choice(['', '  ', '\t']) + marker)
+                i = k
+                continue
+            node = nodes[i]
+            if isinstance(node, S.Text):
+                self.value(ind + '=', node.data, ind)
+            elif isinstance(node, S.Element):
+                self.element(node, ind)
+            else:
+                self.misc(node, ind)
+            i += 1
 
     def value(self, head: str, v: str, ind: str, block: bool = True, alias: bool = False) -> None:
         """Emits `head` and value v in a random equivalent form."""
@@ -486,13 +523,7 @@ class VariantWriter:
                 self.value(inner + name, v, inner, alias=True)
             else:
                 self.value(inner + '.' + q, v, inner)
-        for node in nodes:
-            if isinstance(node, S.Text):
-                self.value(inner + '=', node.data, inner)
-            elif isinstance(node, S.Element):
-                self.element(node, inner)
-            else:
-                self.misc(node, inner)
+        self.items(nodes, inner)
         self.emit(ind + ('end ' + el.qname if r.random() < 0.3 else 'end'))
 
 

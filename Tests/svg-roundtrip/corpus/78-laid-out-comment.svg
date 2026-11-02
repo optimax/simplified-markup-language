@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Prolog comment at depth 0
+-->
+<svg xmlns="http://www.w3.org/2000/svg">
+  <!--
+    Created with an editor
+    second line
+
+    after an empty line
+  -->
+  <g>
+    <!--
+      deeper comment
+    -->
+    <rect/>
+  </g>
+  <!--
+  flush lines are not laid out
+  -->
+  <text><!--
+    in mixed content
+  -->x</text>
+</svg>
+<!--
+  epilog
+-->

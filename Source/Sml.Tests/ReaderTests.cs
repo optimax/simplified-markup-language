@@ -246,6 +246,56 @@ public class ReaderTests
         Rejects("g\n  .d |x y\nend\n", "cannot begin with '|'");
     }
 
+    private static List<string> Comments(ElementNode element) =>
+        element.Children.OfType<CommentNode>().Select(c => c.Data).ToList();
+
+    [Fact]
+    public void SV77_CommentRuns()
+    {
+        Assert.Equal(["a", "# b", "end"], Comments(Root("g\n  @comments \"\"\"\n    a\n    # b\n    end\n  \"\"\"\n  h/\nend\n")));
+        ElementNode laid = Root("@indent 2\ng\n  @comments \"\"\"\n    a\n    b\n  \"\"\"\nend\n");
+        Assert.Equal(["\n  ", "a", "\n  ", "b", "\n"],
+            laid.Children.Select(c => c is CommentNode comment ? comment.Data : ((TextNode)c).Data).ToList());
+        Assert.Equal(["p", "q"], SmlReader.Read("@comments \"\"\"\n  p\n  q\n\"\"\"\ng/\n").Prolog.Cast<CommentNode>().Select(c => c.Data).ToList());
+        Rejects("g\n  @comments \"\"\"\n    a\n\n    b\n  \"\"\"\nend\n", "blank lines");
+        Rejects("g\n  @comments \"\"\"\n  \"\"\"\nend\n", "blank lines");
+        Rejects("g\n  @comments a\nend\n", "takes a block");
+        Rejects("g\n  @comments \"\"\"\n    a--b\n  \"\"\"\nend\n", "'--'");
+        Rejects("g\n  @comments \"\"\"\n    x\n  \"\"\"\n  .a 1\nend\n", "after the element");
+        SmlDocument doc = SmlReader.Read("g\n  @comment a\n  @comment \" b\"\n  @comment c\n  @comment d\n  @comment \"\\\"\\\"\\\"\"\nend\n");
+        Assert.Equal(["a", " b", "c", "d", "\"\"\""], Comments(doc.Root));
+        string sml = SmlWriter.Write(doc);
+        Assert.Contains("  @comment a\n  @comment \" b\"\n  @comments \"\"\"\"\n    c\n    d\n    \"\"\"\n  \"\"\"\"\n", sml);
+        Assert.Null(DocumentComparer.FirstDifference(doc, SmlReader.Read(sml)));
+    }
+
+    [Fact]
+    public void SV78_LaidOutCommentBlocks()
+    {
+        const string source = "@indent 2\n@comment \"\"\"\n  top\n\"\"\"\ng\n  @comment \"\"\"\n    a\n\n    b\n  \"\"\"\n"
+            + "  h\n    @comment \"\"\"\n      deep\n    \"\"\"\n  end\nend\n";
+        SmlDocument doc = SmlReader.Read(source);
+        Assert.Equal("\n  top\n", ((CommentNode)doc.Prolog[0]).Data);
+        Assert.Equal("\n    a\n\n    b\n  ", Comments(doc.Root)[0]);
+        Assert.Equal("\n      deep\n    ", Comments(doc.Root.Children.OfType<ElementNode>().First())[0]);
+        Assert.Equal("@sml 1.0-SVG-4\n" + source, SmlWriter.Write(doc));
+
+        // Without @indent, in @noindent elements, and in mixed content, blocks are literal.
+        Assert.Equal("a", Comments(Root("g\n  @comment \"\"\"\n    a\n  \"\"\"\nend\n"))[0]);
+        Assert.Equal("a", Comments(Root("@indent 2\ng\n  @noindent\n  @comment \"\"\"\n    a\n  \"\"\"\nend\n"))[0]);
+        Assert.Equal("a", Comments(Root("@indent 2\ng\n  = x\n  @comment \"\"\"\n    a\n  \"\"\"\nend\n"))[0]);
+        Assert.Equal("\n  ", Comments(Root("@indent 2\ng\n  @comment \"\"\"\n  \"\"\"\nend\n"))[0]);
+
+        // Data without that layout is quoted, never a literal block, in a laid-out position.
+        foreach (string data in new[] { "\n  flush\n  ", "a\nb", "\n    a  \n  ", "\n      a\n      b\n  " })
+        {
+            SmlDocument xml = XmlImporter.Read(Encoding.UTF8.GetBytes($"<g>\n  <!--{data}-->\n</g>"));
+            string sml = SmlWriter.Write(xml);
+            Assert.Contains("@comment \"", sml);
+            Assert.Null(DocumentComparer.FirstDifference(xml, SmlReader.Read(sml)));
+        }
+    }
+
     [Fact]
     public void SupplementaryCharactersInNamesAndCodePointOrdering()
     {

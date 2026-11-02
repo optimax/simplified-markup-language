@@ -786,16 +786,39 @@ class SmlReader:
             raise SmlError('@noindent may appear only once per element', ln)
         f.noindent = True
 
+    def laid_out_depth(self) -> int | None:
+        """The depth of a comment just added, if its position is laid out (§6.4), else None."""
+        if self.indent is None:
+            return None
+        if not self.stack:
+            return 0
+        f = self.stack[-1]
+        return f.depth + 1 if f.layout else None
+
     def d_comment(self, rest: str, ln: int) -> None:
         kind, value = self.parse_value_tail(rest, ln)
         node = Comment(self.value_of(kind, value, ln))
         self.add_child(node, False, ln)
+        if kind == 'block' and (depth := self.laid_out_depth()) is not None:
+            node.data = lay_out_comment(node.data, self.indent, depth)
         if kind == 'quoted':
             def append(more, c=node):
                 c.data += more
             self.pending = _Pending(append, lambda c=node: check_comment(c.data, ln))
         else:
             check_comment(node.data, ln)
+
+    def d_comments(self, rest: str, ln: int) -> None:
+        kind, value = self.parse_value_tail(rest, ln)
+        if kind != 'block':
+            raise SmlError('@comments takes a block: @comments """, one comment per line', ln)
+        data = self.read_block(value, ln)
+        lines = data.split('\n')
+        if data == '' or '' in lines:
+            raise SmlError('@comments cannot have blank lines; each line is one comment', ln)
+        for line in lines:
+            check_comment(line, ln)
+            self.add_child(Comment(line), False, ln)
 
     def d_pi(self, rest: str, ln: int) -> None:
         m = re.match(r'[ \t]+([^ \t]+)(.*)', rest)
@@ -924,12 +947,12 @@ def raw_inline_ok(value: str) -> bool:
     return depth == 0
 
 
-def block_tag(value: str) -> str | None:
-    """The marker to write value as a block (§7): the shortest run of three or more quotation marks that no
-    payload line equals, or None if a block cannot reproduce the value."""
-    if '\n' not in value or '\r' in value or any(needs_escape(c) for c in value):
+def block_marker(value: str) -> str | None:
+    """The marker to write value as a block's payload (§7): the shortest run of three or more quotation marks that
+    no payload line equals, or None if a block cannot reproduce the value. The empty value has no payload lines."""
+    if '\r' in value or any(needs_escape(c) for c in value):
         return None
-    lines = value.split('\n')
+    lines = value.split('\n') if value else []
     if any(ln != ln.rstrip(' \t') for ln in lines):
         return None
     if dedent_block(lines) != value:
@@ -939,6 +962,52 @@ def block_tag(value: str) -> str | None:
     while marker in stripped:
         marker += '"'
     return marker
+
+
+def block_tag(value: str) -> str | None:
+    """The marker to write a value that contains LF as a block (canonical rule 7.2), or None."""
+    return block_marker(value) if '\n' in value else None
+
+
+def lay_out_comment(value: str, unit: str, depth: int) -> str:
+    """The data of a comment block in a laid-out position (§6.4): LF, each payload line indented one level deeper
+    than the comment (empty lines stay empty), LF, and the comment's own indentation."""
+    if value == '':
+        return '\n' + unit * depth
+    inner = unit * (depth + 1)
+    return '\n' + '\n'.join(inner + ln if ln else '' for ln in value.split('\n')) + '\n' + unit * depth
+
+
+def laid_out_comment_value(data: str, unit: str, depth: int) -> str | None:
+    """The block value that lay_out_comment turns into data, or None if the data does not have that layout."""
+    outer = unit * depth
+    if not data.startswith('\n') or not data.endswith(outer) or len(data) < 1 + len(outer):
+        return None
+    middle = data[1:len(data) - len(outer)]
+    if middle == '':
+        value = ''
+    else:
+        if not middle.endswith('\n'):
+            return None
+        inner, lines = unit * (depth + 1), []
+        for ln in middle[:-1].split('\n'):
+            if ln.startswith(inner):
+                lines.append(ln[len(inner):])
+            elif ln == '':
+                lines.append('')
+            else:
+                return None
+        value = '\n'.join(lines)
+    if block_marker(value) is None or lay_out_comment(value, unit, depth) != data:
+        return None
+    return value
+
+
+def comment_run_ok(data: str) -> bool:
+    """Whether a comment can be one line of an @comments block (§9): non-empty, one line, no space or tab at
+    either end, and none of the characters §4 says to escape."""
+    return (data != '' and '\n' not in data and '\r' not in data and data[0] not in ' \t'
+            and data[-1] not in ' \t' and not any(needs_escape(c) for c in data))
 
 
 def split_segments(units: list[str]) -> list[str]:
@@ -972,11 +1041,9 @@ class SmlWriter:
             self.out.append('@standalone ' + d.standalone)
         if self.unit is not None:
             self.out.append('@indent ' + ('tab' if self.unit == '\t' else str(len(self.unit))))
-        for item in d.prolog:
-            self.misc(item, 0)
+        self.items(d.prolog, 0, self.unit is not None)
         self.element(d.root, 0)
-        for item in d.epilog:
-            self.misc(item, 0)
+        self.items(d.epilog, 0, self.unit is not None)
         return '\n'.join(self.out) + '\n'
 
     def value(self, prefix: str, value: str, depth: int, allow_block: bool = True) -> None:
@@ -1003,10 +1070,53 @@ class SmlWriter:
         self.out.append(prefix + ' "' + segs[0] + '"')
         self.out.extend(ind + '  "' + seg + '"' for seg in segs[1:])
 
-    def misc(self, item, depth: int) -> None:
+    def items(self, nodes: list, depth: int, laid_out: bool) -> None:
+        """Writes content statements at depth; a run of two or more comments that comment_run_ok accepts is one
+        @comments block (canonical rule 11)."""
+        i = 0
+        while i < len(nodes):
+            j = i
+            while j < len(nodes) and isinstance(nodes[j], Comment) and comment_run_ok(nodes[j].data):
+                j += 1
+            if j - i >= 2:
+                lines = [n.data for n in nodes[i:j]]
+                ind = '  ' * depth
+                marker = block_marker('\n'.join(lines))
+                self.out.append(ind + '@comments ' + marker)
+                self.out.extend(ind + '  ' + ln for ln in lines)
+                self.out.append(ind + marker)
+                i = j
+                continue
+            node = nodes[i]
+            if isinstance(node, Text):
+                self.value('  ' * depth + '=', node.data, depth)
+            elif isinstance(node, Element):
+                self.element(node, depth)
+            else:
+                self.misc(node, depth, laid_out)
+            i += 1
+
+    def comment(self, data: str, depth: int, laid_out: bool) -> None:
+        """Writes a comment; in a laid-out position a block has predicted edges (§6.4), so a block is used only
+        for data in that layout, and other multi-line data is quoted."""
+        ind = '  ' * depth
+        if not laid_out or not data or (raw_ok(data) and len(ind) + 9 + len(data) <= LINE_LIMIT):
+            self.value(ind + '@comment', data, depth, allow_block=not laid_out)
+            return
+        value = laid_out_comment_value(data, self.unit, depth)
+        if value is None:
+            self.value(ind + '@comment', data, depth, allow_block=False)
+            return
+        marker = block_marker(value)
+        self.out.append(ind + '@comment ' + marker)
+        if value:
+            self.out.extend(ind + '  ' + ln if ln else '' for ln in value.split('\n'))
+        self.out.append(ind + marker)
+
+    def misc(self, item, depth: int, laid_out: bool = False) -> None:
         ind = '  ' * depth
         if isinstance(item, Comment):
-            self.value(ind + '@comment', item.data, depth)
+            self.comment(item.data, depth, laid_out)
         elif isinstance(item, PI):
             self.value(ind + '@pi ' + item.target, item.data, depth, allow_block=False)
         elif isinstance(item, Doctype):
@@ -1062,13 +1172,8 @@ class SmlWriter:
                 self.value(inner + '.' + q, v, depth + 1)
         if noindent:
             self.out.append(inner + '@noindent')
-        for node in nodes:
-            if isinstance(node, Text):
-                self.value(inner + '=', node.data, depth + 1)
-            elif isinstance(node, Element):
-                self.element(node, depth + 1)
-            else:
-                self.misc(node, depth + 1)
+        laid_out = self.unit is not None and matches_prediction(el, depth, self.unit)
+        self.items(nodes, depth + 1, laid_out)
         self.out.append(ind + 'end')
 
 

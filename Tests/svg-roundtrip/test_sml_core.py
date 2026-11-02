@@ -351,6 +351,45 @@ class SmlSideFixtures(Base):
         self.rejects('g\n  = |\n    t\n  end\nend\n', 'no longer starts a block')
         self.rejects('g\n  .d |x y\nend\n', "cannot begin with '|'")
 
+    def test_SV77_comment_runs(self):
+        el = root('g\n  @comments """\n    a\n    # b\n    end\n  """\n  h/\nend\n')
+        self.assertEqual([c.data for c in kids(el, S.Comment)], ['a', '# b', 'end'])
+        laid = root('@indent 2\ng\n  @comments """\n    a\n    b\n  """\nend\n')
+        self.assertEqual([c.data if isinstance(c, S.Comment) else c.data for c in laid.children], ['\n  ', 'a', '\n  ', 'b', '\n'])
+        self.assertEqual([c.data for c in read('@comments """\n  p\n  q\n"""\ng/\n').prolog], ['p', 'q'])
+        self.rejects('g\n  @comments """\n    a\n\n    b\n  """\nend\n', 'blank lines')
+        self.rejects('g\n  @comments """\n  """\nend\n', 'blank lines')
+        self.rejects('g\n  @comments a\nend\n', 'takes a block')
+        self.rejects('g\n  @comments """\n    a--b\n  """\nend\n', "'--'")
+        self.rejects('g\n  @comments """\n    x\n  """\n  .a 1\nend\n', 'after the element')
+        doc = read('g\n  @comment a\n  @comment " b"\n  @comment c\n  @comment d\n  @comment "\\"\\"\\""\nend\n')
+        self.assertEqual([c.data for c in kids(doc.root, S.Comment)], ['a', ' b', 'c', 'd', '"""'])
+        out = S.write_sml(doc)
+        self.assertIn('  @comment a\n  @comment " b"\n  @comments """"\n    c\n    d\n    """\n  """"\n', out)
+        self.assertEqual(S.signature(read(out)), S.signature(doc))
+
+    def test_SV78_laid_out_comment_blocks(self):
+        src = '@indent 2\n@comment """\n  top\n"""\ng\n  @comment """\n    a\n\n    b\n  """\n  h\n    @comment """\n      deep\n    """\n  end\nend\n'
+        doc = read(src)
+        self.assertEqual(doc.prolog[0].data, '\n  top\n')
+        g = doc.root
+        self.assertEqual(kids(g, S.Comment)[0].data, '\n    a\n\n    b\n  ')
+        self.assertEqual(kids(kids(g)[0], S.Comment)[0].data, '\n      deep\n    ')
+        self.assertEqual(S.write_sml(doc), src.replace('@indent 2\n', '@sml 1.0-SVG-4\n@indent 2\n'))
+        # Without @indent, in @noindent elements, and in mixed content, blocks are literal.
+        self.assertEqual(kids(root('g\n  @comment """\n    a\n  """\nend\n'), S.Comment)[0].data, 'a')
+        el = root('@indent 2\ng\n  @noindent\n  @comment """\n    a\n  """\nend\n')
+        self.assertEqual(kids(el, S.Comment)[0].data, 'a')
+        el = root('@indent 2\ng\n  = x\n  @comment """\n    a\n  """\nend\n')
+        self.assertEqual(kids(el, S.Comment)[0].data, 'a')
+        self.assertEqual(kids(root('@indent 2\ng\n  @comment """\n  """\nend\n'), S.Comment)[0].data, '\n  ')
+        # Data without that layout is quoted, never a literal block, in a laid-out position.
+        for data in ('\n  flush\n  ', 'a\nb', '\n    a  \n  ', '\n      a\n      b\n  '):
+            doc = S.read_xml(f'<g>\n  <!--{data}-->\n</g>'.encode())
+            out = S.write_sml(doc)
+            self.assertIn('@comment "', out)
+            self.assertEqual(S.signature(read(out)), S.signature(doc))
+
     def test_SV76_reverse_round_trip(self):
         src = ('@sml 1.0-SVG-4\n@indent 2\n@comment " authored in SML "\n'
                '@doctype svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd"\n'

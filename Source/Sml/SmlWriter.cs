@@ -65,11 +65,9 @@ public sealed class SmlWriter
             _out.Add("@standalone " + _doc.Standalone);
         if (_unit is not null)
             _out.Add("@indent " + (_unit == "\t" ? "tab" : _unit.Length.ToString()));
-        foreach (SmlNode item in _doc.Prolog)
-            Misc(item, 0);
+        Items(_doc.Prolog, 0, _unit is not null);
         Element(_doc.Root, 0);
-        foreach (SmlNode item in _doc.Epilog)
-            Misc(item, 0);
+        Items(_doc.Epilog, 0, _unit is not null);
         if (_reflowed.Count > 0)
             _out.Insert(0, "# Readable conversion (SML §3.2), not strict: one item per line in " + string.Join(", ", _reflowed));
         return string.Join('\n', _out) + "\n";
@@ -314,13 +312,17 @@ public sealed class SmlWriter
         return depth == 0;
     }
 
-    /// <summary>The marker to write a value as a block (§7): the shortest run of three or more quotation marks
-    /// that no payload line equals, or null if a block cannot reproduce the value.</summary>
-    public static string? BlockTag(string value)
+    /// <summary>The marker to write a value that contains LF as a block (canonical rule 7.2), or null.</summary>
+    public static string? BlockTag(string value) => value.Contains('\n') ? BlockMarker(value) : null;
+
+    /// <summary>The marker to write a value as a block's payload (§7): the shortest run of three or more quotation
+    /// marks that no payload line equals, or null if a block cannot reproduce the value. The empty value has no
+    /// payload lines.</summary>
+    public static string? BlockMarker(string value)
     {
-        if (!value.Contains('\n') || value.Contains('\r') || value.EnumerateRunes().Any(XmlRules.NeedsEscape))
+        if (value.Contains('\r') || value.EnumerateRunes().Any(XmlRules.NeedsEscape))
             return null;
-        string[] lines = value.Split('\n');
+        string[] lines = value.Length == 0 ? [] : value.Split('\n');
         if (lines.Any(l => l != l.TrimEnd(' ', '\t')))
             return null;
         if (SmlReader.DedentBlock(lines) != value)
@@ -403,13 +405,114 @@ public sealed class SmlWriter
         _out.Add(ind + marker);
     }
 
-    private void Misc(SmlNode item, int depth)
+    /// <summary>Whether a comment can be one line of an @comments block (§9): non-empty, one line, no space or tab
+    /// at either end, and none of the characters §4 says to escape.</summary>
+    public static bool CommentRunOk(string data) =>
+        data.Length > 0 && !data.AsSpan().ContainsAny('\n', '\r') && data[0] is not (' ' or '\t')
+        && data[^1] is not (' ' or '\t') && !data.EnumerateRunes().Any(XmlRules.NeedsEscape);
+
+    /// <summary>The block value that <see cref="SmlReader.LayOutComment"/> turns into data, or null if the data does
+    /// not have that layout.</summary>
+    public static string? LaidOutCommentValue(string data, string unit, int depth)
+    {
+        string outer = string.Concat(Enumerable.Repeat(unit, depth));
+        if (!data.StartsWith('\n') || !data.EndsWith(outer, StringComparison.Ordinal) || data.Length < 1 + outer.Length)
+            return null;
+        string middle = data[1..^outer.Length];
+        string value;
+        if (middle.Length == 0)
+        {
+            value = "";
+        }
+        else
+        {
+            if (!middle.EndsWith('\n'))
+                return null;
+            string inner = outer + unit;
+            var lines = new List<string>();
+            foreach (string line in middle[..^1].Split('\n'))
+            {
+                if (line.StartsWith(inner, StringComparison.Ordinal))
+                    lines.Add(line[inner.Length..]);
+                else if (line.Length == 0)
+                    lines.Add("");
+                else
+                    return null;
+            }
+            value = string.Join('\n', lines);
+        }
+        if (BlockMarker(value) is null || SmlReader.LayOutComment(value, unit, depth) != data)
+            return null;
+        return value;
+    }
+
+    /// <summary>Writes content statements at depth; a run of two or more comments that <see cref="CommentRunOk"/>
+    /// accepts is one @comments block (canonical rule 11).</summary>
+    private void Items(List<SmlNode> nodes, int depth, bool laidOut)
+    {
+        string ind = Indentation(depth);
+        for (int i = 0; i < nodes.Count;)
+        {
+            int j = i;
+            while (j < nodes.Count && nodes[j] is CommentNode run && CommentRunOk(run.Data))
+                j++;
+            if (j - i >= 2)
+            {
+                var lines = nodes.GetRange(i, j - i).Select(n => ((CommentNode)n).Data).ToList();
+                string marker = BlockMarker(string.Join('\n', lines))!;
+                _out.Add(ind + "@comments " + marker);
+                _out.AddRange(lines.Select(line => ind + "  " + line));
+                _out.Add(ind + marker);
+                i = j;
+                continue;
+            }
+            switch (nodes[i])
+            {
+                case TextNode text:
+                    Value(ind + "=", text.Data, depth);
+                    break;
+                case ElementNode child:
+                    Element(child, depth);
+                    break;
+                default:
+                    Misc(nodes[i], depth, laidOut);
+                    break;
+            }
+            i++;
+        }
+    }
+
+    /// <summary>Writes a comment; in a laid-out position a block has predicted edges (§6.4), so a block is used only
+    /// for data in that layout, and other multi-line data is quoted.</summary>
+    private void Comment(string data, int depth, bool laidOut)
+    {
+        string ind = Indentation(depth);
+        if (!laidOut || data.Length == 0
+            || (RawOk(data) && XmlRules.CodePointLength(ind) + 9 + XmlRules.CodePointLength(data) <= LineLimit))
+        {
+            Value(ind + "@comment", data, depth, allowBlock: !laidOut);
+            return;
+        }
+        string? value = LaidOutCommentValue(data, _unit!, depth);
+        if (value is null)
+        {
+            Value(ind + "@comment", data, depth, allowBlock: false);
+            return;
+        }
+        string marker = BlockMarker(value)!;
+        _out.Add(ind + "@comment " + marker);
+        if (value.Length > 0)
+            _out.AddRange(value.Split('\n').Select(line => line.Length == 0 ? "" : ind + "  " + line));
+        _out.Add(ind + marker);
+    }
+
+    private void Misc(SmlNode item, int depth, bool laidOut = false)
     {
         string ind = Indentation(depth);
         switch (item)
         {
             case CommentNode comment:
-                Value(ind + "@comment", comment.Data, depth);
+                Comment(comment.Data, depth, laidOut);
                 break;
             case ProcessingInstructionNode pi:
                 Value(ind + "@pi " + pi.Target, pi.Data, depth, allowBlock: false);
@@ -500,21 +603,7 @@ public sealed class SmlWriter
         }
         if (noIndent)
             _out.Add(inner + "@noindent");
-        foreach (SmlNode node in nodes)
-        {
-            switch (node)
-            {
-                case TextNode text:
-                    Value(inner + "=", text.Data, depth + 1);
-                    break;
-                case ElementNode child:
-                    Element(child, depth + 1);
-                    break;
-                default:
-                    Misc(node, depth + 1);
-                    break;
-            }
-        }
+        Items(nodes, depth + 1, _unit is not null && MatchesPrediction(element, depth, _unit));
         _out.Add(ind + "end");
     }
 }

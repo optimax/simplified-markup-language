@@ -26,7 +26,7 @@ Each positive fixture goes through these checks:
 
 Every harness run also includes a fixed-seed pass of `fuzz_roundtrip.py`:
 
-- **Generated documents.** Random valid documents, with tricky names, namespaces, characters, long values, and pretty-printed whitespace, must survive SML and XML round trips and give stable canonical SML. Each is also written in randomly chosen, equivalent non-canonical SML (aliases, quoting, continuation lines, longer block markers such as `""""`, `end QName`, comments), which must read back to the same document. lxml must agree with the model on the exported XML.
+- **Generated documents.** Random valid documents, with tricky names, namespaces, characters, long values, pretty-printed whitespace, and pretty-printed multi-line comments, must survive SML and XML round trips and give stable canonical SML. Each is also written in randomly chosen, equivalent non-canonical SML (aliases, quoting, continuation lines, longer block markers such as `""""`, `@comments` runs, `end QName`, comments), which must read back to the same document. lxml must agree with the model on the exported XML.
 - **SML mutants.** Random edits to valid SML must be rejected with `SmlError`, or accepted as a document that round-trips and exports XML that lxml accepts. The reader must never crash.
 - **XML mutants.** Random edits to valid XML go to both the prototype importer (expat) and lxml (libxml2), which must agree. The exceptions are constructs the importer rejects on purpose, and three understood divergences between the two parsers, which are counted rather than failed: namespace URI validation, XML 1.0 5th-edition name characters, and malformed version numbers.
 

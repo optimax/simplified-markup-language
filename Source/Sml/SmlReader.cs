@@ -622,6 +622,7 @@ public sealed partial class SmlReader
             case "block": BlockDeclaration(rest, ln); break;
             case "noindent": NoIndent(rest, ln); break;
             case "comment": Comment(rest, ln); break;
+            case "comments": Comments(rest, ln); break;
             case "pi": ProcessingInstruction(rest, ln); break;
             case "element": ExplicitElement(rest, ln); break;
             default: throw new SmlException($"unknown directive @{name}", ln);
@@ -764,15 +765,55 @@ public sealed partial class SmlReader
         f.NoIndent = true;
     }
 
+    /// <summary>The data of a comment block in a laid-out position (§6.4): LF, each payload line indented one level
+    /// deeper than the comment (empty lines stay empty), LF, and the comment's own indentation.</summary>
+    public static string LayOutComment(string value, string unit, int depth)
+    {
+        if (value.Length == 0)
+            return "\n" + Repeat(unit, depth);
+        string inner = Repeat(unit, depth + 1);
+        return "\n" + string.Join('\n', value.Split('\n').Select(line => line.Length == 0 ? "" : inner + line))
+            + "\n" + Repeat(unit, depth);
+    }
+
+    /// <summary>The depth of a comment just added, if its position is laid out (§6.4), else null.</summary>
+    private int? LaidOutDepth()
+    {
+        if (_indent is null)
+            return null;
+        if (_stack.Count == 0)
+            return 0;
+        Frame f = _stack[^1];
+        return f.LaidOut == true ? f.Depth + 1 : null;
+    }
+
     private void Comment(string rest, int ln)
     {
         var (kind, value) = ParseValueTail(rest, ln);
         var node = new CommentNode(ValueOf(kind, value, ln));
         AddChild(node, isText: false, ln);
+        if (kind == ValueKind.Block && LaidOutDepth() is { } depth)
+            node.Data = LayOutComment(node.Data, _indent!, depth);
         if (kind == ValueKind.Quoted)
             _pending = new Pending(more => node.Data += more, () => XmlRules.CheckComment(node.Data, ln));
         else
             XmlRules.CheckComment(node.Data, ln);
+    }
+
+    private void Comments(string rest, int ln)
+    {
+        var (kind, value) = ParseValueTail(rest, ln);
+        if (kind != ValueKind.Block)
+            throw new SmlException("@comments takes a block: @comments \"\"\", one comment per line", ln);
+        string data = ReadBlock(value, ln);
+        string[] lines = data.Split('\n');
+        if (data.Length == 0 || lines.Contains(""))
+            throw new SmlException("@comments cannot have blank lines; each line is one comment", ln);
+        foreach (string line in lines)
+        {
+            XmlRules.CheckComment(line, ln);
+            AddChild(new CommentNode(line), isText: false, ln);
+        }
     }
 
     private void ProcessingInstruction(string rest, int ln)
