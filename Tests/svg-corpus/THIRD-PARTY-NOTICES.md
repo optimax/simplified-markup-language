@@ -2,7 +2,7 @@
 
 The SVG files in this folder are copies of third-party files, unchanged, kept as test examples. They are part of the source distribution of this repository only: `smlxml` builds and publishes do not include them or this file.
 
-Each section below names a folder, the source its files were taken from, the location of the files in that source, and the license, followed by the license text exactly as the source distributes it. A file keeps its path relative to that location, except where noted.
+Each section below names a folder, the source its files were taken from, the location of the files in that source, and the license, followed by the license text exactly as the source distributes it. A file keeps its path relative to that location, except where noted. `gather_corpus.py` writes this file together with the corpus.
 
 ## `bootstrap-icons/`
 

@@ -16,6 +16,14 @@ Each folder keeps the files' paths within their source (see the notices), so eve
 
 ## Selection
 
+`gather_corpus.py` builds the corpus. It downloads each source at a pinned npm version or git commit, selects the files, copies them unchanged, and writes `THIRD-PARTY-NOTICES.md`. It needs Python 3.10 or later, git, and network access. Run it from the repository root:
+
+```bash
+python Tests/svg-corpus/gather_corpus.py
+```
+
+It replaces each source's folder and the notices, and leaves the other files alone. `--list` prints the selection without writing anything; `--dest` writes elsewhere. A source is added or updated in the script's `SOURCES` list.
+
 The selection is deterministic: an evenly spaced sample of each source's sorted file list, with each file at most 200 KB.
 
 - Brand and product logos are left out, because they are trademarks even where the drawing is MIT-licensed. Flags are national flags only.
