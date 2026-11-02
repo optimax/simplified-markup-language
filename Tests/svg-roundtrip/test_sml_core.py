@@ -451,6 +451,32 @@ class SmlSideFixtures(Base):
         self.assertIn('  p = """\n    x\n  """\n', out)
         self.assertEqual(S.signature(read(out)), S.signature(doc))
 
+    def test_SV83_node_aliases(self):
+        src = ('@node g group\n@node p para\nsvg(xmlns=http://www.w3.org/2000/svg)\n  group(id=a)\n    rect/\n  end group\n'
+               '  group/\n  g = plain\n  foreignObject\n    @node div box\n    box(xmlns=http://www.w3.org/1999/xhtml)\n'
+               '      para = Hello\n      @element para\n      end para\n    end div\n  end\n  box/\nend\n')
+        doc = read(src)
+        xml = ('<svg xmlns="http://www.w3.org/2000/svg"><g id="a"><rect/></g><g/><g>plain</g><foreignObject>'
+               '<div xmlns="http://www.w3.org/1999/xhtml"><p>Hello</p><para/></div></foreignObject><box/></svg>')
+        self.assertIsNone(S.first_difference(S.signature(doc), S.signature(S.read_xml(xml.encode()))))
+        self.assertNotIn('@node', S.write_sml(doc))
+        # The alias stands for the name as written: its prefix is resolved where the element is opened.
+        el = read('@node d:info info\nsvg\n  info(xmlns:d=urn:d)/\nend\n').root.children[0]
+        self.assertEqual((el.qname, el.expanded), ('d:info', ('urn:d', 'info')))
+        # Shadowing in a nested scope; aliases do not chain.
+        self.assertEqual([e.qname for e in kids(read('@node g x\nsvg\n  @node p x\n  x/\n  h\n    x/\n  end\nend\n').root)],
+                         ['p', 'h'])
+        self.assertEqual([e.qname for e in kids(read('svg\n  @node g x\n  @node x y\n  y/\nend\n').root)], ['x'])
+        self.rejects('@node g\nsvg/\n', 'takes')
+        self.rejects('@node g end\nsvg/\n', 'invalid element alias')
+        self.rejects('@node g a:b\nsvg/\n', 'invalid element alias')
+        self.rejects('@node 1x y\nsvg/\n', 'invalid element name')
+        self.rejects('@node g x\n@node p x\nsvg/\n', 'twice')
+        self.rejects('svg\n  @node g x\n  @node p x\nend\n', 'twice')
+        self.rejects('svg/\n@node g x\n', 'only allowed before the root')
+        self.rejects('svg\n  a/\n  @node g x\nend\n', 'after the element')
+        self.rejects('@node g group\ngroup\nend p\n', 'does not match')
+
     def test_SV76_reverse_round_trip(self):
         src = ('@sml 1.0-SVG-4\n@indent 2\n@comment " authored in SML "\n'
                '@doctype svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd"\n'

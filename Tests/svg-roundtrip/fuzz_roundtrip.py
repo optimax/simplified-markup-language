@@ -59,7 +59,7 @@ SYSIDS = ['svg11.dtd', 'http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd', 'a"b'
 UNITS = ['  ', '    ', '\t', ' ', '   ', '']
 
 SML_TOKENS = ['|', '"', '\\', '(', ')', ',', '=', '.', '@', '#', ' ', '\t', '\n', 'end', '/', ':',
-              'x', '"""', '""""', '\\u{', '@ns ', '@comments """\n', '@block g x .y\n', '@noindent\n', '@indent 2\n', 'xmlns=',
+              'x', '"""', '""""', '\\u{', '@ns ', '@comments """\n', '@block g x .y\n', '@node g x\n', '@noindent\n', '@indent 2\n', 'xmlns=',
               '\r', '\ufeff', 'end g\n', '@element end\n', '"\n']
 # Inserted right after a quote character: targets value constraints at value edges
 # (leading/trailing whitespace, CR, '-' and '--' in comments, '?>' in PIs).
@@ -389,11 +389,20 @@ def reader_inline_ok(v: str) -> bool:
     return depth == 0
 
 
+def iter_elements(el: S.Element):
+    yield el
+    for c in el.children:
+        if isinstance(c, S.Element):
+            yield from iter_elements(c)
+
+
 class VariantWriter:
     """Writes a document as randomly chosen SML that a reader must parse to the same document."""
 
     def __init__(self, doc: S.Document, r: random.Random):
         self.doc, self.r, self.out = doc, r, []
+        self.scopes: list[dict[str, str]] = [{}]    # element aliases (§8.7), innermost last
+        self.names = sorted({e.qname for e in iter_elements(doc.root)})
 
     def emit(self, line: str) -> None:
         if self.r.random() < 0.05:
@@ -406,6 +415,8 @@ class VariantWriter:
             self.emit(r.choice(['@sml 1.0-SVG-4', '@sml 1.0']))
         if d.standalone:
             self.emit('@standalone ' + d.standalone)
+        if r.random() < 0.3:
+            self.declare_nodes('', 3)
         self.items(d.prolog, '')
         self.element(d.root, '')
         self.items(d.epilog, '')
@@ -489,6 +500,33 @@ class VariantWriter:
                 line += ' SYSTEM ' + S.quote(item.system_id)
             self.emit(line)
 
+    def node_target(self, name: str) -> str | None:
+        for scope in reversed(self.scopes):
+            if name in scope:
+                return scope[name]
+        return None
+
+    def declare_nodes(self, ind: str, most: int) -> None:
+        """Declares up to `most` element aliases in the innermost scope. An alias is sometimes the name of a real
+        element, which must then be written with @element."""
+        r, scope = self.r, self.scopes[-1]
+        for _ in range(r.randint(1, most)):
+            element = r.choice(self.names)
+            plain = [n for n in self.names if ':' not in n and n != 'end']
+            alias = r.choice(plain) if plain and r.random() < 0.3 else r.choice(['n', 'node', 'x']) + str(r.randint(0, 9))
+            if alias in scope:
+                continue
+            scope[alias] = element
+            self.emit(ind + '@node' + r.choice([' ', '  ', '\t']) + element + r.choice([' ', '\t ']) + alias)
+
+    def opener_name(self, qname: str) -> str | None:
+        """The name to open an element with: qname or an alias for it, or None if only @element can open it."""
+        target = self.node_target(qname)
+        if target is not None and target != qname:
+            return None
+        aliases = [a for scope in self.scopes for a in scope if self.node_target(a) == qname and a != qname]
+        return self.r.choice(aliases) if aliases and self.r.random() < 0.7 else qname
+
     def element(self, el: S.Element, ind: str) -> None:
         r = self.r
         inner = ind + r.choice(['  ', '    ', '\t', ''])
@@ -506,11 +544,12 @@ class VariantWriter:
 
         def attr_entry(q, v):
             return f'{q}={v}' if reader_inline_ok(v) and r.random() < 0.7 else f'{q}={S.quote(v)}'
-        explicit = el.qname == 'end' or r.random() < 0.08
+        name = self.opener_name(el.qname)
+        explicit = el.qname == 'end' or name is None or r.random() < 0.08
         inline = not explicit and r.random() < 0.5
         inline_attrs = [a for a in attrs if r.random() < 0.6] if inline else []
         vertical_attrs = [a for a in attrs if a not in inline_attrs]
-        opener = el.qname
+        opener = name or el.qname
         if inline:
             entries = [ns_entry(p, u, True) for p, u in decls] + [attr_entry(q, v) for q, v in inline_attrs]
             if entries or r.random() < 0.2:
@@ -536,8 +575,13 @@ class VariantWriter:
                 self.value(inner + name, v, inner, alias=True)
             else:
                 self.value(inner + '.' + q, v, inner)
+        self.scopes.append({})
+        if r.random() < 0.1:
+            self.declare_nodes(inner, 2)
         self.items(nodes, inner)
-        self.emit(ind + ('end ' + el.qname if r.random() < 0.3 else 'end'))
+        self.scopes.pop()
+        closing = el.qname if explicit else r.choice([opener.split('(')[0], el.qname])
+        self.emit(ind + ('end ' + closing if r.random() < 0.3 else 'end'))
 
 
 # ---------------------------------------------------------------------------------------------

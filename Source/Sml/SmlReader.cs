@@ -27,6 +27,7 @@ public sealed partial class SmlReader
     private int _index;
     private string _phase = "prolog";
     private string? _indent;
+    private readonly Dictionary<string, string> _nodes = new(StringComparer.Ordinal);
     private bool _seenStatement;
     private Pending? _pending;
 
@@ -67,6 +68,13 @@ public sealed partial class SmlReader
         public bool NamespacePhase { get; set; } = true;
         public List<(string Name, string Value, int Line)> InlineAttributes { get; } = [];
         public Dictionary<(ExpandedName Element, string Alias), string> Aliases { get; } = [];
+
+        /// <summary>Element aliases declared in the element's declaration section, for its content (§8.7).</summary>
+        public Dictionary<string, string> Nodes { get; } = new(StringComparer.Ordinal);
+
+        /// <summary>The element alias the element was opened with, if any.</summary>
+        public string? Alias { get; set; }
+
         public bool NoIndent { get; set; }
         public bool? LaidOut { get; set; }
 
@@ -459,7 +467,7 @@ public sealed partial class SmlReader
             string name = s[3..].TrimStart(' ', '\t');
             if (!XmlRules.IsQName(name))
                 throw new SmlException("'end' must be followed by nothing or a single element name", ln);
-            if (name != f.Lexical)
+            if (name != f.Lexical && name != f.Alias)
                 throw new SmlException($"end {name} does not match the open element '{f.Lexical}'", ln);
         }
         CloseDeclarations(f, isText: true);
@@ -513,6 +521,9 @@ public sealed partial class SmlReader
         string qname = s[..pos];
         if (qname == "end")
             throw new SmlException("the element name 'end' is reserved; use '@element end'", ln);
+        string? alias = null;
+        if (NodeTarget(qname) is string target)
+            (alias, qname) = (qname, target);
         var inline = new List<(string, string, bool)>();
         if (pos < s.Length && s[pos] == '(')
             (inline, pos) = ParseInlineList(s, pos, ln);
@@ -521,7 +532,7 @@ public sealed partial class SmlReader
             throw new SmlException(ObsoleteBlock, ln);
         if (rest.Length == 0)
         {
-            OpenElement(qname, inline, "open", ln);
+            OpenElement(qname, inline, "open", ln).Alias = alias;
             return;
         }
         if (rest == "/")
@@ -632,6 +643,7 @@ public sealed partial class SmlReader
             case "use": Use(rest, ln); break;
             case "ns": Namespace(rest, ln); break;
             case "block": BlockDeclaration(rest, ln); break;
+            case "node": NodeDeclaration(rest, ln); break;
             case "noindent": NoIndent(rest, ln); break;
             case "comment": Comment(rest, ln); break;
             case "comments": Comments(rest, ln); break;
@@ -779,6 +791,38 @@ public sealed partial class SmlReader
         XmlRules.Resolve(attribute, f.Ns, attribute: true, ln);
         if (!f.Aliases.TryAdd((element, alias), attribute))
             throw new SmlException($"alias '{alias}' is declared twice for this element in one scope", ln);
+    }
+
+    /// <summary>The element name that an element alias in scope gives a name (§8.7), or null. The nearest scope
+    /// wins.</summary>
+    private string? NodeTarget(string name)
+    {
+        for (int k = _stack.Count - 1; k >= 0; k--)
+        {
+            if (_stack[k].Nodes.TryGetValue(name, out string? target))
+                return target;
+        }
+        return _nodes.GetValueOrDefault(name);
+    }
+
+    private void NodeDeclaration(string rest, int ln)
+    {
+        string[] t = XmlRules.StripSpacesAndTabs(rest).Split([' ', '\t'], StringSplitOptions.RemoveEmptyEntries);
+        if (t.Length != 2)
+            throw new SmlException("@node takes: element-qname alias", ln);
+        if (!XmlRules.IsQName(t[0]))
+            throw new SmlException($"invalid element name '{t[0]}' in @node", ln);
+        if (!XmlRules.IsNCName(t[1]) || t[1] == "end")
+            throw new SmlException($"invalid element alias '{t[1]}'", ln);
+        Dictionary<string, string> scope;
+        if (_stack.Count > 0)
+            scope = DeclarationFrame(ln, "@node").Nodes;
+        else if (_phase == "prolog")
+            scope = _nodes;
+        else
+            throw new SmlException("@node is only allowed before the root element or in a declaration section", ln);
+        if (!scope.TryAdd(t[1], t[0]))
+            throw new SmlException($"element alias '{t[1]}' is declared twice in one scope", ln);
     }
 
     private void NoIndent(string rest, int ln)

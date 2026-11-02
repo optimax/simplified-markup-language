@@ -11,6 +11,9 @@ namespace Sml;
 /// <item><c>@block element-qname alias .attribute-qname</c> declares an alias, exactly as in SML (§8.1). The writer
 /// invokes it, and declares it on the root element, wherever it writes that attribute of that element as a
 /// block.</item>
+/// <item><c>@node element-qname alias</c> declares an element alias, as in SML (§8.7). The writer declares it before
+/// the root element and opens those elements with the alias, unless an element of the document is named like the
+/// alias.</item>
 /// <item><c>@layout element-qname .attribute-qname kind</c> divides the attribute's values into items (§3.2), where
 /// kind is <c>path</c>, <c>numbers N</c>, <c>declarations</c>, <c>functions</c>, or <c>list</c>. The element
 /// <c>*</c> means any element without a layout of its own for that attribute.</item>
@@ -21,10 +24,14 @@ public sealed class SmlProfile
     /// <summary>An alias for an attribute of an element.</summary>
     public sealed record Alias(ExpandedName Element, string Name, ExpandedName Attribute);
 
+    /// <summary>An alias for the name of an element.</summary>
+    public sealed record NodeAlias(ExpandedName Element, string Name);
+
     /// <summary>A layout for an attribute of an element, or of any element when Element is null.</summary>
     public sealed record LayoutRule(ExpandedName? Element, ExpandedName Attribute, Layout Layout);
 
     private readonly List<Alias> _aliases = [];
+    private readonly List<NodeAlias> _nodes = [];
     private readonly List<LayoutRule> _layouts = [];
 
     private SmlProfile()
@@ -32,6 +39,8 @@ public sealed class SmlProfile
     }
 
     public IReadOnlyList<Alias> Aliases => _aliases;
+
+    public IReadOnlyList<NodeAlias> Nodes => _nodes;
 
     public IReadOnlyList<LayoutRule> Layouts => _layouts;
 
@@ -62,12 +71,16 @@ public sealed class SmlProfile
                     namespacePhase = false;
                     profile.Block(t, ns, ln);
                     break;
+                case "@node":
+                    namespacePhase = false;
+                    profile.Node(t, ns, ln);
+                    break;
                 case "@layout":
                     namespacePhase = false;
                     profile.LayoutStatement(t, ns, ln);
                     break;
                 default:
-                    throw new SmlException($"unknown profile statement '{t[0]}'; expected @ns, @block, or @layout", ln);
+                    throw new SmlException($"unknown profile statement '{t[0]}'; expected @ns, @block, @node, or @layout", ln);
             }
         }
         return profile;
@@ -119,6 +132,21 @@ public sealed class SmlProfile
         if (_aliases.Exists(a => a.Element == element && a.Attribute == attribute))
             throw new SmlException($"attribute '{t[3][1..]}' of element '{t[1]}' already has an alias", ln);
         _aliases.Add(new Alias(element, alias, attribute));
+    }
+
+    private void Node(string[] t, Dictionary<string, string> ns, int ln)
+    {
+        if (t.Length != 3)
+            throw new SmlException("@node takes: element-qname alias", ln);
+        ExpandedName element = XmlRules.Resolve(t[1], ns, attribute: false, ln);
+        string alias = t[2];
+        if (!XmlRules.IsNCName(alias) || alias == "end")
+            throw new SmlException($"invalid element alias '{alias}'", ln);
+        if (_nodes.Exists(n => n.Name == alias))
+            throw new SmlException($"element alias '{alias}' is declared twice", ln);
+        if (_nodes.Exists(n => n.Element == element))
+            throw new SmlException($"element '{t[1]}' already has an alias", ln);
+        _nodes.Add(new NodeAlias(element, alias));
     }
 
     private void LayoutStatement(string[] t, Dictionary<string, string> ns, int ln)

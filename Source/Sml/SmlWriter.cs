@@ -25,6 +25,12 @@ public sealed class SmlWriter
     /// <summary>The attributes written with an alias: element expanded name and attribute lexical name.</summary>
     private readonly Dictionary<(ExpandedName Element, string Attribute), string> _aliasOf = [];
 
+    /// <summary>The element aliases declared before the root: element QName and alias.</summary>
+    private readonly List<(string Element, string Alias)> _nodeDeclarations = [];
+
+    /// <summary>The elements opened with an alias: expanded name and lexical name.</summary>
+    private readonly Dictionary<(ExpandedName Name, string QName), string> _nodeAliasOf = [];
+
     /// <summary>The lexical names of the attributes whose values were reflowed.</summary>
     private readonly SortedSet<string> _reflowed = new(Comparer<string>.Create(XmlRules.CompareCodePoints));
 
@@ -36,7 +42,10 @@ public sealed class SmlWriter
         _reflow = options.Reflow && _profile is not null;
         _vertical = options.VerticalAttributes;
         if (_profile is not null)
+        {
             PlanAliases(_profile);
+            PlanNodeAliases(_profile);
+        }
     }
 
     /// <summary>Writes the canonical form of the document.</summary>
@@ -65,6 +74,7 @@ public sealed class SmlWriter
             _out.Add("@standalone " + _doc.Standalone);
         if (_unit is not null)
             _out.Add("@indent " + (_unit == "\t" ? "tab" : _unit.Length.ToString()));
+        _out.AddRange(_nodeDeclarations.Select(d => $"@node {d.Element} {d.Alias}"));
         Items(_doc.Prolog, 0, _unit is not null, "");
         Element(_doc.Root, 0, "", _unit is not null);
         Items(_doc.Epilog, 0, _unit is not null, "");
@@ -125,6 +135,33 @@ public sealed class SmlWriter
         }
         foreach (SmlProfile.Alias alias in profile.Aliases.Where(used.Contains))
             _aliasDeclarations.Add((lexical[alias].Element, alias.Name, lexical[alias].Attribute));
+    }
+
+    /// <summary>Chooses the profile's element aliases to use (§8.7). An alias stands for a lexical name, so it is
+    /// declared for the name of the first element with its expanded name, and used for the elements with that
+    /// expanded name and that lexical name. It is not used at all if an element of the document is named like it,
+    /// since that element could then be opened only with @element.</summary>
+    private void PlanNodeAliases(SmlProfile profile)
+    {
+        if (profile.Nodes.Count == 0)
+            return;
+        var elements = new List<ElementNode>();
+        var stack = new Stack<ElementNode>([_doc.Root]);
+        while (stack.Count > 0)
+        {
+            ElementNode element = stack.Pop();
+            elements.Add(element);
+            foreach (ElementNode child in element.Children.OfType<ElementNode>().Reverse())
+                stack.Push(child);
+        }
+        var names = elements.Select(e => e.QualifiedName).ToHashSet(StringComparer.Ordinal);
+        foreach (SmlProfile.NodeAlias alias in profile.Nodes)
+        {
+            if (names.Contains(alias.Name) || elements.Find(e => e.Name == alias.Element) is not { } first)
+                continue;
+            _nodeDeclarations.Add((first.QualifiedName, alias.Name));
+            _nodeAliasOf[(alias.Element, first.QualifiedName)] = alias.Name;
+        }
     }
 
     /// <summary>A QName for an element's expanded name under the root's namespace declarations, or null.</summary>
@@ -605,10 +642,11 @@ public sealed class SmlWriter
             .Select(d => (Name: d.Key.Length == 0 ? "xmlns" : "xmlns:" + d.Key, d.Value, IsNamespace: true, Layout: (Layout?)null))
             .Concat(attributeEntries)
             .ToList();
-        bool isEnd = element.QualifiedName == "end";
+        string elementName = _nodeAliasOf.GetValueOrDefault((element.Name, element.QualifiedName)) ?? element.QualifiedName;
+        bool isEnd = elementName == "end";
         bool inline = !isEnd && !_vertical && entries.All(e =>
             RawInlineOk(e.Value) && (!e.IsNamespace || e.Value.Contains(':')) && !Segmented(e.Value, e.Layout));
-        string opener = element.QualifiedName;
+        string opener = elementName;
         if (entries.Count > 0 && inline)
         {
             opener += "(" + string.Join(", ", entries.Select(e => e.Name + "=" + e.Value)) + ")";
@@ -628,7 +666,7 @@ public sealed class SmlWriter
         if (isEnd)
             _out.Add(ind + "@element end");
         else
-            _out.Add(ind + (inline || entries.Count == 0 ? opener : element.QualifiedName));
+            _out.Add(ind + (inline || entries.Count == 0 ? opener : elementName));
         bool vertical = entries.Count > 0 && !(inline && !isEnd);
         if (vertical)
         {

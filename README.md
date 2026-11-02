@@ -40,7 +40,7 @@ end
 
 Converting this SML to XML gives the original document again. Only attribute order changes, which XML does not treat as information.
 
-SML also has vertical attributes, multiline literal blocks for long paths, CSS, and scripts, and reusable attribute blocks. See the [specification](Documents/SML-Language-Specification.md) for the full language.
+SML also has vertical attributes, multiline literal blocks for long paths, CSS, and scripts, reusable attribute blocks, and element aliases such as `@node g group`. See the [specification](Documents/SML-Language-Specification.md) for the full language.
 
 ## Design
 

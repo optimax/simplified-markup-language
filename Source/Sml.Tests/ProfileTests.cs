@@ -9,6 +9,11 @@ public class ProfileTests
     private static readonly SmlProfile Svg =
         SmlProfile.Parse(File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "svg.smlprofile"), Encoding.UTF8));
 
+    /// <summary>The svg profile with element aliases (§8.7), including names that elements of the corpus have.</summary>
+    private static readonly SmlProfile SvgWithNodes = SmlProfile.Parse(
+        File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "svg.smlprofile"), Encoding.UTF8)
+        + "\n@node svg drawing\n@node g group\n@node path shape\n@node linearGradient gradient\n@node title desc\n");
+
     internal static readonly string TestsFolder = FindTestsFolder();
 
     private static string FindTestsFolder()
@@ -170,6 +175,12 @@ public class ProfileTests
     [InlineData("@layout path .d curves\n", 1, "unknown layout 'curves'")]
     [InlineData("# comment\n\n.d x\n", 3, "unknown profile statement")]
     [InlineData("@block path d .xmlns\n", 1, "cannot name a namespace declaration")]
+    [InlineData("@node g\n", 1, "@node takes")]
+    [InlineData("@node g end\n", 1, "invalid element alias 'end'")]
+    [InlineData("@node g a:b\n", 1, "invalid element alias 'a:b'")]
+    [InlineData("@node g x\n@node p x\n", 2, "element alias 'x' is declared twice")]
+    [InlineData("@node g x\n@node g y\n", 2, "element 'g' already has an alias")]
+    [InlineData("@node s:g x\n", 1, "prefix 's' is not bound")]
     public void ReportsProfileErrorsWithTheirLine(string text, int line, string message)
     {
         SmlException e = Assert.Throws<SmlException>(() => SmlProfile.Parse(text));
@@ -242,6 +253,52 @@ public class ProfileTests
         Assert.Null(DocumentComparer.FirstDifference(doc, SmlReader.Read(sml)));
     }
 
+    [Fact]
+    public void WritesElementAliasesBeforeTheRoot()
+    {
+        SmlDocument doc = Xml("<svg xmlns='http://www.w3.org/2000/svg'><g id='a'><path d='M 0 0'/></g><g/><rect/></svg>");
+        SmlProfile profile = SmlProfile.Parse("@ns http://www.w3.org/2000/svg\n@node g group\n@node circle round\n@node svg drawing\n");
+        string sml = SmlWriter.Write(doc, profile);
+        Assert.Equal("""
+            @sml 1.0-SVG-4
+            @node g group
+            @node svg drawing
+            drawing(xmlns=http://www.w3.org/2000/svg)
+              group(id=a)
+                path(d=M 0 0)/
+              end
+              group/
+              rect/
+            end
+
+            """.ReplaceLineEndings("\n"), sml);
+        Assert.Null(DocumentComparer.FirstDifference(doc, SmlReader.Read(sml)));
+    }
+
+    [Fact]
+    public void ElementAliasesFollowTheLexicalNameAndAvoidRealNames()
+    {
+        SmlProfile profile = SmlProfile.Parse("@ns http://www.w3.org/2000/svg\n@node g group\n@node rect box\n");
+        // Declared for the first element's prefix; a g with another prefix or of another namespace keeps its name,
+        // and no alias is used that an element of the document is named like.
+        SmlDocument doc = Xml("<s:svg xmlns:s='http://www.w3.org/2000/svg'><s:g/><g xmlns='http://www.w3.org/2000/svg'/>"
+            + "<g xmlns='urn:x'/><s:rect/><box/></s:svg>");
+        string sml = SmlWriter.Write(doc, profile);
+        Assert.StartsWith("@sml 1.0-SVG-4\n@node s:g group\ns:svg", sml);
+        Assert.Contains("  group/\n  g(xmlns=http://www.w3.org/2000/svg)/\n  g(xmlns=urn:x)/\n  s:rect/\n  box/\n", sml);
+        Assert.DoesNotContain("@node s:rect", sml);
+        Assert.Null(DocumentComparer.FirstDifference(doc, SmlReader.Read(sml)));
+    }
+
+    [Fact]
+    public void AnElementAliasOpensAnElementNamedEnd()
+    {
+        SmlDocument doc = Xml("<doc><end/><end>x</end></doc>");
+        string sml = SmlWriter.Write(doc, SmlProfile.Parse("@node end finish\n"));
+        Assert.Equal("@sml 1.0-SVG-4\n@node end finish\ndoc\n  finish/\n  finish = x\nend\n", sml);
+        Assert.Null(DocumentComparer.FirstDifference(doc, SmlReader.Read(sml)));
+    }
+
     public static TheoryData<string> SvgFiles()
     {
         var files = Directory.GetFiles(Path.Combine(TestsFolder, "svg-roundtrip", "corpus"), "*.svg")
@@ -275,6 +332,26 @@ public class ProfileTests
         Assert.Null(DocumentComparer.FirstDifference(doc, back));
         Assert.Equal(sml, SmlWriter.Write(back, Svg));
         Assert.Equal(SmlWriter.Write(doc), SmlWriter.Write(doc, SmlProfile.Parse("")));
+    }
+
+    [Theory]
+    [MemberData(nameof(SvgFiles))]
+    public void ElementAliasOutputReadsBackAsTheSameDocument(string file)
+    {
+        if (Load(file) is not { } doc)
+            return;
+        foreach (bool reflow in new[] { false, true })
+        {
+            string sml = SmlWriter.Write(doc, SvgWithNodes, reflow);
+            SmlDocument back = SmlReader.Read(sml);
+            if (!reflow)
+            {
+                Assert.Null(DocumentComparer.FirstDifference(doc, back));
+                Assert.Equal(sml, SmlWriter.Write(back, SvgWithNodes));
+            }
+            // Element aliases change only how elements are opened.
+            Assert.Equal(SmlWriter.Write(SmlReader.Read(SmlWriter.Write(doc, Svg, reflow))), SmlWriter.Write(back));
+        }
     }
 
     [Theory]

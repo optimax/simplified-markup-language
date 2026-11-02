@@ -104,7 +104,7 @@ This is easier to read and edit, but it is a readable conversion, not a strict o
 - A value is reflowed only if it has its layout's form and at least two items; any other value is written exactly.
 - A single path command is never split, so a long run of coordinates after one command stays on one line.
 
-The SML written with a profile is self-contained: it declares every alias it uses and reads without the profile. Profiles apply only to XML-to-SML conversion; SML input converts as usual.
+The SML written with a profile is self-contained: it declares every alias it uses, attribute and element aliases alike, and reads without the profile. Profiles apply only to XML-to-SML conversion; SML input converts as usual.
 
 ### The `svg` profile
 
@@ -127,6 +127,7 @@ A profile is a UTF-8 text file with one statement per line; blank lines and line
 |---|---|
 | `@ns [prefix] URI` | Binds a prefix, or the default namespace, for the names that follow. All `@ns` lines come first. |
 | `@block element alias .attribute` | An alias, as in SML (§8): a block for this attribute of this element is written `alias """` instead of `.attribute """`. The aliases used are declared on the root element, so an alias is used only where the root's namespace declarations can name its element. |
+| `@node element alias` | An element alias, as in SML (§8.7): elements with this name are opened as `alias`, as in `group(id=a)` for `<g id="a">`. The aliases used are declared before the root, for the name of the first such element; elements with another prefix keep their names. An alias is not used at all when an element of the document already has that name. |
 | `@layout element .attribute layout` | How the attribute's values divide into items (§3.2): `path`, `numbers N` (N numbers per item), `declarations`, `functions`, or `list` (`;`-separated). The element `*` means any element without a layout of its own for that attribute. |
 
 A mistake in a profile is reported as `file(line): error: message` before any file is converted.

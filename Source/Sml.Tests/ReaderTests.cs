@@ -376,6 +376,37 @@ public class ReaderTests
     }
 
     [Fact]
+    public void SV83_NodeAliases()
+    {
+        const string source = "@node g group\n@node p para\nsvg(xmlns=http://www.w3.org/2000/svg)\n  group(id=a)\n    rect/\n  end group\n"
+            + "  group/\n  g = plain\n  foreignObject\n    @node div box\n    box(xmlns=http://www.w3.org/1999/xhtml)\n"
+            + "      para = Hello\n      @element para\n      end para\n    end div\n  end\n  box/\nend\n";
+        SmlDocument doc = SmlReader.Read(source);
+        SmlDocument xml = XmlImporter.Read(Encoding.UTF8.GetBytes("<svg xmlns=\"http://www.w3.org/2000/svg\"><g id=\"a\"><rect/></g><g/><g>plain</g>"
+            + "<foreignObject><div xmlns=\"http://www.w3.org/1999/xhtml\"><p>Hello</p><para/></div></foreignObject><box/></svg>"));
+        Assert.Null(DocumentComparer.FirstDifference(doc, xml));
+        Assert.DoesNotContain("@node", SmlWriter.Write(doc));
+
+        // The alias stands for the name as written: its prefix is resolved where the element is opened.
+        ElementNode info = Root("@node d:info info\nsvg\n  info(xmlns:d=urn:d)/\nend\n").Children.OfType<ElementNode>().First();
+        Assert.Equal(("d:info", "urn:d", "info"), (info.QualifiedName, info.Name.Namespace, info.Name.Local));
+
+        // Shadowing in a nested scope; aliases do not chain.
+        Assert.Equal(["p", "h"], Root("@node g x\nsvg\n  @node p x\n  x/\n  h\n    x/\n  end\nend\n").Children.OfType<ElementNode>().Select(e => e.QualifiedName));
+        Assert.Equal(["x"], Root("svg\n  @node g x\n  @node x y\n  y/\nend\n").Children.OfType<ElementNode>().Select(e => e.QualifiedName));
+
+        Rejects("@node g\nsvg/\n", "takes");
+        Rejects("@node g end\nsvg/\n", "invalid element alias");
+        Rejects("@node g a:b\nsvg/\n", "invalid element alias");
+        Rejects("@node 1x y\nsvg/\n", "invalid element name");
+        Rejects("@node g x\n@node p x\nsvg/\n", "twice");
+        Rejects("svg\n  @node g x\n  @node p x\nend\n", "twice");
+        Rejects("svg/\n@node g x\n", "only allowed before the root");
+        Rejects("svg\n  a/\n  @node g x\nend\n", "after the element");
+        Rejects("@node g group\ngroup\nend p\n", "does not match");
+    }
+
+    [Fact]
     public void SupplementaryCharactersInNamesAndCodePointOrdering()
     {
         // A name using a character outside the BMP (U+10000) and attribute ordering by code point, not UTF-16 unit.

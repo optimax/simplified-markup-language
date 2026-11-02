@@ -617,18 +617,19 @@
     }
   ],
   "unit_tests": {
-    "run": 60,
+    "run": 61,
     "failed": []
   },
   "fuzz": {
     "seed": 1,
     "documents": 300,
     "sml_mutants": 1200,
-    "sml_mutants_accepted": 306,
+    "sml_mutants_accepted": 349,
     "xml_mutants": 1200,
-    "xml_mutants_both_accepted": 336,
+    "xml_mutants_both_accepted": 324,
     "known_divergences": {
-      "libxml2 rejects namespace names that are not URI references; expat and the prototype accept them": 27
+      "libxml2 rejects namespace names that are not URI references; expat and the prototype accept them": 26,
+      "expat uses XML 1.0 4th-edition name characters and rejects names that 5th-edition parsers such as libxml2 accept": 2
     },
     "findings": []
   }

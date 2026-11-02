@@ -230,7 +230,8 @@ def check_doctype(dt: Doctype, line: int | None, error=SmlError) -> None:
 
 class _Frame:
     __slots__ = ('el', 'lexical', 'parent_ns', 'ns', 'depth', 'line', 'decl_open', 'ns_phase',
-                 'inline_attrs', 'aliases', 'noindent', 'layout', 'indentation', 'step', 'local_step')
+                 'inline_attrs', 'aliases', 'nodes', 'alias', 'noindent', 'layout', 'indentation', 'step',
+                 'local_step')
 
     def __init__(self, el: Element, lexical: str, parent_ns: dict, depth: int, line: int):
         self.el = el
@@ -243,6 +244,8 @@ class _Frame:
         self.ns_phase = True
         self.inline_attrs: list = []
         self.aliases: dict = {}
+        self.nodes: dict[str, str] = {}     # element aliases declared here, for its content (§8.7)
+        self.alias: str | None = None       # the element alias it was opened with
         self.noindent = False
         self.layout: bool | None = None
         self.indentation = ''               # the element's own indentation (§6.4)
@@ -293,6 +296,7 @@ class SmlReader:
         self.stack: list[_Frame] = []
         self.phase = 'prolog'
         self.indent: str | None = None
+        self.nodes: dict[str, str] = {}     # element aliases declared in the prolog (§8.7)
         self.seen_statement = False
         self.seen: set[str] = set()
         self.extensions: dict[str, bool] = {}
@@ -541,7 +545,7 @@ class SmlReader:
             name = s[3:].lstrip(' \t')
             if not is_qname(name):
                 raise SmlError("'end' must be followed by nothing or a single element name", ln)
-            if name != f.lexical:
+            if name != f.lexical and name != f.alias:
                 raise SmlError(f'end {name} does not match the open element {f.lexical!r}', ln)
         self.close_decl(f, True)
         if f.layout:
@@ -590,6 +594,9 @@ class SmlReader:
         qname, pos = m.group(0), m.end()
         if qname == 'end':
             raise SmlError("the element name 'end' is reserved; use '@element end'", ln)
+        alias, target = None, self.node_target(qname)
+        if target is not None:
+            alias, qname = qname, target
         inline = []
         if pos < len(s) and s[pos] == '(':
             inline, pos = self.parse_inline_list(s, pos, ln)
@@ -597,7 +604,7 @@ class SmlReader:
         if OLD_BLOCK_RE.fullmatch(rest.lstrip(' \t')):
             raise SmlError(OBSOLETE_BLOCK, ln)
         if rest == '':
-            self.open_element(qname, inline, 'open', ln)
+            self.open_element(qname, inline, 'open', ln).alias = alias
         elif rest == '/':
             self.open_element(qname, inline, 'empty', ln)
         else:
@@ -795,6 +802,32 @@ class SmlReader:
         if (expanded, alias) in f.aliases:
             raise SmlError(f'alias {alias!r} is declared twice for this element in one scope', ln)
         f.aliases[(expanded, alias)] = attr
+
+    def node_target(self, name: str) -> str | None:
+        """The element name that an element alias in scope gives name (§8.7), or None. The nearest scope wins."""
+        for scope in reversed(self.stack):
+            if name in scope.nodes:
+                return scope.nodes[name]
+        return self.nodes.get(name)
+
+    def d_node(self, rest: str, ln: int) -> None:
+        toks = [t for t in re.split(r'[ \t]+', rest) if t]
+        if len(toks) != 2:
+            raise SmlError('@node takes: element-qname alias', ln)
+        element, alias = toks
+        if not is_qname(element):
+            raise SmlError(f'invalid element name {element!r} in @node', ln)
+        if not is_ncname(alias) or alias == 'end':
+            raise SmlError(f'invalid element alias {alias!r}', ln)
+        if self.stack:
+            scope = self.decl_frame(ln, '@node').nodes
+        elif self.phase == 'prolog':
+            scope = self.nodes
+        else:
+            raise SmlError('@node is only allowed before the root element or in a declaration section', ln)
+        if alias in scope:
+            raise SmlError(f'element alias {alias!r} is declared twice in one scope', ln)
+        scope[alias] = element
 
     def d_noindent(self, rest: str, ln: int) -> None:
         f = self.decl_frame(ln, '@noindent')
