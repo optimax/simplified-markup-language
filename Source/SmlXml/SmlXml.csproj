@@ -14,6 +14,10 @@
     <Description>Two-way converter between SML 1.0-SVG-3 and XML/SVG.</Description>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <InvariantGlobalization>true</InvariantGlobalization>
+    <!-- The code is CPU-neutral even in the 32- and 64-bit publishes; only the smlxml.exe launcher differs. -->
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <!-- Restore both Windows runtimes, so that one publish can produce both executables. -->
+    <RuntimeIdentifiers>win-x64;win-x86</RuntimeIdentifiers>
   </PropertyGroup>
 
   <ItemGroup>
@@ -21,10 +25,21 @@
   </ItemGroup>
 
   <!-- The MIT license ships beside smlxml.exe. ExcludeFromSingleFile keeps it a separate file when publishing
-       as a single file (the win-x64 profile); otherwise it would be bundled inside the executable. -->
+       as a single file (the windows profile); otherwise it would be bundled inside the executable. -->
   <ItemGroup>
     <None Include="..\..\LICENSE.md" Link="LICENSE.md" CopyToOutputDirectory="PreserveNewest"
           CopyToPublishDirectory="PreserveNewest" ExcludeFromSingleFile="true" />
   </ItemGroup>
+
+  <!-- After publishing, publish each runtime in AdditionalPublishRuntimes (set by the windows profile) the same
+       way, into its own folder. Because this runs after Publish, Visual Studio's Publish produces both the 64-bit
+       and the 32-bit smlxml.exe too. Clearing AdditionalPublishRuntimes stops the inner publish from recursing. -->
+  <Target Name="PublishAdditionalRuntimes" AfterTargets="Publish" Condition="'$(AdditionalPublishRuntimes)' != ''">
+    <ItemGroup>
+      <_AdditionalPublishRuntime Include="$(AdditionalPublishRuntimes)" />
+    </ItemGroup>
+    <MSBuild Projects="$(MSBuildProjectFullPath)" Targets="Publish"
+             Properties="RuntimeIdentifier=%(_AdditionalPublishRuntime.Identity);AdditionalPublishRuntimes=" />
+  </Target>
 
 </Project>

@@ -2,7 +2,7 @@
 
 ## Requirements
 
-- A command-line program named `smlxml.exe`, in C# on .NET 10.
+- A command-line program named `smlxml.exe`, in C# on .NET 10, built for Any CPU and published as both a 32-bit and a 64-bit executable.
 - Given an XML file, it writes SML with the same name; given an SML file, it writes XML beside the original.
 - Input file names may contain wildcards.
 - Run without arguments, it shows the usage.
@@ -46,4 +46,7 @@
 
 ## Build
 
-`dotnet publish Source/SmlXml/SmlXml.csproj -p:PublishProfile=win-x64` writes `publish/smlxml/smlxml.exe` as one framework-dependent file of about 250 KB, with `LICENSE.md` beside it. This is the only publish profile, and Visual Studio's Publish command uses it too. The license is included in every build and publish output; `ExcludeFromSingleFile` keeps it out of the single-file bundle. On Windows, `dotnet build` also produces `smlxml.exe` in `bin/`.
+`dotnet publish Source/SmlXml/SmlXml.csproj -p:PublishProfile=windows` writes `publish/smlxml/win-x64/smlxml.exe` (64-bit) and `publish/smlxml/win-x86/smlxml.exe` (32-bit), each one framework-dependent file of about 250 KB with `LICENSE.md` beside it.
+- This is the only publish profile, and Visual Studio's Publish command uses it too.
+- The profile publishes win-x64; `PublishAdditionalRuntimes` in `SmlXml.csproj` then publishes win-x86.
+- The assemblies are Any CPU (`PlatformTarget`); only the launcher differs between the two. The license is included in every build and publish output; `ExcludeFromSingleFile` keeps it out of the single-file bundle. On Windows, `dotnet build` also produces `smlxml.exe` in `bin/`.
