@@ -2,6 +2,8 @@
 # Visual Studio / .NET / C# / WPF
 # ============================================
 
+tmp/
+
 # Visual Studio user-specific files
 *.suo
 *.user
