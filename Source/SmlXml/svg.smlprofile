@@ -12,6 +12,9 @@
 
 @ns http://www.w3.org/2000/svg
 
+@node g group
+@node p para
+
 # Path data: one command per line; --reflow also spaces it, as in M 10, 20.
 @block path data .d
 @layout path .d path
