@@ -46,12 +46,76 @@ smlxml -o *.out.svg *.sml
 |---|---|
 | `-o`, `--output <path>` | Write to this file instead (one input file only), or with `*`, one file per input (see below) |
 | `-f`, `--force` | Overwrite an existing output file |
+| `-p`, `--profile <name>` | Write SML with a profile's aliases and layouts (see [Profiles](#profiles)) |
+| `-r`, `--reflow` | With `--profile`: one item per line in blocks; readable, but not lossless |
 | `-h`, `--help` | Show help |
 | `-v`, `--version` | Show the version (the banner) |
 
-An existing output file is never overwritten without `--force`. Errors appear as `file(line): error: message`. The exit code is 0 on success, 1 if a conversion failed or a pattern matched no file, and 2 for an invalid command line, including no arguments.
+An existing output file is never overwritten without `--force`. Errors appear as `file(line): error: message`. The exit code is 0 on success, 1 if a conversion failed or a pattern matched no file, and 2 for an invalid command line or profile, including no arguments.
 
-SML output is in the canonical form of the specification (§14.2). XML input must be namespace-well-formed XML 1.0 without a DTD internal subset (§3); a DOCTYPE with only a public or system identifier is kept, and its DTD is never loaded.
+SML output is in the canonical form of the specification (§14.2), unless a profile is used. XML input must be namespace-well-formed XML 1.0 without a DTD internal subset (§3); a DOCTYPE with only a public or system identifier is kept, and its DTD is never loaded.
+
+## Profiles
+
+A profile makes the SML easier to read by giving long, structured attribute values a layout: one path command, coordinate pair, CSS declaration, or transform function per line. `smlxml` comes with the `svg` profile, `svg.smlprofile` beside `smlxml.exe`.
+
+**Exact.** `smlxml --profile svg drawing.svg` writes SML that converts back to exactly the same SVG. A value with a layout and at least two items is quoted, with a continuation line per item:
+
+```text
+path
+  .d "M 20 60 "
+    "L 60 20 "
+    "Z"
+end
+```
+
+**Reflowed.** `smlxml --profile svg --reflow drawing.svg` puts each item on its own line in a block, using the profile's aliases, which it declares on the root element:
+
+```text
+# Readable conversion (SML §3.2), not strict: one item per line in d
+@sml 1.0-SVG-3
+svg(xmlns=http://www.w3.org/2000/svg)
+  @block path d .d
+  path
+    d |
+      M 20 60
+      L 60 20
+      Z
+    end
+  end
+end
+```
+
+This is easier to read and edit, but it is a readable conversion, not a strict one (§3.2 of the specification). The values now contain line breaks where they had spaces, so converting the SML back gives SVG that renders the same but is not identical, and the first line says so.
+- A value is reflowed only if it has its layout's form and at least two items; any other value is written exactly.
+- A single path command is never split, so a long run of coordinates after one command stays on one line.
+
+The SML written with a profile is self-contained: it declares every alias it uses and reads without the profile. Profiles apply only to XML-to-SML conversion; SML input converts as usual.
+
+### The `svg` profile
+
+| Attributes | Items, one per line | Alias |
+|---|---|---|
+| `d` of `path`, `glyph`, and `missing-glyph`; `path` of `animateMotion` and `textPath` | Path commands | `d`, `path` |
+| `points` of `polyline` and `polygon` | x,y pairs | `points` |
+| `values` of `feColorMatrix` | Rows of five numbers | |
+| `values` of `animate`, `animateColor`, `animateTransform`, and `animateMotion`; `keyPoints` of `animateMotion`; `keyTimes` and `keySplines` | Entries | |
+| `style` of any element | CSS declarations | |
+| `transform`, `gradientTransform`, and `patternTransform` of any element | Functions | |
+
+An alias appears only where the value is written as a block: with `--reflow`, or for a value that already contains line breaks.
+
+### Writing a profile
+
+A profile is a UTF-8 text file with one statement per line; blank lines and lines starting with `#` are ignored. Pass its path to `--profile`, or put `name.smlprofile` beside `smlxml` and pass `name`. The built-in [`svg.smlprofile`](svg.smlprofile) is an example.
+
+| Statement | Meaning |
+|---|---|
+| `@ns [prefix] URI` | Binds a prefix, or the default namespace, for the names that follow. All `@ns` lines come first. |
+| `@block element alias .attribute` | An alias, as in SML (§8): a block for this attribute of this element is written `alias \|` instead of `.attribute \|`. The aliases used are declared on the root element, so an alias is used only where the root's namespace declarations can name its element. |
+| `@layout element .attribute layout` | How the attribute's values divide into items (§3.2): `path`, `numbers N` (N numbers per item), `declarations`, `functions`, or `list` (`;`-separated). The element `*` means any element without a layout of its own for that attribute. |
+
+A mistake in a profile is reported as `file(line): error: message` before any file is converted.
 
 ## Build
 
@@ -59,7 +123,7 @@ SML output is in the canonical form of the specification (§14.2). XML input mus
 dotnet publish Source/SmlXml/SmlXml.csproj -p:PublishProfile=windows
 ```
 
-This writes both Windows executables, each with `LICENSE.md` (MIT) beside it; distribute each `smlxml.exe` together with its `LICENSE.md`:
+This writes both Windows executables, each with `LICENSE.md` (MIT) and `svg.smlprofile` beside it; distribute each `smlxml.exe` together with both files:
 
 | Folder | Executable | Needs |
 |---|---|---|

@@ -301,6 +301,47 @@ public sealed class CommandLineTests : IDisposable
         Assert.Equal(CommandLine.Success, Run(PathOf("a*b.svg")).Code);
         Assert.Equal(["a*b.sml"], Existing(".sml"));
     }
+
+    private const string PathXml = "<svg xmlns=\"http://www.w3.org/2000/svg\"><path d=\"M 0 0 L 1 1\"/></svg>";
+
+    [Fact]
+    public void WritesWithTheBuiltInSvgProfileExactlyOrReflowed()
+    {
+        File.WriteAllText(PathOf("drawing.svg"), PathXml);
+        Assert.Equal(CommandLine.Success, Run("--profile", "svg", PathOf("drawing.svg")).Code);
+        Assert.Contains("    .d \"M 0 0 \"\n      \"L 1 1\"\n", File.ReadAllText(PathOf("drawing.sml")));
+        Assert.Equal(CommandLine.Success, Run("-p", "svg", "-r", "-f", PathOf("drawing.svg")).Code);
+        string reflowed = File.ReadAllText(PathOf("drawing.sml"));
+        Assert.StartsWith("# Readable conversion", reflowed);
+        Assert.Contains("  @block path d .d\n", reflowed);
+        Assert.Contains("    d |\n      M 0 0\n      L 1 1\n    end\n", reflowed);
+    }
+
+    [Fact]
+    public void ReadsAProfileFromAFileAndIgnoresItForSmlInput()
+    {
+        File.WriteAllText(PathOf("mine.smlprofile"), "@layout * .v numbers 1\n");
+        File.WriteAllText(PathOf("data.xml"), "<r v=\"1 2\"/>");
+        File.WriteAllText(PathOf("other.sml"), "r(v=3)/\n");
+        Assert.Equal(CommandLine.Success, Run("-p", PathOf("mine.smlprofile"), PathOf("data.xml"), PathOf("other.sml")).Code);
+        Assert.Equal("@sml 1.0-SVG-3\nr\n  .v \"1 \"\n    \"2\"\nend\n", File.ReadAllText(PathOf("data.sml")));
+        Assert.Equal("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<r v=\"3\"/>\n", File.ReadAllText(PathOf("other.xml")));
+    }
+
+    [Fact]
+    public void RejectsMissingOrInvalidProfilesBeforeConvertingAnything()
+    {
+        File.WriteAllText(PathOf("drawing.svg"), PathXml);
+        File.WriteAllText(PathOf("bad.smlprofile"), "# fine\n@layout path .d curves\n");
+        var (code, _, error) = Run("-p", PathOf("bad.smlprofile"), PathOf("drawing.svg"));
+        Assert.Equal(CommandLine.UsageError, code);
+        Assert.Contains($"{PathOf("bad.smlprofile")}(2): error: unknown layout 'curves'", error);
+        Assert.Contains("profile 'nonesuch' not found", Run("-p", "nonesuch", PathOf("drawing.svg")).Err);
+        Assert.Contains("profile 'x.smlprofile' not found", Run("-p", "x.smlprofile", PathOf("drawing.svg")).Err);
+        Assert.Contains("--reflow needs --profile", Run("--reflow", PathOf("drawing.svg")).Err);
+        Assert.Equal(CommandLine.UsageError, Run("-p").Code);
+        Assert.False(File.Exists(PathOf("drawing.sml")));
+    }
 }
 
 public class FileExpanderTests

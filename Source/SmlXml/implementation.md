@@ -9,6 +9,8 @@
 - Every run starts with this banner on standard output, followed by a blank line:
   `smlxml 1.0.0 (SML 1.0-SVG-3)`, `Copyright (c) 2026 Optimax Technologies, Inc.`, `Freely distributed under MIT license.`
 - `--output` accepts a `*` pattern, so that `smlxml *.svg` followed by `smlxml -o *.out.svg *.sml` leaves `name.sml` and `name.out.svg` beside each `name.svg`.
+- `--profile` converts XML to SML with an SML profile, which defines blocks for path `d`, polyline `points`, and other SVG values that are more readable one item per line. The `svg` profile ships with `smlxml`.
+- The profile is exact by default. `--reflow` switches to the readable, lossy form. This "both, switchable" design was the user's choice over always reflowing and over exact output only.
 
 ## Behavior
 
@@ -34,6 +36,14 @@
 - **Banner.** `WriteBanner` runs first in every run, including `--help`, usage errors, and failed conversions; errors still go to standard error.
   - The version comes from `<Version>` and the copyright from `<Copyright>` in `SmlXml.csproj`. `<Company>` and `<Copyright>` also appear in the `.exe`'s file properties on Windows.
   - `-v` / `--version` prints only the banner, because its first line is the version.
+- **Profiles.** `-p` / `--profile` takes a file, or a plain name (no folder or extension) for `name.smlprofile` beside the executable (`AppContext.BaseDirectory`).
+  - The profile is parsed once, before any conversion. A missing or invalid profile is a usage error (exit 2), reported as `file(line): error: message`.
+  - It applies to XML input only; SML input converts as usual.
+  - `-r` / `--reflow` needs `--profile`.
+  - `SmlWriter.Write(doc, profile, reflow)` does the work; the format and the writer rules are in `SmlProfile` and the README.
+  - Without reflow, the output reads back as the same document. Values with a layout and at least two items are quoted with a continuation line per item; values that need a block use the profile's alias.
+  - With reflow, values become one item per line (specification §3.2), and the first line is a `#` comment naming the attributes reflowed.
+  - Aliases are declared only on the root, only for aliases actually used, and only where the root's namespace declarations name the element and attribute. One declaration serves the whole document, and the output never depends on the profile.
 - **No arguments** prints the usage text on standard output and exits with 2, because nothing was converted. `--help` exits with 0.
 - **Errors** are reported on standard error as `file(line): error: message`, a format Visual Studio can jump to, and conversion continues with the next file.
 - **Exit codes:** 0 when every file converted, 1 when at least one conversion failed or a pattern matched no file, 2 for an invalid command line or no arguments.
@@ -42,11 +52,13 @@
 
 - `Program.cs` calls `CommandLine.Run`, which is public so that `Source/Sml.Tests/CommandLineTests.cs` can test the command line without starting a process.
 - `FileExpander` (wildcards) is public for the same reason; `FileExpanderTests` covers its matcher.
-- All format logic is in `Source/Sml` (`SmlReader`, `SmlWriter`, `XmlImporter`, `XmlExporter`).
+- All format logic is in `Source/Sml` (`SmlReader`, `SmlWriter`, `XmlImporter`, `XmlExporter`, `SmlProfile`, `ValueLayout`).
+- `svg.smlprofile` is the built-in profile. `SmlXml.csproj` copies every `*.smlprofile` to the build and publish output; `ExcludeFromSingleFile` keeps the profile beside the executable rather than inside the single-file bundle.
+- `Source/Sml.Tests/ProfileTests.cs` covers the layouts, the profile format, and the writer. It runs both modes over every fixture in `Tests/svg-roundtrip/corpus` and every file in `Tests/svg-corpus`.
 
 ## Build
 
-`dotnet publish Source/SmlXml/SmlXml.csproj -p:PublishProfile=windows` writes `publish/smlxml/win-x64/smlxml.exe` (64-bit) and `publish/smlxml/win-x86/smlxml.exe` (32-bit), each one framework-dependent file of about 250 KB with `LICENSE.md` beside it.
+`dotnet publish Source/SmlXml/SmlXml.csproj -p:PublishProfile=windows` writes `publish/smlxml/win-x64/smlxml.exe` (64-bit) and `publish/smlxml/win-x86/smlxml.exe` (32-bit), each one framework-dependent file of about 250–300 KB with `LICENSE.md` and `svg.smlprofile` beside it.
 - This is the only publish profile, and Visual Studio's Publish command uses it too. Visual Studio's Publish page shows "Target runtime: win-x64", because a profile can name only one runtime; each Publish still writes both builds. Keeping one profile with that display was chosen over two profiles (one per runtime) and over a profile that Visual Studio shows as Portable.
 - The profile publishes win-x64; `PublishAdditionalRuntimes` in `SmlXml.csproj` then publishes win-x86.
 - The assemblies are Any CPU (`PlatformTarget`); only the launcher differs between the two. The license is included in every build and publish output; `ExcludeFromSingleFile` keeps it out of the single-file bundle. On Windows, `dotnet build` also produces `smlxml.exe` in `bin/`.

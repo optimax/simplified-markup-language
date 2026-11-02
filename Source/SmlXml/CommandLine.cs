@@ -29,11 +29,16 @@ public static class CommandLine
                                input: * stands for the input's name without its extension, and without a
                                folder each output goes beside its input. Example: smlxml -o *.out.svg *.sml
           -f, --force          Overwrite an existing output file.
+          -p, --profile <name> Write SML with a profile's aliases and layouts (XML to SML only). The SML
+                               still converts back to the same XML. A name without folder or extension is
+                               a profile beside smlxml: smlxml -p svg uses svg.smlprofile.
+          -r, --reflow         With --profile: put one item per line, such as one path command per line.
+                               Readable, but the values change: the XML written back differs in whitespace.
           -h, --help           Show this help.
           -v, --version        Show the version.
 
         Exit codes: 0 success, 1 a conversion failed or a pattern matched no file,
-        2 invalid command line (including no arguments).
+        2 invalid command line or profile (including no arguments).
         """;
 
     public static int Run(string[] args, TextWriter stdout, TextWriter stderr)
@@ -45,8 +50,8 @@ public static class CommandLine
             return UsageError;
         }
         var inputs = new List<string>();
-        string? output = null;
-        bool force = false;
+        string? output = null, profileName = null;
+        bool force = false, reflow = false;
         for (int i = 0; i < args.Length; i++)
         {
             string arg = args[i];
@@ -64,6 +69,14 @@ public static class CommandLine
                     if (i + 1 >= args.Length)
                         return Fail(stderr, $"{arg} needs a path");
                     output = args[++i];
+                    break;
+                case "-p" or "--profile":
+                    if (i + 1 >= args.Length)
+                        return Fail(stderr, $"{arg} needs a profile name or file");
+                    profileName = args[++i];
+                    break;
+                case "-r" or "--reflow":
+                    reflow = true;
                     break;
                 case "--":
                     inputs.AddRange(args[(i + 1)..]);
@@ -83,11 +96,34 @@ public static class CommandLine
             return Fail(stderr, "an --output pattern can only use *");
         if (outputPattern && (Path.GetDirectoryName(output) ?? "").Contains('*'))
             return Fail(stderr, "an --output pattern can use * only in the file name");
+        if (reflow && profileName is null)
+            return Fail(stderr, "--reflow needs --profile");
+        SmlProfile? profile = null;
+        if (profileName is not null)
+        {
+            string? path = FindProfile(profileName);
+            if (path is null)
+                return Fail(stderr, $"profile '{profileName}' not found");
+            try
+            {
+                profile = SmlProfile.Parse(File.ReadAllText(path, Encoding.UTF8));
+            }
+            catch (SmlException e)
+            {
+                stderr.WriteLine(e.Line is { } line ? $"{path}({line}): error: {e.Reason}" : $"{path}: error: {e.Reason}");
+                return UsageError;
+            }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+            {
+                stderr.WriteLine($"{path}: error: {e.Message}");
+                return UsageError;
+            }
+        }
 
         // Expand every pattern before converting anything, so files written by this run never become inputs.
         // A name that exists literally is used as is (on Linux, * and ? are legal in file names).
         var files = new List<string>();
-        var run = new RunContext(force, new HashSet<string>(FileExpander.PathComparer),
+        var run = new RunContext(force, profile, reflow, new HashSet<string>(FileExpander.PathComparer),
             new Dictionary<string, string>(FileExpander.PathComparer), stdout, stderr);
         int result = Success;
         foreach (string input in inputs)
@@ -116,10 +152,22 @@ public static class CommandLine
         return result;
     }
 
-    /// <summary>The state of one run: the full paths of all inputs, and of each output written so far with its
-    /// input.</summary>
-    private sealed record RunContext(
-        bool Force, HashSet<string> Inputs, Dictionary<string, string> Outputs, TextWriter Out, TextWriter Err);
+    /// <summary>The state of one run: the options, the full paths of all inputs, and of each output written so far
+    /// with its input.</summary>
+    private sealed record RunContext(bool Force, SmlProfile? Profile, bool Reflow, HashSet<string> Inputs,
+        Dictionary<string, string> Outputs, TextWriter Out, TextWriter Err);
+
+    /// <summary>The file of a --profile argument: an existing file, or for a plain name (no folder or extension),
+    /// name.smlprofile beside smlxml. Null if there is none.</summary>
+    private static string? FindProfile(string name)
+    {
+        if (File.Exists(name))
+            return name;
+        if (Path.GetFileName(name) != name || Path.HasExtension(name))
+            return null;
+        string builtIn = Path.Combine(AppContext.BaseDirectory, name + ".smlprofile");
+        return File.Exists(builtIn) ? builtIn : null;
+    }
 
     /// <summary>Applies an --output pattern to one input: each * becomes the input's file name without its
     /// extension. A pattern without a folder puts the output beside the input.</summary>
@@ -177,7 +225,8 @@ public static class CommandLine
             else
             {
                 output ??= Path.ChangeExtension(input, ".sml");
-                text = SmlWriter.Write(XmlImporter.Read(data));
+                SmlDocument doc = XmlImporter.Read(data);
+                text = run.Profile is null ? SmlWriter.Write(doc) : SmlWriter.Write(doc, run.Profile, run.Reflow);
             }
             string fullOutput = Path.GetFullPath(output);
             if (fullOutput == Path.GetFullPath(input))

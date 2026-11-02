@@ -48,6 +48,7 @@ SML also has vertical attributes, multiline literal blocks for long paths, CSS, 
 - **Strict.** Input outside the subset is rejected with an error, never silently changed. Examples are DTD internal subsets, declared entities, and XML 1.1.
 - **Values are opaque.** Path data, transforms, styles, and scripts are kept exactly as written; the converter never reformats numbers or geometry.
 - **Canonical form.** XML → SML output is deterministic, so converted files diff cleanly.
+- **Readable on request.** A writer profile can break long path data and point lists at item boundaries. An explicit, lossy *reflow* goes further and puts each item on its own line in a block (§3.2).
 - **Safe.** External DTDs and entities are never loaded.
 
 ## Repository contents
@@ -73,6 +74,8 @@ SML also has vertical attributes, multiline literal blocks for long paths, CSS, 
 | `smlxml drawing.sml` | Writes `drawing.svg` |
 | `smlxml art\**\*.svg` | Converts every SVG below `art`; `smlxml` expands wildcards itself, so this works in Windows shells too |
 | `smlxml -o *.out.svg *.sml` | Writes `name.out.svg` for each `name.sml` |
+| `smlxml --profile svg drawing.svg` | Writes `drawing.sml` with path data, point lists, styles, and transforms broken at items, exactly |
+| `smlxml --profile svg --reflow drawing.svg` | Writes them one item per line in blocks: more readable, but no longer lossless |
 
 An existing file is never overwritten without `-f`. Errors are reported as `file(line): error: message`. See [`Source/SmlXml/README.md`](Source/SmlXml/README.md) for all options.
 
@@ -94,7 +97,7 @@ The build writes `Source/SmlXml/bin/Release/net10.0/smlxml` (`smlxml.exe` on Win
 dotnet publish Source/SmlXml/SmlXml.csproj -p:PublishProfile=windows
 ```
 
-This writes `publish/smlxml/win-x64/smlxml.exe` (64-bit) and `publish/smlxml/win-x86/smlxml.exe` (32-bit), each beside its `LICENSE.md`. Both are single-file executables that need the .NET 10 runtime of the same bitness.
+This writes `publish/smlxml/win-x64/smlxml.exe` (64-bit) and `publish/smlxml/win-x86/smlxml.exe` (32-bit), each beside its `LICENSE.md` and `svg.smlprofile`. Both are single-file executables that need the .NET 10 runtime of the same bitness.
 
 ## Python prototype and tests
 

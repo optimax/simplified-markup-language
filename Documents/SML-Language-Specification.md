@@ -15,7 +15,7 @@ The capitalized words **MUST**, **MUST NOT**, **SHOULD**, and **MAY** have their
 1. **Marked alias invocation.** A named attribute block is invoked as `alias |`. The space before `|` is optional for every block marker (`data|`, `.d|`, `=|`). A bare name line is always an element opener, so an alias can no longer capture a real child element, and `@element` is no longer needed to disambiguate alias collisions (§§5.2, 8.3, 12.1).
 2. **Trimmed lines.** Leading and trailing spaces/tabs are removed from every line outside multiline blocks, and trailing spaces/tabs from every block payload line. Raw values therefore never begin or end with whitespace; such data MUST be quoted (§§4, 6.1, 6.2, 7, 12).
 3. **Processing instructions.** PI targets are `NCName`s, and PI data MUST NOT begin with XML whitespace, because neither survives an XML round trip (§§4, 9).
-4. **Formatting whitespace.** The new `@indent` header and `@noindent` directive let strict conversions of pretty-printed XML omit predictable whitespace-only text nodes without loss (§6.4). The readable (lossy) import profile is now specified (§3.1).
+4. **Formatting whitespace.** The new `@indent` header and `@noindent` directive let strict conversions of pretty-printed XML omit predictable whitespace-only text nodes without loss (§6.4). The readable (lossy) import profile is now specified (§3.1), with an opt-in reflow of structured attribute values such as path data, one item per line (§3.2).
 5. **Document type declarations.** The new `@doctype` directive preserves a DOCTYPE that has no internal subset as opaque metadata. The external DTD is never loaded. Internal subsets remain rejected (§§2, 3, 11.1).
 6. **Namespaces.** All `@ns` lines come first in a declaration section, so an element resolves in a single pass. Compact forms can declare namespaces with inline `xmlns` entries. `.xmlns` attributes are forbidden. A raw namespace URI must contain `:`. The `xml` and `xmlns` prefix rules are explicit (§§5.1, 6.3, 10).
 7. **Values.** Inline raw values may contain balanced parentheses, e.g. `transform=translate(10,20)` (§6.3). Long quoted values can be wrapped exactly with continuation lines (§6.5). `\u{}` escapes are fully specified. A raw value cannot begin with `|` (§6.2).
@@ -108,7 +108,7 @@ It defines these profiles:
 
 - **Core:** the SML syntax itself. Core has no vocabulary-specific knowledge.
 - **Strict profile:** the information-preserving XML↔SML conversion of §§2–3, including preservation of namespace prefixes and declaration locations. This document also calls it the *SVG-safe* profile; despite the name, its rules are generic XML, and SVG is its primary test corpus. Strict importers and exporters MUST implement it. In this document, "strict" always refers to this profile.
-- **Readable import profile** (§3.1): a lossy, SVG-aware import option.
+- **Readable import profile** (§§3.1–3.2): lossy, SVG-aware import options that normalize formatting whitespace or reflow structured attribute values.
 
 Examples, notes, and §16 are informative; all other text is normative. Where an example conflicts with normative text, the normative text governs.
 
@@ -147,7 +147,7 @@ The equality `≡` includes the ordered content, the SVG-safe prefix/declaration
 
 A converter MAY offer a *readable* XML import that normalizes formatting whitespace. Its output is ordinary SML, but the conversion is **lossy**: it MUST NOT be described as strict or SVG-safe, and it SHOULD begin its output with a `#` source comment stating that formatting whitespace was normalized. Unlike Core parsing, this profile is deliberately SVG-aware.
 
-A readable import may change only the whitespace-only text children of an **eligible** element. Whitespace here means U+0020, U+0009, U+000A, and U+000D. An element is eligible only if all of the following hold:
+Apart from the attribute reflow of §3.2, a readable import may change only the whitespace-only text children of an **eligible** element. Whitespace here means U+0020, U+0009, U+000A, and U+000D. An element is eligible only if all of the following hold:
 
 1. it is in the SVG namespace (`http://www.w3.org/2000/svg`);
 2. it is not `text`, `tspan`, `textPath`, `tref`, `altGlyph`, or `foreignObject`, and has no such ancestor;
@@ -157,6 +157,24 @@ A readable import may change only the whitespace-only text children of an **elig
 In an eligible element, the readable import replaces all whitespace-only text children with the §6.4 prediction when its output uses `@indent`, and removes them otherwise. Every other element is converted exactly as in strict import.
 
 These conditions are deliberately conservative. Whitespace between `tspan` elements (as in `<tspan>A</tspan> <tspan>B</tspan>`), inside `xml:space="preserve"` scopes, and in foreign content can change rendering, so a readable import MUST NOT drop or normalize it.
+
+### 3.2 Readable attribute reflow
+
+A readable import MAY also *reflow* structured attribute values, rewriting each value so that every item is on its own line. A writer can then show the value as a block (§7), usually through an alias (§8). Reflow changes attribute strings, so its result is a different document (§3). It MUST be selected explicitly, and its output SHOULD begin with a `#` source comment naming the attributes reflowed. A converter reflows only the attributes it has been given a *layout* for, such as by a writer profile. Core SML has no knowledge of layouts, and an SML reader needs none: the output contains only the reflowed values and ordinary alias declarations.
+
+A layout names how a value divides into items. Whitespace here means U+0020, U+0009, U+000A, and U+000D.
+
+| Layout | Item | Form the value must have |
+|---|---|---|
+| `path` | A path command: its letter and everything up to the next command letter | Only digits, `.`, `+`, `-`, `e`, `E`, `,`, whitespace, and the command letters `MmZzLlHhVvCcSsQqTtAa`; the first character other than whitespace is a command letter |
+| `numbers N` | N numbers (the last item may have fewer) | Numbers in SVG number syntax, separated by whitespace with at most one comma, or by nothing where the syntax allows, as in `1-2` |
+| `declarations` | A CSS declaration, with its `;` | Quotes, parentheses, and comments closed; a `;` outside them ends an item |
+| `functions` | A function, `name(…)` | Functions with balanced parentheses, separated by whitespace with at most one comma |
+| `list` | An entry, with its `;` | Any value; each `;` ends an item |
+
+An item never begins or ends with whitespace. Between items there is only whitespace, a comma (`numbers`, `functions`), or nothing. The reflowed value is the items joined by single LFs, without leading or trailing whitespace. Reflow MUST NOT be applied to a value that does not have its layout's form, that has fewer than two items, or that has an item containing TAB, LF, or CR; such a value is converted exactly. In SVG path data, coordinate and number lists, CSS declarations, transform lists, and SMIL value lists, a line feed is an allowed separator wherever these layouts put one, so for the attributes they are meant for, the reflowed document renders as the original does.
+
+Without reflow, a writer MAY still use a layout to show a value one item per line, exactly: as a quoted value split into continuation lines (§6.5) at item boundaries, with the separators kept inside the quotes. This is not a readable import; the document is unchanged.
 
 ## 4. Encoding, lines, names, and structural model
 
@@ -536,7 +554,7 @@ A named block is an **attribute declaration** for ordering and duplicate detecti
 
 An XML-to-SML writer MAY introduce or use `@block` aliases as a formatting choice. It MUST emit any required alias declaration on the invoking element itself or on an ancestor, where the target element and attribute names resolve correctly, before any invocation. The result MUST remain self-contained: decoding it cannot depend on an external alias registry.
 
-A writer MUST choose a named block only if the complete attribute string can be represented **exactly** by §7's dedentation and terminator rules, using a custom terminator if a payload line is `end`. Otherwise it MUST fall back to an ordinary `.attribute` value, usually quoted with explicit escapes. It MUST preserve XML namespace prefixes/declaration locations under the SVG-safe profile. Because invocations carry the `|` marker, a real child element whose name equals an active alias is written as an ordinary element. Writers MUST NOT alter the text of SVG `d`, CSS `style`, `points`, or any other attribute to make an alias representation possible.
+A writer MUST choose a named block only if the complete attribute string can be represented **exactly** by §7's dedentation and terminator rules, using a custom terminator if a payload line is `end`. Otherwise it MUST fall back to an ordinary `.attribute` value, usually quoted with explicit escapes. It MUST preserve XML namespace prefixes/declaration locations under the SVG-safe profile. Because invocations carry the `|` marker, a real child element whose name equals an active alias is written as an ordinary element. Writers MUST NOT alter the text of SVG `d`, CSS `style`, `points`, or any other attribute to make an alias representation possible. The only exception is the readable attribute reflow of §3.2, which must be selected explicitly and is not a strict conversion.
 
 ### 8.6 Invalid and ambiguous cases
 
@@ -979,7 +997,7 @@ Reject—not drop—unsupported input. Rendering comparisons are useful suppleme
 | CP-23 | Documents equal in information but differing in attribute order, quoting, inline/vertical form, aliases, `end QName`, and comments | Canonical writer output byte-identical |
 | CP-24 | Canonical writer applied to its own output | Byte-identical (idempotent) |
 
-The prototype in `Tests/svg-roundtrip/sml_prototype.py` implements this revision's Core syntax, the strict profile, and the canonical form, and `results/REPORT.md` records its current results. Two fixtures are not executed because the prototype does not implement the feature: SV-49 (writer-generated aliases) and SV-65 (readable import). The prototype was written alongside this revision and has not been validated independently. Its results are therefore evidence for the design, **not** certification. An independent conforming SML parser and XML converter are needed before claiming verified full round-trip conformance.
+The prototype in `Tests/svg-roundtrip/sml_prototype.py` implements this revision's Core syntax, the strict profile, and the canonical form, and `results/REPORT.md` records its current results. Two fixtures are not executed because the prototype does not implement the feature: SV-49 (writer-generated aliases) and SV-65 (readable import). The C# converter `smlxml` generates aliases through its writer profiles; `Source/Sml.Tests/ProfileTests.cs` checks SV-49's requirement for it, and also the attribute reflow of §3.2. The prototype was written alongside this revision and has not been validated independently. Its results are therefore evidence for the design, **not** certification. An independent conforming SML parser and XML converter are needed before claiming verified full round-trip conformance.
 
 ## 16. Worked edge cases
 
@@ -1130,7 +1148,7 @@ The comment's surrounding spaces are data, so it is quoted. The DOCTYPE is prese
 This revision addresses the design-level issues identified in review so far. It cannot guarantee the absence of further design issues or of implementation bugs before a reference parser, differential XML comparison suite, and fuzzing exist. In particular:
 
 - The language name and file extension collide with Standard ML and with W3C's Service Modeling Language; a final name is still to be chosen.
-- SV-49 (writer-generated aliases) and SV-65 (readable import) are not yet executed, because the prototype implements neither feature (§15).
+- SV-49 (writer-generated aliases) is executed only against the C# converter, and SV-65 (readable whitespace normalization) not at all; the prototype implements neither feature (§15).
 
 - The Core `@block` feature requires parser/conformance tests for namespace resolution, declaration ordering, alias shadowing, real-child collisions, duplicate target attributes, and exact multiline value decoding. No implementation-level certification is claimed yet.
 - A production lexer needs an executable definition of the full Unicode `QName`/`Name` productions and detailed diagnostics for malformed compact syntax.
