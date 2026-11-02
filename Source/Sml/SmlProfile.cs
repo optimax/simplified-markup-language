@@ -8,7 +8,7 @@ namespace Sml;
 /// <list type="bullet">
 /// <item><c>@ns [prefix] URI</c> binds a prefix, or the default namespace, for the names in the profile. All
 /// <c>@ns</c> lines come first.</item>
-/// <item><c>@block element-qname alias .attribute-qname</c> declares an alias, exactly as in SML (§8.1). The writer
+/// <item><c>@block element-qname .attribute-qname alias</c> declares an alias, exactly as in SML (§8.1). The writer
 /// invokes it, and declares it on the root element, wherever it writes that attribute of that element as a
 /// block.</item>
 /// <item><c>@node element-qname alias</c> declares an element alias, as in SML (§8.7). The writer declares it before
@@ -120,17 +120,19 @@ public sealed class SmlProfile
 
     private void Block(string[] t, Dictionary<string, string> ns, int ln)
     {
+        if (t.Length == 4 && t[3].StartsWith('.') && !t[2].StartsWith('.'))
+            throw new SmlException($"the alias now comes last: @block {t[1]} {t[3]} {t[2]}", ln);
         if (t.Length != 4)
-            throw new SmlException("@block takes: element-qname alias .attribute-qname", ln);
+            throw new SmlException("@block takes: element-qname .attribute-qname alias", ln);
         ExpandedName element = XmlRules.Resolve(t[1], ns, attribute: false, ln);
-        string alias = t[2];
+        ExpandedName attribute = AttributeName(t[2], ns, ln);
+        string alias = t[3];
         if (!XmlRules.IsNCName(alias) || alias == "end")
             throw new SmlException($"invalid alias name '{alias}'", ln);
-        ExpandedName attribute = AttributeName(t[3], ns, ln);
         if (_aliases.Exists(a => a.Element == element && a.Name == alias))
             throw new SmlException($"alias '{alias}' is declared twice for element '{t[1]}'", ln);
         if (_aliases.Exists(a => a.Element == element && a.Attribute == attribute))
-            throw new SmlException($"attribute '{t[3][1..]}' of element '{t[1]}' already has an alias", ln);
+            throw new SmlException($"attribute '{t[2][1..]}' of element '{t[1]}' already has an alias", ln);
         _aliases.Add(new Alias(element, alias, attribute));
     }
 

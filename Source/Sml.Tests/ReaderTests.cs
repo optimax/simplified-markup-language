@@ -172,7 +172,7 @@ public class ReaderTests
         [
             "svg(xmlns=http://www.w3.org/2000/svg, width=10, d=x)\n  path(d=M0 0)/\nend\n",
             "svg\n  @ns http://www.w3.org/2000/svg\n  .d \"x\"\n  .width 10\n  path\n    .d M0 0\n  end\nend svg\n",
-            "# c\nsvg\n  @ns \"http://www.w3.org/2000/svg\"\n  @block path p .d\n  .width \"1\"\n    \"0\"\n  .d x\n  path\n    p \"\"\"\n      M0 0\n    \"\"\"\n  end\nend\n",
+            "# c\nsvg\n  @ns \"http://www.w3.org/2000/svg\"\n  @block path .d p\n  .width \"1\"\n    \"0\"\n  .d x\n  path\n    p \"\"\"\n      M0 0\n    \"\"\"\n  end\nend\n",
         ];
         Assert.Single(variants.Select(v => SmlWriter.Write(SmlReader.Read(v))).Distinct());
     }
@@ -188,15 +188,16 @@ public class ReaderTests
     [Fact]
     public void SV34_SV37_AliasesOnlyWithMarker()
     {
-        ElementNode svg = Root($"svg\n  @ns {Svg}\n  @block path data .d\n  path\n    data \"\"\"\n      M 0 0\n    \"\"\"\n  end\nend\n");
+        ElementNode svg = Root($"svg\n  @ns {Svg}\n  @block path .d data\n  path\n    data \"\"\"\n      M 0 0\n    \"\"\"\n  end\nend\n");
         ElementNode path = (ElementNode)svg.Children[0];
         Assert.Equal(new ExpandedName(Svg, "path"), path.Name);
         Assert.Equal("M 0 0", path.Attributes["d"]);
-        ElementNode g = Root("g\n  @block g data .d\n  data \"\"\"\n    v\n  \"\"\"\n  data\n    = child\n  end\nend\n");
+        ElementNode g = Root("g\n  @block g .d data\n  data \"\"\"\n    v\n  \"\"\"\n  data\n    = child\n  end\nend\n");
         Assert.Equal("v", g.Attributes["d"]);
         Assert.Equal("data", ((ElementNode)g.Children[0]).QualifiedName);
         Rejects("g\n  data \"\"\"\n    v\n  \"\"\"\nend\n", "no active alias");
         Rejects("g\n  @block g data = .d\nend\n", "no longer valid");
+        Rejects("g\n  @block g data .d\nend\n", "the alias now comes last: @block g .d data");
     }
 
     [Fact]
@@ -240,10 +241,10 @@ public class ReaderTests
     public void SV71_SV72_BlockMarkers()
     {
         Same("g\n  .d\"\"\"\n    v\n  \"\"\"\nend\n", "g\n  .d \"\"\"\n    v\n  \"\"\"\nend\n");
-        Same("g\n  @block g x .y\n  x\"\"\"\n    v\n  \"\"\"\nend\n", "g\n  .y \"\"\"\n    v\n  \"\"\"\nend\n");
+        Same("g\n  @block g .y x\n  x\"\"\"\n    v\n  \"\"\"\nend\n", "g\n  .y \"\"\"\n    v\n  \"\"\"\nend\n");
         foreach (string marker in new[] { "|", " |", "|EOT", " |EOT" })
             Rejects($"g\n  .d{marker}\n    v\n  end\nend\n", "no longer starts a block");
-        Rejects("g\n  @block g x .y\n  x |\n    v\n  end\nend\n", "no longer starts a block");
+        Rejects("g\n  @block g .y x\n  x |\n    v\n  end\nend\n", "no longer starts a block");
         Rejects("g\n  .d |x y\nend\n", "cannot begin with '|'");
     }
 

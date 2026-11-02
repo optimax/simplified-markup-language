@@ -162,19 +162,20 @@ public class ProfileTests
 
     [Theory]
     [InlineData("@ns urn:a\n@ns urn:b\n", 2, "the default namespace is declared twice")]
-    [InlineData("@block p d .d\n@ns urn:a\n", 2, "@ns must come before every other statement")]
-    [InlineData("@block s:path d .d\n", 1, "prefix 's' is not bound")]
-    [InlineData("@block path d .d\n@block path d .e\n", 2, "alias 'd' is declared twice")]
-    [InlineData("@block path d .d\n@block path data .d\n", 2, "already has an alias")]
-    [InlineData("@block path end .d\n", 1, "invalid alias name 'end'")]
+    [InlineData("@block p .d d\n@ns urn:a\n", 2, "@ns must come before every other statement")]
+    [InlineData("@block s:path .d d\n", 1, "prefix 's' is not bound")]
+    [InlineData("@block path .d d\n@block path .e d\n", 2, "alias 'd' is declared twice")]
+    [InlineData("@block path .d d\n@block path .d data\n", 2, "already has an alias")]
+    [InlineData("@block path .d end\n", 1, "invalid alias name 'end'")]
     [InlineData("@block path d d\n", 1, "expected an attribute name starting with '.'")]
     [InlineData("@block path d\n", 1, "@block takes")]
+    [InlineData("@block path data .d\n", 1, "the alias now comes last: @block path .d data")]
     [InlineData("@layout path .d path\n@layout path .d list\n", 2, "already has a layout")]
     [InlineData("@layout path .d numbers 0\n", 1, "numbers layout takes a count")]
     [InlineData("@layout path .d numbers\n", 1, "numbers layout takes a count")]
     [InlineData("@layout path .d curves\n", 1, "unknown layout 'curves'")]
     [InlineData("# comment\n\n.d x\n", 3, "unknown profile statement")]
-    [InlineData("@block path d .xmlns\n", 1, "cannot name a namespace declaration")]
+    [InlineData("@block path .xmlns d\n", 1, "cannot name a namespace declaration")]
     [InlineData("@node g\n", 1, "@node takes")]
     [InlineData("@node g end\n", 1, "invalid element alias 'end'")]
     [InlineData("@node g a:b\n", 1, "invalid element alias 'a:b'")]
@@ -219,7 +220,7 @@ public class ProfileTests
             # Readable conversion (SML §3.2), not strict: one item per line in d
             @sml 1.0-SVG-4
             svg(xmlns=http://www.w3.org/2000/svg)
-              @block path data .d
+              @block path .d data
               path
                 data """
                   M 0 0
@@ -238,7 +239,7 @@ public class ProfileTests
     {
         SmlDocument doc = Xml("<s:svg xmlns:s='http://www.w3.org/2000/svg'><s:polygon points='0,0&#10;1,1'/></s:svg>");
         string sml = SmlWriter.Write(doc, Svg);
-        Assert.Contains("  @block s:polygon points .points\n", sml);
+        Assert.Contains("  @block s:polygon .points points\n", sml);
         Assert.Contains("    points \"\"\"\n      0,0\n      1,1\n    \"\"\"\n", sml);
         Assert.Null(DocumentComparer.FirstDifference(doc, SmlReader.Read(sml)));
     }

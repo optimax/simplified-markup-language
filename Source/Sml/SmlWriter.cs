@@ -677,7 +677,7 @@ public sealed class SmlWriter
             }
         }
         if (declaresAliases)
-            _out.AddRange(_aliasDeclarations.Select(d => $"{inner}@block {d.Element} {d.Alias} .{d.Attribute}"));
+            _out.AddRange(_aliasDeclarations.Select(d => $"{inner}@block {d.Element} .{d.Attribute} {d.Alias}"));
         if (vertical)
         {
             foreach (var (name, value) in attributes)

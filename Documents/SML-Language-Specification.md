@@ -20,6 +20,7 @@ The capitalized words **MUST**, **MUST NOT**, **SHOULD**, and **MAY** have their
 6. **Per-element indentation steps.** Predicted whitespace is now relative: an element's indentation is its parent's indentation followed by its parent's step. The step is the `@indent` unit, unless an element states its own with `@indent N` or `@indent tab` in its declaration section. A subtree indented differently from the rest of the document, such as embedded metadata, is then laid out too, instead of being spelled out with text statements (§§5.1, 6.4). For documents without per-element steps, the predicted whitespace is unchanged. Case SV-81 covers it.
 7. **Laid-out text blocks.** Under `@indent`, a compact `name = """` element in a laid-out position gets predicted edges, like a laid-out comment block. Pretty-printed multi-line text, such as a description indented one level deeper than its element, becomes a readable block instead of a quoted string (§6.4). The `= """` statement of the normal form stays literal. Case SV-82 covers it.
 8. **Element aliases.** `@node element-qname alias` gives an element name another spelling, as in `@node g group`. It is declared before the root or in a declaration section, applies only to element openers, and is lexical: the alias stands for the name as written. `@element` always uses the literal name, so it opens an element named like an alias (§§5.2, 8.7). Case SV-83 covers it.
+9. **Alias last in `@block`.** A `@block` declaration names the attribute before the alias, `@block path .d data`, so that it reads like `@node g group`: the XML names first, the alias last. The 1.0-SVG-3 order `@block path data .d` is an error whose message names the new order (§8.1). Case SV-46 covers it.
 
 **Changes in 1.0-SVG-3, since 1.0-SVG-2** (blocks are spelled here as 1.0-SVG-3 wrote them, with `|`):
 
@@ -91,7 +92,7 @@ A block-oriented path representation is available whenever an in-scope alias has
 ```sml
 svg
   @ns http://www.w3.org/2000/svg
-  @block path data .d
+  @block path .d data
   path
     .fill none
     data """
@@ -211,7 +212,7 @@ Without reflow, a writer MAY still use a layout to show a value one item per lin
 | `= value` | Text child of current element |
 | `"more"` | Continuation line: appends a quoted string to the previous quoted value (§6.5) |
 | `@ns [prefix] URI` | Namespace declaration on current element, only at the start of its declaration section |
-| `@block element-qname alias .attribute-qname` | Core declaration mapping a named multiline block to an attribute on matching elements |
+| `@block element-qname .attribute-qname alias` | Core declaration mapping a named multiline block to an attribute on matching elements |
 | `alias """` … `"""` | In a matching element's declaration section, supplies the declared attribute as a multiline value (`alias"""` is equivalent) |
 | `@node element-qname alias` | Element alias: an opener spelled `alias` opens an element named `element-qname`; before the root or in a declaration section (§8.7) |
 | `@noindent` | Marks the current element's content as exact: no predicted formatting whitespace is inserted (§6.4); only in its declaration section |
@@ -267,7 +268,7 @@ The unprefixed name `end` is **reserved** in ordinary element forms: `end()`, `e
 
 ```sml
 body
-  @block div style .style
+  @block div .style style
   div
     style
       = A genuine child element, not the .style attribute
@@ -586,16 +587,18 @@ Blocks may be used for `.attribute`, `=`, inline text, `@comment`, `@comments` (
 The declaration is:
 
 ```sml
-@block element-qname alias-name .attribute-qname
+@block element-qname .attribute-qname alias-name
 ```
 
-For example, `@block svg:path data .d`. The `=` separator accepted by earlier drafts (`@block svg:path data = .d`) is no longer valid.
+For example, `@block svg:path .d data`. The XML names come first and the alias last, as in `@node` (§8.7).
 
 The operands are:
 
 - `element-qname`: QName identifying the kind of element that can use the alias.
-- `alias-name`: unprefixed `NCName` that names the block. It is invoked as `alias-name """` (§8.3) and MUST NOT be `end`.
 - `.attribute-qname`: normal dot-prefixed attribute QName receiving the block's decoded string.
+- `alias-name`: unprefixed `NCName` that names the block. It is invoked as `alias-name """` (§8.3) and MUST NOT be `end`.
+
+Two older spellings are errors: the `=` separator of earlier drafts (`@block svg:path data = .d`), and the 1.0-SVG-3 order with the alias before the attribute (`@block svg:path data .d`). A reader SHOULD name the current order in its message.
 
 `@block` is allowed **only inside a normal element's declaration section**, never in a document prolog. Its binding is lexically scoped to that declaring element and its descendants (including the declaring element itself). It is not written to XML.
 
@@ -611,7 +614,7 @@ Examples:
 
 ```sml
 body
-  @block div style .style
+  @block div .style style
   div
     style """
       margin: 10 0 10 0;
@@ -634,8 +637,8 @@ In contrast:
 svg
   @ns http://www.w3.org/2000/svg
   @ns s http://www.w3.org/2000/svg
-  @block path data .d
-  @block s:polyline points .points
+  @block path .d data
+  @block s:polyline .points points
 
   path
     data """
@@ -664,7 +667,7 @@ path
 end
 ```
 
-Given `@block path data .d` in scope with an appropriate default namespace, this sets `d` to the exact string `M 10 10\nL 100 100\nZ` (where `\n` in this explanation denotes LF). The block ends at its own closing marker; the enclosing element still needs its `end`.
+Given `@block path .d data` in scope with an appropriate default namespace, this sets `d` to the exact string `M 10 10\nL 100 100\nZ` (where `\n` in this explanation denotes LF). The block ends at its own closing marker; the enclosing element still needs its `end`.
 
 The §7 rules for dedentation, LF joining, and termination, including longer markers, apply **unchanged**. No implicit SVG command parsing, folding, trimming, whitespace optimization, escaping, or type conversion occurs. A block may hold arbitrary XML-compatible string data, not only SVG path commands.
 
@@ -691,7 +694,7 @@ This is invalid due to duplicate attribute assignments:
 
 ```sml
 container
-  @block path data .d
+  @block path .d data
   path
     .d M 0 0
     data """
@@ -705,7 +708,7 @@ This is invalid because the alias is invoked after the declaration section has c
 
 ```sml
 container
-  @block path data .d
+  @block path .d data
   path
     @comment geometry follows
     data """
@@ -719,7 +722,7 @@ This is invalid because no `data` alias is active for `rect`:
 
 ```sml
 container
-  @block path data .d
+  @block path .d data
   rect
     data """
       M 0 0
@@ -733,7 +736,7 @@ This is invalid because the block declaration follows actual content:
 ```sml
 container
   item/
-  @block path data .d
+  @block path .d data
 end
 ```
 
@@ -741,7 +744,7 @@ This is invalid because the prefix is not bound before its use, and because `@ns
 
 ```sml
 container
-  @block s:path data .d
+  @block s:path .d data
   @ns s http://www.w3.org/2000/svg
 end
 ```
@@ -956,8 +959,8 @@ Neutral           = Blank | SourceComment | ExtensionDirective ;
 Attribute         = ".", QName, ValueTail ;
 Namespace         = "@ns", HSpace, [ NCName, HSpace ], NsOperand, EOL ;
 NsOperand         = RawToken | Quoted ;
-BlockDeclaration  = "@block", HSpace, QName, HSpace, NCName,
-                    HSpace, ".", QName, EOL ;
+BlockDeclaration  = "@block", HSpace, QName, HSpace, ".", QName,
+                    HSpace, NCName, EOL ;
 NamedAttributeBlock = AliasName, HSpaceOpt, Block ;
 NodeAlias         = "@node", HSpace, QName, HSpace, NCName, EOL ;   (* §8.7 *)
 NoIndent          = "@noindent", EOL ;
@@ -1015,7 +1018,7 @@ SML readers MUST reject, among other malformed syntax:
 
 - **Names and structure:** unbound prefixes anywhere; invalid names or characters; use of the reserved name `end` in ordinary element forms; mismatched `end QName`; document content outside the root; unclosed elements or blocks.
 - **Attributes and namespaces:** duplicate expanded attributes (including aliased duplicates); `.xmlns` attributes; namespace declarations that break §10 (repeated, reserved, or raw-relative URIs, or the wrong number of `@ns` operands); `@ns` after another declaration statement; attribute, namespace, or block declarations after content.
-- **Aliases:** unbound prefixes in `@block` declarations; conflicting aliases within a lexical scope; the legacy `=` separator; alias invocations with no matching active alias or after the declaration section has closed; element aliases that are prefixed or `end`, declared twice in one scope, or declared after the root or after an element's content has begun (§8.7).
+- **Aliases:** unbound prefixes in `@block` declarations; conflicting aliases within a lexical scope; the legacy `=` separator, and the 1.0-SVG-3 order with the alias before the attribute; alias invocations with no matching active alias or after the declaration section has closed; element aliases that are prefixed or `end`, declared twice in one scope, or declared after the root or after an element's content has begun (§8.7).
 - **Values:** malformed escapes; raw values beginning with `"` or `|`, including the 1.0-SVG-3 block markers `|` and `|TAG`; anything after a block marker on its line; misplaced continuation lines; unbalanced parentheses in inline raw values.
 - **Comments and PIs:** invalid comments or PIs, including PI targets containing colons and PI data beginning with whitespace; `@comments` without a block, or with a blank payload line.
 - **Headers:** text statements in a laid-out element (§6.4); repeated or misplaced `@sml`, `@indent`, `@noindent`, or `@doctype`; an `@indent` step in a declaration section without the `@indent` header (§6.4); unknown draft versions; malformed `@doctype` identifiers.
@@ -1123,9 +1126,9 @@ The following fixtures are mandatory in addition to the baseline corpus:
 | SV-30 | Original `standalone="no"` and `"yes"` cases | Declaration state preserved if present |
 | SV-31 | An SML XML comment or PI containing `\r` | SML reader rejects nonrepresentable data |
 | SV-32 | Attribute whose namespace is bound to several prefixes | Lexical QName and declarations remain stable |
-| SV-33 | No-default-namespace `@block div style .style` | Alias targets no-namespace `div` and no-namespace `style` attribute |
-| SV-34 | Default-namespace unprefixed `@block path data .d` | Alias targets the current default namespace, but attribute `d` remains unqualified |
-| SV-35 | Prefixed `@block s:path data .d` | Resolves bound prefix to expanded element name; descendant prefix changes do not retarget mapping |
+| SV-33 | No-default-namespace `@block div .style style` | Alias targets no-namespace `div` and no-namespace `style` attribute |
+| SV-34 | Default-namespace unprefixed `@block path .d data` | Alias targets the current default namespace, but attribute `d` remains unqualified |
+| SV-35 | Prefixed `@block s:path .d data` | Resolves bound prefix to expanded element name; descendant prefix changes do not retarget mapping |
 | SV-36 | Missing or later prefix declaration | Reject alias with unbound prefix, or `@ns` after any other declaration statement |
 | SV-37 | Alias `data` vs. real XML `<data>` child | Bare `data` opens the child; `data """` creates the attribute only; no `@element` needed |
 | SV-38 | Named block after another dot attribute | Both attributes retained; declaration section remains open |
@@ -1136,7 +1139,7 @@ The following fixtures are mandatory in addition to the baseline corpus:
 | SV-43 | Inherited alias shadowed in nested scope | Nearest mapping applies; same-scope duplicate declaration fails |
 | SV-44 | Named block containing a line `"""` as data | Writer uses the longer marker `""""` |
 | SV-45 | Named block with significant leading spaces or terminal LF | Writer falls back if dedentation/termination would change exact string |
-| SV-46 | Legacy `=` separator in a `@block` declaration | Rejected |
+| SV-46 | Legacy `=` separator in a `@block` declaration, and the 1.0-SVG-3 order `@block path data .d` | Rejected; the message for the old order names `@block path .d data` |
 | SV-47 | `style """` after the declaration section closed | Rejected; a bare `style` line there is a child element |
 | SV-48 | Block aliases under two default namespace scopes | Expanded-name lookup distinguishes namespaces without SVG-specific code |
 | SV-49 | XML → SML with generated alias → XML | Prefix/declaration scope and exact attribute values unchanged |
@@ -1266,7 +1269,7 @@ end
 svg
   @ns http://www.w3.org/2000/svg
   @ns svg http://www.w3.org/2000/svg
-  @block svg:path data .d
+  @block svg:path .d data
   path
     data """
       M 10 10
@@ -1283,7 +1286,7 @@ The `svg:path` declaration matches the unprefixed SVG `path` element because mat
 
 ```sml
 body
-  @block div style .style
+  @block div .style style
   div
     style
       = This is an element, not a CSS attribute.

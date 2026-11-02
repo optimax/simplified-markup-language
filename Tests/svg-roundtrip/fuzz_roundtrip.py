@@ -59,7 +59,7 @@ SYSIDS = ['svg11.dtd', 'http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd', 'a"b'
 UNITS = ['  ', '    ', '\t', ' ', '   ', '']
 
 SML_TOKENS = ['|', '"', '\\', '(', ')', ',', '=', '.', '@', '#', ' ', '\t', '\n', 'end', '/', ':',
-              'x', '"""', '""""', '\\u{', '@ns ', '@comments """\n', '@block g x .y\n', '@node g x\n', '@noindent\n', '@indent 2\n', 'xmlns=',
+              'x', '"""', '""""', '\\u{', '@ns ', '@comments """\n', '@block g .y x\n', '@node g x\n', '@noindent\n', '@indent 2\n', 'xmlns=',
               '\r', '\ufeff', 'end g\n', '@element end\n', '"\n']
 # Inserted right after a quote character: targets value constraints at value edges
 # (leading/trailing whitespace, CR, '-' and '--' in comments, '?>' in PIs).
@@ -571,7 +571,7 @@ class VariantWriter:
             if '\n' in v and S.block_marker(v) is not None and r.random() < 0.4:
                 name = f'v{aliases}'
                 aliases += 1
-                self.emit(inner + f'@block {el.qname} {name} .{q}')
+                self.emit(inner + f'@block {el.qname} .{q} {name}')
                 self.value(inner + name, v, inner, alias=True)
             else:
                 self.value(inner + '.' + q, v, inner)

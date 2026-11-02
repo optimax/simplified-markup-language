@@ -780,9 +780,11 @@ public sealed partial class SmlReader
         string[] t = XmlRules.StripSpacesAndTabs(rest).Split([' ', '\t'], StringSplitOptions.RemoveEmptyEntries);
         if (t.Length == 4 && t[2] == "=")
             throw new SmlException("the '=' separator in @block is no longer valid", ln);
-        if (t.Length != 3 || !t[2].StartsWith('.'))
-            throw new SmlException("@block takes: element-qname alias .attribute-qname", ln);
-        string alias = t[1], attribute = t[2][1..];
+        if (t.Length == 3 && t[2].StartsWith('.') && !t[1].StartsWith('.'))
+            throw new SmlException($"the alias now comes last: @block {t[0]} {t[2]} {t[1]}", ln);
+        if (t.Length != 3 || !t[1].StartsWith('.'))
+            throw new SmlException("@block takes: element-qname .attribute-qname alias", ln);
+        string attribute = t[1][1..], alias = t[2];
         ExpandedName element = XmlRules.Resolve(t[0], f.Ns, attribute: false, ln);
         if (!XmlRules.IsNCName(alias) || alias == "end")
             throw new SmlException($"invalid alias name '{alias}'", ln);

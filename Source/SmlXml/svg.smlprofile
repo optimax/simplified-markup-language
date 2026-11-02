@@ -5,7 +5,7 @@
 #
 # Statements:
 #   @ns [prefix] URI                    a namespace for the names below; all @ns lines come first
-#   @block element alias .attribute     an alias (SML §8): alias """ is written instead of .attribute """
+#   @block element .attribute alias     an alias (SML §8): alias """ is written instead of .attribute """
 #   @node element alias                 an element alias (SML §8.7): alias opens the element; none are used here
 #   @layout element .attribute kind     how the attribute's values divide into items: path, numbers N,
 #                                       declarations, functions, or list; the element * is any element
@@ -16,21 +16,21 @@
 @node p para
 
 # Path data: one command per line; --reflow also spaces it, as in M 10, 20.
-@block path data .d
+@block path .d data
 @layout path .d path
-@block glyph data .d
+@block glyph .d data
 @layout glyph .d path
-@block missing-glyph data .d
+@block missing-glyph .d data
 @layout missing-glyph .d path
-@block animateMotion path .path
+@block animateMotion .path path
 @layout animateMotion .path path
-@block textPath path .path
+@block textPath .path path
 @layout textPath .path path
 
 # Point lists: one x, y pair per line; --reflow also spaces it, as in 10, 20.
-@block polyline points .points
+@block polyline .points points
 @layout polyline .points numbers 2
-@block polygon points .points
+@block polygon .points points
 @layout polygon .points numbers 2
 
 # Color matrices: one row of five numbers per line.

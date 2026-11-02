@@ -87,7 +87,7 @@ end
 # Readable conversion (SML §3.2), not strict: one item per line in d
 @sml 1.0-SVG-4
 svg(xmlns=http://www.w3.org/2000/svg)
-  @block path data .d
+  @block path .d data
   path
     data """
       M 20 60
@@ -126,7 +126,7 @@ A profile is a UTF-8 text file with one statement per line; blank lines and line
 | Statement | Meaning |
 |---|---|
 | `@ns [prefix] URI` | Binds a prefix, or the default namespace, for the names that follow. All `@ns` lines come first. |
-| `@block element alias .attribute` | An alias, as in SML (§8): a block for this attribute of this element is written `alias """` instead of `.attribute """`. The aliases used are declared on the root element, so an alias is used only where the root's namespace declarations can name its element. |
+| `@block element .attribute alias` | An alias, as in SML (§8): a block for this attribute of this element is written `alias """` instead of `.attribute """`. The aliases used are declared on the root element, so an alias is used only where the root's namespace declarations can name its element. |
 | `@node element alias` | An element alias, as in SML (§8.7): elements with this name are opened as `alias`, as in `group(id=a)` for `<g id="a">`. The aliases used are declared before the root, for the name of the first such element; elements with another prefix keep their names. An alias is not used at all when an element of the document already has that name. |
 | `@layout element .attribute layout` | How the attribute's values divide into items (§3.2): `path`, `numbers N` (N numbers per item), `declarations`, `functions`, or `list` (`;`-separated). The element `*` means any element without a layout of its own for that attribute. |
 

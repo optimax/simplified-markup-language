@@ -23,7 +23,7 @@ Provide `smlxml`, a two-way SML ↔ XML/SVG command-line converter in C# on .NET
   - With `--verbose`, it writes every attribute and namespace declaration on its own line.
 
   Behavior and requirements are in `Source/SmlXml/implementation.md`, usage and the profile format in `Source/SmlXml/README.md`.
-- **`Source/Sml.Tests`** has 2,035 xUnit tests:
+- **`Source/Sml.Tests`** has 2,036 xUnit tests:
   - the corpus, compared byte for byte with the Python reference output;
   - both round trips;
   - the negative corpus;
@@ -38,36 +38,29 @@ Provide `smlxml`, a two-way SML ↔ XML/SVG command-line converter in C# on .NET
 - **`README.md`** at the root introduces the project on GitHub. It assumes a public repository under the MIT license.
 - Solution-wide environment, conventions, decisions, and traps are in `implementation.md`.
 
-## Files changed in the last task (`@node` element aliases)
+## Files changed in the last task (alias last in `@block`)
 
-`@node element-qname alias` gives an element name another spelling, as in `@node g group` and `@node p para`. The language stays 1.0-SVG-4 (change-list item 8, specification §8.7, case SV-83).
+The user asked for both alias declarations to read the same way: XML names first, alias last. `@node g group` already did; `@block` changes from `@block path data .d` to `@block path .d data`. The language stays 1.0-SVG-4 (change-list item 9).
 
-- **Language.**
-  - Declared before the root, for the whole document, or in a declaration section, for that element's content. A nearer scope shadows an outer one, and an alias declared twice in one scope is an error.
-  - Used by every opener form (`group`, `group(...)`, `group/`, `group = text`).
-  - Lexical: the alias stands for the name as written, and its prefix resolves where the element is opened. Aliases never chain, and the real name still works.
-  - `@element` always uses the literal name, so it opens an element named like an alias in scope. `end QName` accepts the alias or the real name.
-  - The canonical form never uses `@node`.
-- **Profiles (C# only).** A profile may declare `@node element alias`; `smlxml --profile` then declares the aliases it uses before the root and opens those elements with them. The profile names an expanded name, so the writer declares the alias for the lexical name of the first such element and uses it only for elements with both. It skips an alias that an element of the document is named like. `svg.smlprofile` declares none, so its output is unchanged.
+- The old order (`@block E alias .attr`) is an error whose message names the new order (`the alias now comes last: @block E .attr alias`), in SML and in profiles. The `=` separator of earlier drafts is still rejected as before.
+- `svg.smlprofile` uses the new order, so `smlxml --profile svg --reflow` declares `@block path .d data` and `@block polygon .points points`.
+- `@node` (element aliases, specification §8.7) was added in the task before; profiles can declare it, and `svg.smlprofile` declares none.
 - Files:
-  - `Documents/SML-Language-Specification.md`: change list, §§3, 5, 5.1, 5.2, 5.3, 8 (title and new §8.7), 11, 12.1–12.3, 14.1, 14.2 rule 1, and §15 row SV-83.
-  - `Tests/svg-roundtrip/sml_prototype.py`: `d_node`, `node_target`, frames record their element aliases and the alias they were opened with.
-  - `Tests/svg-roundtrip/fuzz_roundtrip.py`: `VariantWriter` declares element aliases in the prolog and in declaration sections, sometimes named like real elements, which it then opens with `@element`; new mutation token `@node g x`.
-  - `Tests/svg-roundtrip/test_sml_core.py`: SV-83.
-  - `Source/Sml/SmlReader.cs`: the same reader changes.
-  - `Source/Sml/SmlProfile.cs`: the `@node` statement (`NodeAlias`, `Nodes`).
-  - `Source/Sml/SmlWriter.cs`: `PlanNodeAliases`; `Write` declares the aliases; `Element` opens with them.
-  - `Source/Sml.Tests/ReaderTests.cs` (`SV83_NodeAliases`), `Source/Sml.Tests/ProfileTests.cs` (profile errors, three writer tests, and an aliased profile over every fixture and corpus file).
-  - `Source/SmlXml/README.md`, `Source/SmlXml/implementation.md`, the comment of `Source/SmlXml/svg.smlprofile`, `README.md`, `Tests/svg-roundtrip/README.md`.
+  - `Documents/SML-Language-Specification.md`: change list item 9, §8.1 (syntax, operand order, the two rejected spellings), the §12.2 grammar, §12.3, SV-46, and every `@block` example.
+  - `Tests/svg-roundtrip/sml_prototype.py` (`d_block`), `test_sml_core.py`, `fuzz_roundtrip.py` (`VariantWriter` and the mutation token).
+  - `Source/Sml/SmlReader.cs` (`BlockDeclaration`), `SmlProfile.cs` (`Block`), `SmlWriter.cs` (the declarations on the root).
+  - `Source/Sml.Tests/ReaderTests.cs`, `ProfileTests.cs`, `CommandLineTests.cs`, `WriterOptionsTests.cs`.
+  - `Source/SmlXml/svg.smlprofile`, `Source/SmlXml/README.md`.
+- `Documents/SML-Spec-Review-Claude.md` keeps the old order: it reviews revision 1.0-SVG-2.
 
 ## Build and test results
 
 - `dotnet build SimplifiedMarkupLanguage.slnx -c Release`: 0 warnings, 0 errors.
-- `dotnet test`: 2,035/2,035 passed, including the byte-for-byte comparison with the regenerated Python reference SML.
+- `dotnet test`: 2,036/2,036 passed, including the byte-for-byte comparison with the regenerated Python reference SML.
 - `fuzz_roundtrip.py --docs 2000 --seed 7`: 0 findings (only the known parser divergences).
-- `crosscheck_csharp.py` seeds 1–3 with `@node` variants (3,000 documents, 12,000 SML mutants): 0 differences.
+- `crosscheck_csharp.py` seeds 1–3 with `@node` variants and the new `@block` order (3,000 documents, 12,000 SML mutants): 0 differences.
 - `smlxml --verbose` over a copy of `Tests/svg-corpus`: the Python prototype read all 381 accepted files back equal to their originals.
-- Profiles over a copy of `Tests/svg-corpus` with the real executable, checked by the Python prototype (script not in the repository):
+- Profiles over a copy of `Tests/svg-corpus` with the real executable, checked by the Python prototype (script not in the repository), after the `@block` order change:
   - `smlxml -p svg` output read back equal to the original for all 381 accepted files;
   - `smlxml -p svg -r` reflowed values in 311 files;
   - the C# and Python readers agreed on every reflowed file.
@@ -75,7 +68,7 @@ Provide `smlxml`, a two-way SML ↔ XML/SVG command-line converter in C# on .NET
 - `smlxml *.svg` then `smlxml -o *.out.svg *.sml` over all 47 corpus fixtures produced 47 `.out.svg` files; the Python importer found each equal in information to its original.
 - `dotnet publish Source/SmlXml/SmlXml.csproj -p:PublishProfile=windows` produced `publish/smlxml/win-x64/smlxml.exe` (PE32+ x86-64) and `publish/smlxml/win-x86/smlxml.exe` (PE32 Intel 80386), each with `LICENSE.md` and `svg.smlprofile`. This held both from the repository root and from the project folder. The assemblies' CLR headers confirm Any CPU. `windows.pubxml` is the only publish profile and also serves Visual Studio; Visual Studio itself was not run, and neither executable was run on Windows. Visual Studio's Publish page shows "Target runtime: win-x64" for the profile; that is expected and documented, and each Publish writes both builds.
 - `python build_and_test.py`: 53/53 fixtures, 9/9 rejections, 61/61 unit tests, 0 fuzz findings.
-- `fuzz_roundtrip.py` seed 21 (1,500 documents) with `@node` variants: 0 findings (only the known parser divergences). 400 variants had 393 `@node` declarations, 171 of them in declaration sections, and 236 `@element` openers; all read back equal.
+- `fuzz_roundtrip.py` seed 22 (1,500 documents) after the `@block` order change: 0 findings. Seed 21 (1,500 documents) with `@node` variants: 0 findings (only the known parser divergences). 400 variants had 393 `@node` declarations, 171 of them in declaration sections, and 236 `@element` openers; all read back equal.
 - `smlxml -p` with `svg.smlprofile` plus six `@node` aliases (one colliding with real `desc` elements) over a copy of `Tests/svg-corpus` and the fixtures: the Python prototype read all 434 outputs back equal to their SVG files; 433 declared aliases, used 5,213 times, and no colliding alias was used.
 - `Tests/svg-corpus` was checked by hand, with a script that is not in the repository:
   - Python and C# both accept 381 of the 385 files. Each round-trips XML → SML → XML to the same document, and the canonical SML is byte-identical between the implementations. Three files use the new forms (8 per-element steps, 1 laid-out text block).

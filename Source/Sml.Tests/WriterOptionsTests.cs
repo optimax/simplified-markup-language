@@ -47,13 +47,13 @@ public class WriterOptionsTests
     [Fact]
     public void CombinesWithAProfile()
     {
-        SmlProfile profile = SmlProfile.Parse("@layout * .transform functions\n@block g t .transform\n");
+        SmlProfile profile = SmlProfile.Parse("@layout * .transform functions\n@block g .transform t\n");
         SmlDocument doc = Xml("<g transform='scale(2)'><g transform='translate(1,2) rotate(3)'/></g>");
         Assert.Equal(""""
             # Readable conversion (SML §3.2), not strict: one item per line in transform
             @sml 1.0-SVG-4
             g
-              @block g t .transform
+              @block g .transform t
               .transform scale(2)
               g
                 t """

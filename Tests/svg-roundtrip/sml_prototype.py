@@ -790,9 +790,11 @@ class SmlReader:
         toks = [t for t in re.split(r'[ \t]+', rest) if t]
         if len(toks) == 4 and toks[2] == '=':
             raise SmlError("the '=' separator in @block is no longer valid", ln)
-        if len(toks) != 3 or not toks[2].startswith('.'):
-            raise SmlError('@block takes: element-qname alias .attribute-qname', ln)
-        element, alias, attr = toks[0], toks[1], toks[2][1:]
+        if len(toks) == 3 and toks[2].startswith('.') and not toks[1].startswith('.'):
+            raise SmlError(f'the alias now comes last: @block {toks[0]} {toks[2]} {toks[1]}', ln)
+        if len(toks) != 3 or not toks[1].startswith('.'):
+            raise SmlError('@block takes: element-qname .attribute-qname alias', ln)
+        element, attr, alias = toks[0], toks[1][1:], toks[2]
         expanded = resolve_qname(element, f.ns, False, ln)
         if not is_ncname(alias) or alias == 'end':
             raise SmlError(f'invalid alias name {alias!r}', ln)
