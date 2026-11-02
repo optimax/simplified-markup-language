@@ -31,6 +31,13 @@
           CopyToPublishDirectory="PreserveNewest" ExcludeFromSingleFile="true" />
   </ItemGroup>
 
+  <!-- The built-in profiles ship beside smlxml.exe too, where the profile option finds them by name
+       ("svg" for svg.smlprofile). -->
+  <ItemGroup>
+    <None Include="*.smlprofile" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest"
+          ExcludeFromSingleFile="true" />
+  </ItemGroup>
+
   <!-- After publishing, publish each runtime in AdditionalPublishRuntimes (set by the windows profile) the same
        way, into its own folder. Because this runs after Publish, Visual Studio's Publish produces both the 64-bit
        and the 32-bit smlxml.exe too. Clearing AdditionalPublishRuntimes stops the inner publish from recursing. -->

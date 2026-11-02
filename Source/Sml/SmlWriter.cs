@@ -2,7 +2,8 @@ using System.Text;
 
 namespace Sml;
 
-/// <summary>Writes the canonical SML form (specification §14.2): a function of the document alone.</summary>
+/// <summary>Writes SML: the canonical form (specification §14.2), a function of the document alone, or with an
+/// <see cref="SmlProfile"/>, the canonical form adjusted by the profile's aliases and layouts.</summary>
 public sealed class SmlWriter
 {
     private const int LineLimit = 100;
@@ -14,14 +15,40 @@ public sealed class SmlWriter
     private readonly SmlDocument _doc;
     private readonly List<string> _out = [];
     private readonly string? _unit;
+    private readonly SmlProfile? _profile;
+    private readonly bool _reflow;
 
-    private SmlWriter(SmlDocument doc)
+    /// <summary>The alias declarations written on the root: element QName, alias, and attribute QName.</summary>
+    private readonly List<(string Element, string Alias, string Attribute)> _aliasDeclarations = [];
+
+    /// <summary>The attributes written with an alias: element expanded name and attribute lexical name.</summary>
+    private readonly Dictionary<(ExpandedName Element, string Attribute), string> _aliasOf = [];
+
+    /// <summary>The lexical names of the attributes whose values were reflowed.</summary>
+    private readonly SortedSet<string> _reflowed = new(Comparer<string>.Create(XmlRules.CompareCodePoints));
+
+    private SmlWriter(SmlDocument doc, SmlProfile? profile, bool reflow)
     {
         _doc = doc;
         _unit = ChooseIndent(doc);
+        _profile = profile;
+        _reflow = reflow && profile is not null;
+        if (profile is not null)
+            PlanAliases(profile);
     }
 
-    public static string Write(SmlDocument doc) => new SmlWriter(doc).Write();
+    /// <summary>Writes the canonical form of the document.</summary>
+    public static string Write(SmlDocument doc) => new SmlWriter(doc, null, false).Write();
+
+    /// <summary>Writes the document with a profile's aliases and layouts; the output is not canonical.
+    /// <para>Without reflow the output reads back as the same document. A value written as a block uses the
+    /// profile's alias for its attribute, declared on the root element. A value with a layout and at least two
+    /// items is quoted, with a continuation line for each item (§6.5).</para>
+    /// <para>With reflow, the readable conversion of §3.2: each value with a layout is written with one item per
+    /// line, so the output reads back as a different document whose values contain line breaks. The output then
+    /// starts with a <c>#</c> comment that names the attributes reflowed.</para></summary>
+    public static string Write(SmlDocument doc, SmlProfile profile, bool reflow = false) =>
+        new SmlWriter(doc, profile, reflow).Write();
 
     private string Write()
     {
@@ -35,7 +62,127 @@ public sealed class SmlWriter
         Element(_doc.Root, 0);
         foreach (SmlNode item in _doc.Epilog)
             Misc(item, 0);
+        if (_reflowed.Count > 0)
+            _out.Insert(0, "# Readable conversion (SML §3.2), not strict: one item per line in " + string.Join(", ", _reflowed));
         return string.Join('\n', _out) + "\n";
+    }
+
+    // ---------------------------------------------------------------------------------------------
+    // Profiles
+
+    /// <summary>The value to write for an attribute, reflowed if requested, and its layout, if any.</summary>
+    private (string Value, Layout? Layout) Effective(ElementNode element, string name, string value)
+    {
+        if (_profile is null)
+            return (value, null);
+        Layout? layout = _profile.FindLayout(element.Name, element.AttributeNames[name]);
+        if (_reflow && layout is { } l && ValueLayout.Reflow(value, l) is { } reflowed)
+            return (reflowed, layout);
+        return (value, layout);
+    }
+
+    /// <summary>Whether a profile writes the value quoted with a continuation line per item.</summary>
+    private static bool Segmented(string value, Layout? layout) =>
+        layout is { } l && BlockTag(value) is null && ValueLayout.Segments(value, l) is not null;
+
+    /// <summary>Chooses the aliases to use: those of attributes written as blocks, where the element and attribute
+    /// names resolve on the root (§8.5), so that one declaration there serves the whole document.</summary>
+    private void PlanAliases(SmlProfile profile)
+    {
+        ElementNode root = _doc.Root;
+        var stack = new Stack<ElementNode>([root]);
+        var used = new HashSet<SmlProfile.Alias>();
+        var lexical = new Dictionary<SmlProfile.Alias, (string Element, string Attribute)>();
+        while (stack.Count > 0)
+        {
+            ElementNode element = stack.Pop();
+            foreach (var (name, value) in element.Attributes)
+            {
+                SmlProfile.Alias? alias = profile.FindAlias(element.Name, element.AttributeNames[name]);
+                if (alias is null || BlockTag(Effective(element, name, value).Value) is null)
+                    continue;
+                if (lexical.TryGetValue(alias, out var declared))
+                {
+                    if (declared.Attribute == name)
+                        _aliasOf[(element.Name, name)] = alias.Name;
+                    continue;
+                }
+                string? elementName = QNameOnRoot(root, element.Name);
+                if (elementName is null || !AttributeResolvesOnRoot(root, name, element.AttributeNames[name]))
+                    continue;
+                lexical[alias] = (elementName, name);
+                used.Add(alias);
+                _aliasOf[(element.Name, name)] = alias.Name;
+            }
+            foreach (ElementNode child in element.Children.OfType<ElementNode>().Reverse())
+                stack.Push(child);
+        }
+        foreach (SmlProfile.Alias alias in profile.Aliases.Where(used.Contains))
+            _aliasDeclarations.Add((lexical[alias].Element, alias.Name, lexical[alias].Attribute));
+    }
+
+    /// <summary>A QName for an element's expanded name under the root's namespace declarations, or null.</summary>
+    private static string? QNameOnRoot(ElementNode root, ExpandedName name)
+    {
+        root.NamespaceDeclarations.TryGetValue("", out string? defaultNs);
+        if (string.IsNullOrEmpty(defaultNs))
+            defaultNs = null;
+        if (name.Namespace == defaultNs)
+            return name.Local;
+        if (name.Namespace is null)
+            return null;
+        string? prefix = root.NamespaceDeclarations
+            .Where(d => d.Key.Length > 0 && d.Value == name.Namespace)
+            .Select(d => d.Key)
+            .Order(Comparer<string>.Create(XmlRules.CompareCodePoints))
+            .FirstOrDefault();
+        return prefix is null ? null : prefix + ":" + name.Local;
+    }
+
+    /// <summary>Whether an attribute's lexical name means the same expanded name on the root.</summary>
+    private static bool AttributeResolvesOnRoot(ElementNode root, string lexical, ExpandedName name)
+    {
+        int colon = lexical.IndexOf(':');
+        if (colon < 0)
+            return true;
+        string prefix = lexical[..colon];
+        if (prefix == "xml")
+            return true;
+        return root.NamespaceDeclarations.TryGetValue(prefix, out string? uri) && uri == name.Namespace;
+    }
+
+    /// <summary>Writes an attribute: with a profile, as a block with its alias, or with a continuation line per
+    /// item, where those apply; otherwise in canonical form.</summary>
+    private void Attribute(ElementNode element, string name, string value, int depth)
+    {
+        string ind = Indentation(depth);
+        var (written, layout) = Effective(element, name, value);
+        if (written != value)
+            _reflowed.Add(name);
+        if (_profile is not null && BlockTag(written) is { } tag)
+        {
+            string head = _aliasOf.TryGetValue((element.Name, name), out string? alias) ? alias : "." + name;
+            Block(ind + head, written, tag, depth);
+            return;
+        }
+        if (layout is { } l && ValueLayout.Segments(written, l) is { } segments)
+        {
+            string head = ind + "." + name + " ";
+            foreach (string segment in segments)
+            {
+                List<string> units = EscapeUnits(segment);
+                IEnumerable<string> parts = XmlRules.CodePointLength(head) + 2 + units.Sum(XmlRules.CodePointLength) <= LineLimit
+                    ? [string.Concat(units)]
+                    : SplitSegments(units);
+                foreach (string part in parts)
+                {
+                    _out.Add(head + "\"" + part + "\"");
+                    head = ind + "  ";
+                }
+            }
+            return;
+        }
+        Value(ind + "." + name, written, depth);
     }
 
     // ---------------------------------------------------------------------------------------------
@@ -226,10 +373,7 @@ public sealed class SmlWriter
         string? tag = allowBlock ? BlockTag(value) : null;
         if (tag is not null)
         {
-            _out.Add(prefix + " |" + (tag == "end" ? "" : tag));
-            string inner = ind + "  ";
-            _out.AddRange(value.Split('\n').Select(line => line.Length == 0 ? "" : inner + line));
-            _out.Add(ind + tag);
+            Block(prefix, value, tag, depth);
             return;
         }
         List<string> units = EscapeUnits(value);
@@ -241,6 +385,15 @@ public sealed class SmlWriter
         List<string> segments = SplitSegments(units);
         _out.Add(prefix + " \"" + segments[0] + "\"");
         _out.AddRange(segments.Skip(1).Select(segment => ind + "  \"" + segment + "\""));
+    }
+
+    /// <summary>Writes prefix and a value as a block (§7) ended by tag; depth is the statement's.</summary>
+    private void Block(string prefix, string value, string tag, int depth)
+    {
+        string ind = Indentation(depth), inner = ind + "  ";
+        _out.Add(prefix + " |" + (tag == "end" ? "" : tag));
+        _out.AddRange(value.Split('\n').Select(line => line.Length == 0 ? "" : inner + line));
+        _out.Add(ind + tag);
     }
 
     private void Misc(SmlNode item, int depth)
@@ -286,19 +439,26 @@ public sealed class SmlWriter
             .ThenBy(a => element.AttributeNames[a.Key].Namespace ?? "", Comparer<string>.Create(XmlRules.CompareCodePoints))
             .ThenBy(a => element.AttributeNames[a.Key].Local, Comparer<string>.Create(XmlRules.CompareCodePoints))
             .ToList();
+        var attributeEntries = attributes.Select(a =>
+        {
+            var (value, layout) = Effective(element, a.Key, a.Value);
+            return (Name: a.Key, Value: value, IsNamespace: false, Layout: layout);
+        });
         var entries = declarations
-            .Select(d => (Name: d.Key.Length == 0 ? "xmlns" : "xmlns:" + d.Key, d.Value, IsNamespace: true))
-            .Concat(attributes.Select(a => (Name: a.Key, a.Value, IsNamespace: false)))
+            .Select(d => (Name: d.Key.Length == 0 ? "xmlns" : "xmlns:" + d.Key, d.Value, IsNamespace: true, Layout: (Layout?)null))
+            .Concat(attributeEntries)
             .ToList();
         bool isEnd = element.QualifiedName == "end";
-        bool inline = !isEnd && entries.All(e => RawInlineOk(e.Value) && (!e.IsNamespace || e.Value.Contains(':')));
+        bool inline = !isEnd && entries.All(e =>
+            RawInlineOk(e.Value) && (!e.IsNamespace || e.Value.Contains(':')) && !Segmented(e.Value, e.Layout));
         string opener = element.QualifiedName;
         if (entries.Count > 0 && inline)
         {
             opener += "(" + string.Join(", ", entries.Select(e => e.Name + "=" + e.Value)) + ")";
             inline = XmlRules.CodePointLength(ind + opener) <= LineLimit;
         }
-        if ((inline || entries.Count == 0) && !isEnd)
+        bool declaresAliases = depth == 0 && _aliasDeclarations.Count > 0;
+        if ((inline || entries.Count == 0) && !isEnd && !declaresAliases)
         {
             if (nodes.Count == 0)
             {
@@ -315,15 +475,21 @@ public sealed class SmlWriter
             _out.Add(ind + "@element end");
         else
             _out.Add(ind + (inline || entries.Count == 0 ? opener : element.QualifiedName));
-        if (entries.Count > 0 && !(inline && !isEnd))
+        bool vertical = entries.Count > 0 && !(inline && !isEnd);
+        if (vertical)
         {
             foreach (var (prefix, uri) in declarations)
             {
                 string token = RawOk(uri) && uri.Contains(':') && !uri.Contains(' ') ? uri : Quote(uri);
                 _out.Add(inner + "@ns " + (prefix.Length == 0 ? "" : prefix + " ") + token);
             }
+        }
+        if (declaresAliases)
+            _out.AddRange(_aliasDeclarations.Select(d => $"{inner}@block {d.Element} {d.Alias} .{d.Attribute}"));
+        if (vertical)
+        {
             foreach (var (name, value) in attributes)
-                Value(inner + "." + name, value, depth + 1);
+                Attribute(element, name, value, depth + 1);
         }
         if (noIndent)
             _out.Add(inner + "@noindent");

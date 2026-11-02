@@ -26,11 +26,11 @@ python Tests/svg-roundtrip/build_and_test.py
 python Tests/svg-roundtrip/crosscheck_csharp.py --docs 1000
 ```
 
-The publish profile writes two framework-dependent single-file executables, each with `LICENSE.md` beside it: `publish/smlxml/win-x64/smlxml.exe` (64-bit, needs the x64 .NET 10 runtime) and `publish/smlxml/win-x86/smlxml.exe` (32-bit, needs the x86 .NET 10 runtime). `Source/SmlXml/Properties/PublishProfiles/windows.pubxml` is the only publish profile; Visual Studio's Publish command uses it too. `crosscheck_csharp.py` needs a Release build of `Source/SmlXml` first.
+The publish profile writes two framework-dependent single-file executables, each with `LICENSE.md` and `svg.smlprofile` beside it: `publish/smlxml/win-x64/smlxml.exe` (64-bit, needs the x64 .NET 10 runtime) and `publish/smlxml/win-x86/smlxml.exe` (32-bit, needs the x86 .NET 10 runtime). `Source/SmlXml/Properties/PublishProfiles/windows.pubxml` is the only publish profile; Visual Studio's Publish command uses it too. `crosscheck_csharp.py` needs a Release build of `Source/SmlXml` first.
 
 ## Conventions
 
-- **Two implementations, one behavior.** The Python prototype and the C# library implement the same specification. Their canonical SML must be byte-identical: `CorpusTests` compares C# output with `Tests/svg-roundtrip/results/*.sml`, and `crosscheck_csharp.py` compares both on random documents and mutants. A change to the specification's syntax or canonical form must be made in both, followed by both test suites and the cross-check.
+- **Two implementations, one behavior.** The Python prototype and the C# library implement the same specification. Their canonical SML must be byte-identical: `CorpusTests` compares C# output with `Tests/svg-roundtrip/results/*.sml`, and `crosscheck_csharp.py` compares both on random documents and mutants. A change to the specification's syntax or canonical form must be made in both, followed by both test suites and the cross-check. Writer profiles (`SmlProfile`, `ValueLayout`, the reflow of §3.2) exist only in C#. They change neither syntax nor the canonical form, and their output is ordinary SML that the Python reader must read the same way.
 - **Code points, not UTF-16 units.** The canonical form measures lines in code points and orders names by code point. In C#, use `XmlRules.CodePointLength` and `XmlRules.CompareCodePoints`, never `string.Length` or ordinal comparison, for those rules.
 - **Warnings are errors** in all C# projects.
 - **Calculation separate from presentation.** `Source/Sml` has no console or file-system code; `Source/SmlXml/CommandLine.cs` owns arguments, files, and messages.
@@ -39,6 +39,11 @@ The publish profile writes two framework-dependent single-file executables, each
 
 - **The library is split from the command line** so that the format logic can be tested directly and reused by future tools such as an editor.
 - **The XML importer turns off System.Xml namespace processing.** It uses `XmlTextReader` with `Namespaces = false`, wrapped with character checking, and validates names and namespaces itself with `XmlRules`, as the SML reader does. With namespace processing on, System.Xml rejects `xml:space` values other than `default` and `preserve`, which are well-formed opaque values without a DTD.
+- **Writer profiles are exact unless reflow is asked for.**
+  - A profile (`SmlProfile`) gives SML output aliases and layouts.
+  - By default it changes only the SML spelling: blocks through aliases, and continuation lines at item boundaries.
+  - `--reflow` applies the specification's lossy readable reflow (§3.2), which rewrites values one item per line.
+  - The format is smlxml configuration, not SML. SML written with a profile is self-contained (§8.5): `SmlWriter` declares the aliases it uses on the root element.
 - **External DTDs are never loaded** (`XmlResolver = null`). DTD internal subsets are rejected, including an empty `[]`, which System.Xml cannot distinguish from no subset; `XmlImporter.HasInternalSubset` scans the prolog for it.
 - **One publish profile, both bitnesses.**
   - `windows.pubxml` serves both the command line and Visual Studio. `PublishProtocol=FileSystem` and `_TargetId=Folder` make Visual Studio list it as a folder profile.
