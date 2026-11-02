@@ -1,6 +1,6 @@
 # SVG corpus
 
-505 real-world SVG files from 16 open-source projects, kept as examples for testing `smlxml` and the Python prototype on files that neither was written against. The files are unchanged copies; their sources and licenses (MIT, ISC, and BSD-3-Clause) are in [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md). The corpus is part of the source distribution only; `smlxml` builds and publishes do not include it.
+385 real-world SVG files from 15 open-source projects, kept as examples for testing `smlxml` and the Python prototype on files that neither was written against. The files are unchanged copies; their sources and licenses (MIT and ISC) are in [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md). The corpus is part of the source distribution only; `smlxml` builds and publishes do not include it.
 
 | Folder | Files | What they exercise |
 |---|---|---|
@@ -9,8 +9,7 @@
 | `flag-icons` | 30 | National flags in 4×3 and 1×1, including the six largest (detailed coats of arms) |
 | `weather-icons` | 24 | Animated (SMIL) icons with gradients, and tab-indented design exports |
 | `svg-spinners`, `svg-loaders` | 38 | SMIL and CSS animation; `svg-loaders` has CRLF line endings |
-| `w3c-svg11` | 120 | W3C SVG 1.1 test cases: scripts, CDATA, `xml:space`, `xml:lang`, DOCTYPEs, entities, fonts, filters, animation |
-| `resvg` | 100 | resvg renderer tests: edge cases of filters, masking, paint servers, painting, shapes, structure, and text |
+| `resvg` | 100 | resvg renderer tests: edge cases of filters, masking, paint servers, painting, shapes, structure, and text; DOCTYPEs, entities, `xml:space`, and a non-UTF encoding |
 
 Each folder keeps the files' paths within their source (see the notices), so every file can be traced to its original. `.gitattributes` turns off line-end conversion, so the files stay byte-identical to the originals on every platform.
 
@@ -27,20 +26,18 @@ It replaces each source's folder and the notices, and leaves the other files alo
 The selection is deterministic: an evenly spaced sample of each source's sorted file list, with each file at most 200 KB.
 
 - Brand and product logos are left out, because they are trademarks even where the drawing is MIT-licensed. Flags are national flags only.
-- From `w3c-svg11` and `resvg`, every file is included that has a DOCTYPE, an entity declaration, `xml:space`, `xml:lang`, a non-UTF encoding, or a character reference. The rest of each is an even spread across feature areas.
+- A file with an "All Rights Reserved" notice is never selected, whatever its source's license says. For this reason the W3C SVG 1.1 test suite, which web-platform-tests distributes under BSD but whose files say "All Rights Reserved", is not included.
+- From `resvg`, every file is included that has a DOCTYPE, an entity declaration, `xml:space`, `xml:lang`, a non-UTF encoding, or a character reference. The rest is an even spread across feature areas.
 - Not covered: files saved by Inkscape or Illustrator with their editor metadata (`sodipodi:`, `inkscape:`, Adobe namespaces). No such files were found under an MIT-like license.
 
 ## Expected results
 
-Both implementations accept 495 files, and each round-trips (XML → SML → XML) to the same document. The C# and Python canonical SML is byte-identical for every file.
+Both implementations accept 381 files, and each round-trips (XML → SML → XML) to the same document. The C# and Python canonical SML is byte-identical for every file.
 
-The other 10 files are rejected by both, as the specification requires (§3), because they have a DTD internal subset (entity declarations):
+The other 4 files are rejected by both, as the specification requires (§3), because they have a DTD internal subset (entity declarations):
 
 - `resvg/structure/svg/attribute-value-via-ENTITY-reference.svg`
 - `resvg/structure/svg/elements-via-ENTITY-reference-1.svg`, `-2.svg`, `-3.svg`
-- `w3c-svg11/coords-viewattr-01-b-manual.svg`, `-02-b-manual.svg`, `-04-f-manual.svg`
-- `w3c-svg11/render-elems-03-t-manual.svg`
-- `w3c-svg11/text-tref-02-b-manual.svg`, `text-tref-03-b-manual.svg`
 
 To repeat the check, copy the folder first, because `smlxml` writes beside its inputs:
 
@@ -51,4 +48,4 @@ smlxml "svg-corpus/**/*.svg"
 smlxml -o "*.out.svg" "svg-corpus/**/*.sml"
 ```
 
-The first command converts 495 files and reports the 10 rejections; the second writes `name.out.svg` beside each `name.svg`.
+The first command converts 381 files and reports the 4 rejections; the second writes `name.out.svg` beside each `name.svg`.

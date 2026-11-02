@@ -13,7 +13,9 @@ temporary folder that is removed afterwards. In the destination, each source's f
 are replaced; other files are left alone.
 
 The selection is deterministic, so the pinned sources always give the same files. A new source must be under
-a license that allows redistribution with the source code, such as MIT, ISC, or BSD.
+a license that allows redistribution with the source code, such as MIT, ISC, or BSD, and its files must say
+nothing to the contrary: a file with an "All Rights Reserved" notice is never selected, and the run stops if
+one is selected by name.
 """
 import argparse
 import io
@@ -102,11 +104,6 @@ SOURCES = [
            root='svg'),
     Source('tabler', 'MIT', '`icons/`', npm='@tabler/icons', version='3.50.0',
            repo='https://github.com/tabler/tabler-icons', root='icons'),
-    Source('w3c-svg11', 'BSD-3-Clause', '`svg/import/`', git='https://github.com/web-platform-tests/wpt',
-           version='6ca6374f30bf13f656d0af9921b43a6174002dcb', license_file='LICENSE.md', root='svg/import',
-           note='These are test cases of the W3C SVG 1.1 Second Edition test suite, as imported into '
-                'web-platform-tests. Each file keeps the W3C copyright notice it was published with; '
-                'web-platform-tests distributes them under the 3-Clause BSD License below.'),
     Source('weather-icons', 'MIT', 'the package root', npm='@bybas/weather-icons', version='2.0.0',
            repo='https://github.com/basmilius/weather-icons'),
 ]
@@ -121,14 +118,20 @@ def spread(items, k):
     return [items[int((i + 0.5) * n / k)] for i in range(k)]
 
 
+def reserved(data):
+    """Whether a file carries an "All Rights Reserved" notice, which contradicts free redistribution."""
+    return b'all rights reserved' in data.lower()
+
+
 def ok(path, data, brands=True):
-    """Whether a file may be selected: a plain file name, not a brand logo, and at most MAX_BYTES."""
+    """Whether a file may be selected: a plain file name, not a brand logo, no "All Rights Reserved" notice, and
+    at most MAX_BYTES."""
     name = path.rsplit('/', 1)[-1]
     if not SAFE_NAME.match(name):
         return False
     if brands and BRANDS.search(name[:-4]):
         return False
-    return len(data) <= MAX_BYTES
+    return len(data) <= MAX_BYTES and not reserved(data)
 
 
 def candidates(files, folder='', brands=True):
@@ -252,7 +255,7 @@ def gather(src, work):
         return select_npm(src, files), files[src.license_file]
     if src.folder == 'fluent-emoji':
         return select_fluent(src, work)
-    return select_tests(src, work, {'w3c-svg11': 120, 'resvg': 100}[src.folder])
+    return select_tests(src, work, {'resvg': 100}[src.folder])
 
 
 def notices(results):
@@ -299,6 +302,9 @@ def main():
             paths = [p for p, _ in results[src][0]]
             if len(paths) != len(set(paths)):
                 raise ValueError(f'{src.folder}: two files have the same name')
+            for path, data in results[src][0]:
+                if reserved(data):
+                    raise ValueError(f'{src.folder}/{path} has an "All Rights Reserved" notice; leave it out')
 
     if args.list:
         for src, (selection, _) in results.items():

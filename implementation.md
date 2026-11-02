@@ -7,7 +7,7 @@
 | SML specification | `Documents/SML-Language-Specification.md` | The language: SML 1.0-SVG-4 |
 | `smlxml` | `Source/SmlXml/` (command line), `Source/Sml/` (library) | Two-way SML ↔ XML/SVG converter in C# |
 | Python prototype and test harness | `Tests/svg-roundtrip/` | Reference implementation, fixture corpus, fuzz and differential tests |
-| SVG corpus | `Tests/svg-corpus/` | 505 third-party real-world SVG files, kept as examples |
+| SVG corpus | `Tests/svg-corpus/` | 385 third-party real-world SVG files, kept as examples |
 
 ## Development environment
 
@@ -60,7 +60,7 @@ The publish profile writes two framework-dependent single-file executables, each
   - The repository, `smlxml` included, is licensed under the MIT license in `LICENSE.md` at the root, Copyright (c) 2026 Optimax Technologies, Inc. The only exception is the third-party files in `Tests/svg-corpus`. The same copyright is in `<Company>` and `<Copyright>` in the C# project files, in the banner, and in `README.md`.
   - `SmlXml.csproj` copies `LICENSE.md` to the build and publish output, beside `smlxml.exe`.
   - The shipped `smlxml` uses no third-party packages; xUnit and the test SDK are test-only and not redistributed.
-  - `Tests/svg-corpus` holds third-party files under MIT, ISC, and BSD-3-Clause licenses, with their exact license texts in its `THIRD-PARTY-NOTICES.md`. It is distributed with the source only, never with `smlxml`. `Tests/svg-corpus/gather_corpus.py` lists the sources at pinned versions, and writes both the files and the notices. A new source must be under an MIT-like license. Brand logos are kept out because they are trademarks.
+  - `Tests/svg-corpus` holds third-party files under MIT and ISC licenses, with their exact license texts in its `THIRD-PARTY-NOTICES.md`. It is distributed with the source only, never with `smlxml`. `Tests/svg-corpus/gather_corpus.py` lists the sources at pinned versions, and writes both the files and the notices. A new source must be under an MIT-like license, and no file may carry an "All Rights Reserved" notice, which the script checks; the W3C SVG 1.1 test suite was removed for that reason. Brand logos are kept out because they are trademarks.
 
 ## Known traps
 

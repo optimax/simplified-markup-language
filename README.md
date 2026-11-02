@@ -62,7 +62,7 @@ SML also has vertical attributes, multiline literal blocks for long paths, CSS, 
 | [`Source/SmlXml/`](Source/SmlXml/) | `smlxml`, the command-line converter |
 | [`Source/Sml.Tests/`](Source/Sml.Tests/) | xUnit tests for the library and the command line |
 | [`Tests/svg-roundtrip/`](Tests/svg-roundtrip/) | Python prototype, conformance fixtures, and fuzz and differential tests |
-| [`Tests/svg-corpus/`](Tests/svg-corpus/) | 505 real-world SVG files from open-source projects, for testing |
+| [`Tests/svg-corpus/`](Tests/svg-corpus/) | 385 real-world SVG files from open-source projects, for testing |
 
 ## smlxml
 
@@ -120,7 +120,7 @@ The C# library and the Python prototype must produce byte-identical canonical SM
 python Tests/svg-roundtrip/crosscheck_csharp.py --docs 1000
 ```
 
-The [SVG corpus](Tests/svg-corpus/README.md) adds real-world files from icon sets, emoji, flags, and the W3C SVG 1.1 and resvg test suites. Both implementations agree on every file.
+The [SVG corpus](Tests/svg-corpus/README.md) adds real-world files from icon sets, emoji, flags, animated icons, and the resvg test suite. Both implementations agree on every file.
 
 ## Development notes
 
@@ -134,4 +134,4 @@ A change to the syntax or the canonical form must be made in the specification a
 
 Copyright (c) 2026 Optimax Technologies, Inc. Licensed under the [MIT License](LICENSE.md).
 
-The SVG files in `Tests/svg-corpus/` are third-party files under their own licenses (MIT, ISC, and BSD-3-Clause), listed with their license texts in [`Tests/svg-corpus/THIRD-PARTY-NOTICES.md`](Tests/svg-corpus/THIRD-PARTY-NOTICES.md).
+The SVG files in `Tests/svg-corpus/` are third-party files under their own licenses (MIT and ISC), listed with their license texts in [`Tests/svg-corpus/THIRD-PARTY-NOTICES.md`](Tests/svg-corpus/THIRD-PARTY-NOTICES.md).
