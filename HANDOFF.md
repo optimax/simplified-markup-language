@@ -21,13 +21,22 @@ Provide `smlxml`, a two-way SML ↔ XML/SVG command-line converter in C# on .NET
   - C# ports of the CP and key SV tests;
   - command-line tests, including wildcards, output patterns, and the matcher (`FileExpanderTests`).
 - **`Tests/svg-roundtrip/crosscheck_csharp.py`** compares the C# and Python implementations on random documents, non-canonical SML spellings, and SML mutants.
-- **`Tests/svg-corpus`** holds 505 real-world SVG files from 16 MIT-, ISC-, and BSD-licensed projects: icon sets, emoji, flags, animated icons, and the W3C SVG 1.1 and resvg test suites. They are kept as examples; no automated test reads them yet. Sources and exact license texts are in its `THIRD-PARTY-NOTICES.md`, and the selection and expected results in its `README.md`.
+- **`Tests/svg-corpus`** holds 505 real-world SVG files from 16 MIT-, ISC-, and BSD-licensed projects: icon sets, emoji, flags, animated icons, and the W3C SVG 1.1 and resvg test suites. They are kept as examples; no automated test reads them yet.
+  - `gather_corpus.py` downloads the sources at pinned versions, selects the files, and writes them and `THIRD-PARTY-NOTICES.md`.
+  - Its `README.md` describes the selection and the expected results.
+- **`README.md`** at the root introduces the project on GitHub. It assumes a public repository under the MIT license.
 - Solution-wide environment, conventions, decisions, and traps are in `implementation.md`.
 
-## Files changed in the last task (SVG corpus)
+## Files changed in recent tasks (SVG corpus, selection script, README)
 
-- New `Tests/svg-corpus/`: the SVG files in one folder per source, `README.md`, `THIRD-PARTY-NOTICES.md`, and `.gitattributes`, which keeps the files byte-identical by turning off line-end conversion.
-- `implementation.md`: the corpus in Products, and a licensing rule for it.
+- New `Tests/svg-corpus/`:
+  - the SVG files, in one folder per source;
+  - `gather_corpus.py`;
+  - `README.md`;
+  - `THIRD-PARTY-NOTICES.md`, written by the script;
+  - `.gitattributes`, which keeps the files byte-identical by turning off line-end conversion.
+- New `README.md` at the root.
+- `implementation.md`: the corpus in Products, its licensing rule and script, and the MIT license now covering the whole repository.
 
 ## Build and test results
 
@@ -42,6 +51,7 @@ Provide `smlxml`, a two-way SML ↔ XML/SVG command-line converter in C# on .NET
   - Python and C# both accept 495 of the 505 files. Each round-trips XML → SML → XML to the same document, and the canonical SML is byte-identical between the implementations.
   - Both reject the same 10 files, which have DTD internal subsets.
   - `smlxml "svg-corpus/**/*.svg"` followed by `smlxml -o "*.out.svg" "svg-corpus/**/*.sml"` on a copy gave the same result.
+  - `gather_corpus.py --dest <empty folder>` downloaded all 16 sources again and reproduced the 505 committed files byte for byte.
 
 ## Unresolved
 

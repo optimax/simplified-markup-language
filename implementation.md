@@ -48,10 +48,10 @@ The publish profile writes two framework-dependent single-file executables, each
   - `PublishDir` (`..\..\publish\smlxml\$(RuntimeIdentifier)\`) is relative to the project folder, so the output is the same wherever publishing starts.
 - **Any CPU.** The assemblies are CPU-neutral (`PlatformTarget=AnyCPU`), also inside the 32- and 64-bit publishes; only the native `smlxml.exe` launcher is per-architecture. The solution has only the default Any CPU platform.
 - **Licensing.**
-  - `smlxml` is distributed under the MIT license in `LICENSE.md` at the root, Copyright (c) 2026 Optimax Technologies, Inc. The same copyright is in `<Company>` and `<Copyright>` in the C# project files and in the banner.
+  - The repository, `smlxml` included, is licensed under the MIT license in `LICENSE.md` at the root, Copyright (c) 2026 Optimax Technologies, Inc. The only exception is the third-party files in `Tests/svg-corpus`. The same copyright is in `<Company>` and `<Copyright>` in the C# project files, in the banner, and in `README.md`.
   - `SmlXml.csproj` copies `LICENSE.md` to the build and publish output, beside `smlxml.exe`.
   - The shipped `smlxml` uses no third-party packages; xUnit and the test SDK are test-only and not redistributed.
-  - `Tests/svg-corpus` holds third-party files under MIT, ISC, and BSD-3-Clause licenses, with their exact license texts in its `THIRD-PARTY-NOTICES.md`. It is distributed with the source only, never with `smlxml`. A file added to it must come from a source under an MIT-like license, and its license text must be added to the notices. Brand logos are kept out because they are trademarks.
+  - `Tests/svg-corpus` holds third-party files under MIT, ISC, and BSD-3-Clause licenses, with their exact license texts in its `THIRD-PARTY-NOTICES.md`. It is distributed with the source only, never with `smlxml`. `Tests/svg-corpus/gather_corpus.py` lists the sources at pinned versions, and writes both the files and the notices. A new source must be under an MIT-like license. Brand logos are kept out because they are trademarks.
 
 ## Known traps
 
