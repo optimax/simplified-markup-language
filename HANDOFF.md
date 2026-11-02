@@ -37,18 +37,16 @@ Provide `smlxml`, a two-way SML ↔ XML/SVG command-line converter in C# on .NET
 - **`README.md`** at the root introduces the project on GitHub. It assumes a public repository under the MIT license.
 - Solution-wide environment, conventions, decisions, and traps are in `implementation.md`.
 
-## Files changed in the last task (`@indent 0` and quoted line breaks, still 1.0-SVG-4)
+## Files changed in the last task (pull-and-publish.bat)
 
-- `@indent 0` describes XML with each child on its own line and no indentation, as design tools such as Figma export it. The canonical writer considers it after two spaces, four spaces, and tab.
-- Values made only of line breaks are quoted (`= "\n"`), not written as blocks of blank lines; this also applies to laid-out comment blocks.
-- Together these removed all 5,148 blank-line blocks from the corpus's canonical output. 55 corpus files now use `@indent 0`.
-- **Specification:** change-list items 4 and 5; §6.4 header; §12.2 `IndentWidth`; §14.1; §14.2 rules 7 and 9; §15 (SV-64, new SV-79 and SV-80).
-- **Python:**
-  - `sml_prototype.py`: `d_indent`, `INDENT_CANDIDATES`, `block_tag`, `SmlWriter.comment`;
-  - `fuzz_roundtrip.py`: zero indentation among the generated units; the variant writer still writes blocks of blank lines;
-  - `build_and_test.py`: fixtures `79-indent-0.svg` and `80-line-break-values.svg`, with their results;
-  - `test_sml_core.py`: SV-64, SV-79, SV-80.
-- **C#:** `SmlReader.Indent`, `SmlWriter.IndentCandidates`, `BlockTag`, `Comment`; `ReaderTests.cs` (SV-64, SV-79, SV-80).
+- New `pull-and-publish.bat` at the root:
+  - checks for `git` and `dotnet` and that `main` is checked out;
+  - runs `git pull --ff-only origin main`, then `dotnet publish Source\SmlXml\SmlXml.csproj -p:PublishProfile=windows`;
+  - stops on any failure, and pauses when started by double-clicking.
+
+  It was not run here (no Windows); its publish command is the documented one.
+- New `.gitattributes` at the root: `*.bat text eol=crlf`.
+- `README.md` and `implementation.md` mention the script.
 
 ## Build and test results
 

@@ -26,7 +26,7 @@ python Tests/svg-roundtrip/build_and_test.py
 python Tests/svg-roundtrip/crosscheck_csharp.py --docs 1000
 ```
 
-The publish profile writes two framework-dependent single-file executables, each with `LICENSE.md` and `svg.smlprofile` beside it: `publish/smlxml/win-x64/smlxml.exe` (64-bit, needs the x64 .NET 10 runtime) and `publish/smlxml/win-x86/smlxml.exe` (32-bit, needs the x86 .NET 10 runtime). `Source/SmlXml/Properties/PublishProfiles/windows.pubxml` is the only publish profile; Visual Studio's Publish command uses it too. `crosscheck_csharp.py` needs a Release build of `Source/SmlXml` first.
+The publish profile writes two framework-dependent single-file executables, each with `LICENSE.md` and `svg.smlprofile` beside it: `publish/smlxml/win-x64/smlxml.exe` (64-bit, needs the x64 .NET 10 runtime) and `publish/smlxml/win-x86/smlxml.exe` (32-bit, needs the x86 .NET 10 runtime). `Source/SmlXml/Properties/PublishProfiles/windows.pubxml` is the only publish profile; Visual Studio's Publish command uses it too. On Windows, `pull-and-publish.bat` runs `git pull --ff-only origin main` and then that publish; it stops if `main` is not checked out or the pull cannot fast-forward. `.gitattributes` gives `*.bat` files CRLF line endings, which `cmd.exe` needs. `crosscheck_csharp.py` needs a Release build of `Source/SmlXml` first.
 
 ## Conventions
 

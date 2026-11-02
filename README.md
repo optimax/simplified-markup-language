@@ -100,6 +100,8 @@ dotnet publish Source/SmlXml/SmlXml.csproj -p:PublishProfile=windows
 
 This writes `publish/smlxml/win-x64/smlxml.exe` (64-bit) and `publish/smlxml/win-x86/smlxml.exe` (32-bit), each beside its `LICENSE.md` and `svg.smlprofile`. Both are single-file executables that need the .NET 10 runtime of the same bitness.
 
+On Windows, `pull-and-publish.bat` at the root does both steps for `main`: it pulls the latest commits and then publishes. It only fast-forwards, so it stops, without publishing, if your `main` has local commits or differs from GitHub's.
+
 ## Python prototype and tests
 
 The prototype in `Tests/svg-roundtrip` is the reference implementation of the specification. It needs Python 3.10 or later and `lxml`.
