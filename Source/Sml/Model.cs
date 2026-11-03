@@ -64,6 +64,7 @@ public sealed class SmlDocument
     /// <summary>Comments and processing instructions after the root, in order.</summary>
     public List<SmlNode> Epilog { get; } = [];
 
-    /// <summary>"yes", "no", or null when the XML declaration has no standalone flag.</summary>
+    /// <summary>"yes", or null when the XML declaration has no standalone flag or says standalone="no", which
+    /// means the same (§11).</summary>
     public string? Standalone { get; set; }
 }

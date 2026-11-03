@@ -99,7 +99,7 @@ Examples, notes, and §16 are informative; all other text is normative. Where an
 
 ## 2. Core information model
 
-A document contains exactly one root **element**, plus an ordered sequence of top-level comments and processing instructions before/after the root, an optional document type declaration (name, optional public ID, optional system ID) positioned among the comments and PIs before the root (§11.1), and optional standalone declaration metadata. An element has:
+A document contains exactly one root **element**, plus an ordered sequence of top-level comments and processing instructions before/after the root, an optional document type declaration (name, optional public ID, optional system ID) positioned among the comments and PIs before the root (§11.1), and whether the XML declaration says `standalone="yes"` (§11). An element has:
 
 - A lexical qualified name (`prefix:local` or `local`), its resolved expanded name `(namespace URI or null, local name)`, and its explicit in-scope namespace declarations (including declarations on that very element).
 - Attributes, each with a lexical qualified name, expanded name, and exact string value. Attribute order is not semantically significant.
@@ -111,7 +111,7 @@ Adjacent text nodes may be coalesced and zero-length text nodes ignored for sema
 
 ## 3. Supported SVG/XML subset and round-trip promise
 
-**In scope for strict SVG import/export:** XML 1.0 document elements and attributes; Namespaces in XML 1.0; Unicode text, including whitespace; comments; processing instructions (including those outside the root); predefined XML entities and numeric character references **after** normal XML decoding; optional `standalone=yes|no` metadata; DOCTYPE declarations **without** an internal subset, preserved as opaque name/public ID/system ID metadata whose external DTD is never loaded (§11.1); CDATA *character content* (not its delimiters); unknown/vendor-namespaced content; embedded CSS or script as inert text; foreignObject markup; relative and data-URI attributes as raw strings.
+**In scope for strict SVG import/export:** XML 1.0 document elements and attributes; Namespaces in XML 1.0; Unicode text, including whitespace; comments; processing instructions (including those outside the root); predefined XML entities and numeric character references **after** normal XML decoding; the `standalone` flag, where `no` means the same as no flag (§11); DOCTYPE declarations **without** an internal subset, preserved as opaque name/public ID/system ID metadata whose external DTD is never loaded (§11.1); CDATA *character content* (not its delimiters); unknown/vendor-namespaced content; embedded CSS or script as inert text; foreignObject markup; relative and data-URI attributes as raw strings.
 
 **Out of scope for Core import:** DTD internal subsets (including empty ones), loading or processing an external DTD subset, declared general or parameter entities, references to entities other than the five predefined ones, external entity resolution, XInclude processing, XML 1.1, and source-level lexical details such as exact entity references, quote styles, CDATA section boundaries, XML declaration spelling, and original encoding. When an input contains any construct outside the supported subset, a strict converter MUST return an explicit error. It MUST NOT quietly strip or expand it. A future optional *legacy XML import* profile may safely materialize DTD-derived content, but would require its own security and preservation contract.
 
@@ -199,7 +199,7 @@ A writer MAY still use a layout to show a value one item per line exactly, such 
 | `"""`, `""""`, … | Block marker after `.name`, `=`, `name =`, `@rem`, or an alias; the block ends at a line that repeats the marker (§7) |
 | `@element QName` | Explicit normal element opener, required for an element named `end` or named like an element alias in scope; never uses element aliases |
 | `@sml VERSION [tidy]` | Optional document version header; must come first; `tidy` marks the output of a readable import (§11) |
-| `@standalone yes` / `@standalone no` | Optional XML standalone metadata |
+| `@standalone yes` | XML `standalone="yes"`; `@standalone no` is the default (§11) |
 | `@indent N` / `@indent tab` | Optional header enabling the formatting-whitespace model; in a declaration section, the indentation step of that element's children (§6.4) |
 | `@doctype name [PUBLIC "pubid" "sysid" \| SYSTEM "sysid"]` | Optional document type declaration, preserved as opaque metadata (§11.1) |
 | `@use identifier version [optional]` | Opt-in extension declaration (see §13) |
@@ -850,9 +850,9 @@ Every namespace used by a prefixed element or attribute must be bound in scope. 
 - Writers SHOULD emit `@sml 1.0-SVG-1` while the specification is a draft.
 - `tidy` states that the document was written by a readable import (§§3.1–3.2), so it differs from the XML it was converted from in whitespace. It has no effect on reading. A writer of exact SML, such as the canonical writer, never writes it.
 
-**Other headers.** `@standalone yes|no` MAY appear once before the root to preserve an explicitly present XML standalone declaration; if it is absent, the standalone state is unspecified. `@indent` (§6.4) and `@doctype` (§11.1) MAY each appear once before the root (`@indent` also in declaration sections, as a per-element step), and `@node` (§8.7) and `@use` (§13) MAY appear before the root.
+**Other headers.** `@standalone yes` MAY appear once before the root, for an XML declaration with `standalone="yes"`. Without it, the document has no standalone flag. `@standalone no` is accepted and means the same: XML 1.0 §2.9 assumes `no` when external markup declarations exist and the flag is missing, and gives the flag no meaning when there are none, so an importer reads `standalone="no"` as no flag. `@indent` (§6.4) and `@doctype` (§11.1) MAY each appear once before the root (`@indent` also in declaration sections, as a per-element step), and `@node` (§8.7) and `@use` (§13) MAY appear before the root.
 
-**XML output.** All XML output uses version 1.0 and UTF-8 without a BOM. It begins with the declaration `<?xml version="1.0" encoding="UTF-8"?>`, adding `standalone="yes"` or `standalone="no"` when recorded. Top-level items (the declaration, prolog and epilog comments and PIs, the DOCTYPE, and the root) are separated by single LFs, and the output ends with an LF. Comments are written `<!-- data -->` (§9). The literal presence of the original `<?xml ...?>` declaration, its quote style, and its original encoding are not retained.
+**XML output.** All XML output uses version 1.0 and UTF-8 without a BOM. It begins with the declaration `<?xml version="1.0" encoding="UTF-8"?>`, adding `standalone="yes"` when recorded; it never writes `standalone="no"`. Top-level items (the declaration, prolog and epilog comments and PIs, the DOCTYPE, and the root) are separated by single LFs, and the output ends with an LF. Comments are written `<!-- data -->` (§9). The literal presence of the original `<?xml ...?>` declaration, its quote style, and its original encoding are not retained.
 
 Top-level `@rem`, `@comments`, and `@pi` before or after the root are valid and their relative order is preserved. Ordinary text, attributes, and extra root elements outside the root are errors. XML permits prolog/epilog whitespace between markup; the strict importer need not preserve that top-level lexical whitespace because it is outside this information model.
 
@@ -1048,7 +1048,7 @@ SML formatters MUST be idempotent. Under the strict profile they MUST NOT modify
 The canonical form is a function of the document alone: canonical writers MUST produce byte-identical output for equal documents. It is intended for diffing, hashing, and conformance testing. Canonical output follows these rules:
 
 1. **File.** UTF-8 without BOM, LF line endings, and a final LF. No blank lines, `#` comments, `@block` or `@node` aliases, `end QName`, or `@use`.
-2. **Prolog.** `@sml 1.0-SVG-1`, then `@standalone` if recorded, then `@indent` if rule 9 calls for it, then the prolog comments, PIs, and `@doctype` in document order. The epilog follows the root in document order.
+2. **Prolog.** `@sml 1.0-SVG-1`, then `@standalone yes` if recorded (never `@standalone no`), then `@indent` if rule 9 calls for it, then the prolog comments, PIs, and `@doctype` in document order. The epilog follows the root in document order.
 3. **Indentation.** Two spaces per element depth. Block payload lines, a block's closing marker, and continuation lines are indented one level deeper than their statement; an empty payload line is written empty.
 4. **Order.** Namespace declarations come first: the default namespace, then prefixes in ascending code-point order. Then attributes: those without a namespace by local name, then namespaced ones by namespace URI and then local name, all in ascending code-point order. This is the attribute order of Canonical XML.
 5. **Inline or vertical.** An element's namespace declarations and attributes are written inline, as one list, when every value is representable as a raw inline value (§6.3) under rule 7, and the indentation, element name, and inline list together are at most 100 code points long. Otherwise all are vertical: `@ns` lines, then `.attribute` lines.
@@ -1101,7 +1101,7 @@ The following fixtures are mandatory in addition to the baseline corpus:
 | SV-27 | Namespace declared directly on an XML empty element | Writer uses `name(xmlns:p=…)/` or open/`@ns`/`end`; both round-trip |
 | SV-28 | DTD internal subset (including empty `[ ]`), custom entity, or external resource expansion attempt | Strict import refuses without loading resources |
 | SV-29 | Unknown foreign attributes/elements, nested prefixes | Preserved without interpretation |
-| SV-30 | Original `standalone="no"` and `"yes"` cases | Declaration state preserved if present |
+| SV-30 | XML with `standalone="no"`, with `"yes"`, with a declaration without the flag, and without a declaration; SML `@standalone no` and a bare `@standalone` | `yes` preserved as `@standalone yes`; `no` read as no flag, so no `@standalone` line and no flag in the XML output; `@standalone no` the same as none; the bare form rejected |
 | SV-31 | An SML XML comment or PI containing `\r` | SML reader rejects nonrepresentable data |
 | SV-32 | Attribute whose namespace is bound to several prefixes | Lexical QName and declarations remain stable |
 | SV-33 | No-default-namespace `@block div .style style` | Alias targets no-namespace `div` and no-namespace `style` attribute |

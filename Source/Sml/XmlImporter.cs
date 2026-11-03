@@ -42,7 +42,8 @@ public static class XmlImporter
                     case XmlNodeType.XmlDeclaration:
                         if (reader.GetAttribute("version") != "1.0")
                             throw new UnsupportedXmlException($"XML {reader.GetAttribute("version")} is not supported", line);
-                        doc.Standalone = reader.GetAttribute("standalone");
+                        // standalone="no" is the same as no flag (§11).
+                        doc.Standalone = reader.GetAttribute("standalone") == "yes" ? "yes" : null;
                         break;
                     case XmlNodeType.DocumentType:
                         doc.Prolog.Add(ReadDoctype(reader, data, line));

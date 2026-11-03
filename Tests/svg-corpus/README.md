@@ -1,6 +1,6 @@
 # SVG corpus
 
-897 real-world SVG files from 15 open-source projects, kept as examples for testing `smlxml` and the Python prototype on files that neither was written against. The files are unchanged copies; their sources and licenses (MIT and ISC) are in [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md). The corpus is part of the source distribution only; `smlxml` builds and publishes do not include it.
+897 real-world SVG files from 15 open-source projects, kept as examples for testing `smlxml` and the Python prototype on files that neither was written against. The files are unchanged copies; their sources and licenses (MIT and ISC) are in [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md). The corpus is part of the source distribution only; `smlxml` builds and publishes do not include it. The `other` folder (79 files) was added by hand and is not built by `gather_corpus.py` or listed in the notices; its logos come from Wikimedia Commons, under Creative Commons licenses or in the public domain.
 
 | Folder | Files | What they exercise |
 |---|---|---|

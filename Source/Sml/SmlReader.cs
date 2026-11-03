@@ -670,7 +670,7 @@ public sealed partial class SmlReader
         string value = XmlRules.StripSpacesAndTabs(rest);
         if (value is not ("yes" or "no") || rest.Length == 0 || rest[0] is not (' ' or '\t'))
             throw new SmlException("@standalone takes yes or no", ln);
-        _doc.Standalone = value;
+        _doc.Standalone = value == "yes" ? "yes" : null;   // no is the default (§11)
     }
 
     private void Indent(string rest, int ln)

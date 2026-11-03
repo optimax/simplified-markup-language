@@ -191,6 +191,24 @@ public class ReaderTests
     }
 
     [Fact]
+    public void SV30_Standalone()
+    {
+        // standalone="no" is the same as no flag (XML 1.0 §2.9): it is read as none and never written.
+        foreach (string declaration in new[] { "<?xml version=\"1.0\" standalone=\"no\"?>", "<?xml version=\"1.0\"?>", "" })
+        {
+            SmlDocument doc = XmlImporter.Read(Encoding.UTF8.GetBytes(declaration + "<g/>"));
+            Assert.Null(doc.Standalone);
+            Assert.Equal("@sml 1.0-SVG-1\ng/\n", SmlWriter.Write(doc));
+            Assert.Equal("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<g/>\n", XmlExporter.Write(doc));
+        }
+        Same("@standalone no\ng/\n", "g/\n");
+        SmlDocument yes = XmlImporter.Read(Encoding.UTF8.GetBytes("<?xml version=\"1.0\" standalone=\"yes\"?><g/>"));
+        Assert.Equal("@sml 1.0-SVG-1\n@standalone yes\ng/\n", SmlWriter.Write(yes));
+        Assert.Contains("standalone=\"yes\"", XmlExporter.Write(SmlReader.Read("@standalone yes\ng/\n")));
+        Rejects("@standalone\ng/\n", "yes or no");
+    }
+
+    [Fact]
     public void SV34_SV37_AliasesOnlyWithMarker()
     {
         ElementNode svg = Root($"@indent none\nsvg\n  @ns {Svg}\n  @block path .d data\n  path\n    data \"\"\"\n      M 0 0\n      \"\"\"\n  end\nend\n");

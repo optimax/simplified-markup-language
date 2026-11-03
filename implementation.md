@@ -7,7 +7,7 @@
 | SML specification | `Documents/SML-Language-Specification.md` | The language: SML 1.0-SVG-1 |
 | `smlxml` | `Source/SmlXml/` (command line), `Source/Sml/` (library) | Two-way SML ↔ XML/SVG converter in C# |
 | Python prototype and test harness | `Tests/svg-roundtrip/` | Reference implementation, fixture corpus, fuzz and differential tests |
-| SVG corpus | `Tests/svg-corpus/` | 897 third-party real-world SVG files, kept as examples |
+| SVG corpus | `Tests/svg-corpus/` | 976 third-party real-world SVG files, kept as examples |
 
 ## Development environment
 
@@ -43,6 +43,7 @@ The publish profile writes two framework-dependent single-file executables, each
   - Braces were rejected: CSS and scripts, the usual block payloads, put `}` alone on a line, so a brace-delimited block would close early and the rest of the CSS would parse as SML.
   - A backtick was rejected: it is hard to see, a dead key on many keyboard layouts, and PowerShell's escape character.
 - **Blocks are verbatim.** Only the closing marker's indentation comes off each payload line; trailing whitespace, extra indentation, and whitespace-only lines are data. The user chose this over trimming, so that CSS and scripts from editors such as Inkscape stay readable blocks instead of quoted strings. The cost: an editor that strips trailing whitespace changes a block's data. The canonical writer therefore quotes values of whitespace only, and puts a block's closing marker level with its payload.
+- **`standalone="no"` is no flag.** The user chose to treat `standalone="no"` like a missing flag, as XML 1.0 §2.9 does: both importers and both SML readers read it, and `@standalone no`, as none, and the writers write only `@standalone yes` and `standalone="yes"`. Most SVG files have no standalone flag at all (964 of the 976 corpus files), so making `no` the SML default would have added a line to nearly every file.
 - **Comments are trimmed.** The user decided that a comment's data has no whitespace at its ends: both importers and both SML readers remove spaces, tabs, and line breaks there, and XML output writes `<!-- data -->` (`<!---->` when empty). So `<!-- x -->`, `<!--x-->`, and `@rem " x "` are the same comment, written `@rem x`. The cost is that XML → SML → XML no longer keeps the whitespace at a comment's ends, nor the line breaks around a pretty-printed multi-line comment; the indentation of its later lines stays. Comment blocks are always literal; §6.4 predicts edges only for text blocks.
 - **Two-space indentation is the default.** Without an `@indent` header, the reader predicts indentation by two spaces (§6.4), so SML written by hand gives indented XML, and the writer never writes `@indent 2`. `@indent none` turns the prediction off; the writer writes it only when reading without it would give a different document, such as minified XML.
 - **Profiles are only for cleaning.**
@@ -63,6 +64,7 @@ The publish profile writes two framework-dependent single-file executables, each
   - `SmlXml.csproj` copies `LICENSE.md` to the build and publish output, beside `smlxml.exe`.
   - The shipped `smlxml` uses no third-party packages; xUnit and the test SDK are test-only and not redistributed.
   - `Tests/svg-corpus` holds third-party files under MIT and ISC licenses, with their exact license texts in its `THIRD-PARTY-NOTICES.md`. It is distributed with the source only, never with `smlxml`. `Tests/svg-corpus/gather_corpus.py` lists the sources at pinned versions, and writes both the files and the notices. A new source must be under an MIT-like license, and no file may carry an "All Rights Reserved" notice, which the script checks; the W3C SVG 1.1 test suite was removed for that reason. Brand logos are kept out because they are trademarks.
+  - `Tests/svg-corpus/other` is the exception: 79 files the user added by hand, outside `gather_corpus.py` and the notices. According to the user, its logos come from Wikimedia Commons under Creative Commons licenses or in the public domain.
 
 ## Known traps
 

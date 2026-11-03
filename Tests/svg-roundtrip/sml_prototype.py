@@ -94,7 +94,7 @@ class Document:
         self.prolog: list = []          # Comment, PI, Doctype in document order
         self.root: Element | None = None
         self.epilog: list = []          # Comment, PI
-        self.standalone: str | None = None
+        self.standalone: str | None = None   # 'yes', or None: standalone="no" is the same as no flag (§11)
 
 
 # ---------------------------------------------------------------------------------------------
@@ -708,7 +708,7 @@ class SmlReader:
         value = strip_ht(rest)
         if value not in ('yes', 'no') or not rest[:1] in (' ', '\t'):
             raise SmlError('@standalone takes yes or no', ln)
-        self.doc.standalone = value
+        self.doc.standalone = 'yes' if value == 'yes' else None   # no is the default (§11)
 
     def d_indent(self, rest: str, ln: int) -> None:
         value = strip_ht(rest)
@@ -1368,7 +1368,7 @@ def read_xml(data) -> Document:
     def xml_decl(version, encoding, standalone):
         if version != '1.0':
             raise UnsupportedXmlError(f'XML {version} is not supported', line())
-        doc.standalone = {1: 'yes', 0: 'no'}.get(standalone)
+        doc.standalone = 'yes' if standalone == 1 else None   # standalone="no" is the same as no flag (§11)
 
     def doctype(name, sysid, pubid, has_internal_subset):
         if has_internal_subset:

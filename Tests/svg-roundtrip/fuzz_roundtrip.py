@@ -188,7 +188,7 @@ class Generator:
     def document(self) -> S.Document:
         r = self.r
         d = S.Document()
-        d.standalone = r.choice([None, None, 'yes', 'no'])
+        d.standalone = r.choice([None, None, 'yes'])
         d.prolog = [self.comment() if r.random() < 0.5 else self.pi() for _ in range(r.choice([0, 0, 1, 2, 3]))]
         if self.unit is not None and r.random() < 0.3:
             d.prolog.append(self.multi_line_comment())
@@ -413,6 +413,8 @@ class VariantWriter:
             self.emit(r.choice(['@sml 1.0-SVG-1', '@sml 1.0', '@sml 1.0-SVG-1 tidy', '@sml\t1.0  tidy']))
         if d.standalone:
             self.emit('@standalone ' + d.standalone)
+        elif r.random() < 0.2:
+            self.emit(r.choice(['@standalone no', '@standalone\tno']))   # the default, written out
         self.emit(r.choice(['@indent none', '@indent\tnone']))     # whitespace is written out below
         if r.random() < 0.3:
             self.declare_nodes('', 3)

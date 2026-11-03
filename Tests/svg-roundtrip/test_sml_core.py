@@ -210,6 +210,19 @@ class CoreFixtures(Base):
 
 
 class SmlSideFixtures(Base):
+    def test_SV30_standalone(self):
+        # standalone="no" is the same as no flag (XML 1.0 §2.9): it is read as none and never written.
+        for decl in (b'<?xml version="1.0" standalone="no"?>', b'<?xml version="1.0"?>', b''):
+            doc = S.read_xml(decl + b'<g/>')
+            self.assertIsNone(doc.standalone)
+            self.assertEqual(S.write_sml(doc), '@sml 1.0-SVG-1\ng/\n')
+            self.assertEqual(S.write_xml(doc), '<?xml version="1.0" encoding="UTF-8"?>\n<g/>\n')
+        self.assertEqual(S.signature(read('@standalone no\ng/\n')), S.signature(read('g/\n')))
+        doc = S.read_xml(b'<?xml version="1.0" standalone="yes"?><g/>')
+        self.assertEqual(S.write_sml(doc), '@sml 1.0-SVG-1\n@standalone yes\ng/\n')
+        self.assertIn('standalone="yes"', S.write_xml(read('@standalone yes\ng/\n')))
+        self.rejects('@standalone\ng/\n', 'yes or no')
+
     def test_SV31_cr_in_comment_or_pi(self):
         self.rejects('g\n  @rem "a\\rb"\nend\n', 'CR')
         self.rejects('g\n  @pi t "a\\rb"\nend\n', 'CR')

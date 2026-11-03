@@ -22,7 +22,7 @@ Provide `smlxml`, a two-way SML ↔ XML/SVG command-line converter in C# on .NET
   - With `--verbose`, it writes every attribute and namespace declaration on its own line.
 
   Behavior and requirements are in `Source/SmlXml/implementation.md`, usage and the profile format in `Source/SmlXml/README.md`.
-- **`Source/Sml.Tests`** has 3,383 xUnit tests:
+- **`Source/Sml.Tests`** has 3,384 xUnit tests:
   - the corpus, compared byte for byte with the Python reference output;
   - both round trips;
   - the negative corpus;
@@ -31,7 +31,7 @@ Provide `smlxml`, a two-way SML ↔ XML/SVG command-line converter in C# on .NET
   - `ProfileTests`: layouts, the profile format, and cleaning, over every fixture and every file of `Tests/svg-corpus`;
   - `WriterOptionsTests`: vertical attributes, over the same files.
 - **`Tests/svg-roundtrip/crosscheck_csharp.py`** compares the C# and Python implementations on random documents, non-canonical SML spellings, and SML mutants.
-- **`Tests/svg-corpus`** holds 897 real-world SVG files from 15 MIT- and ISC-licensed projects: icon sets, emoji, every flag of flag-icons, animated icons, and the resvg test suite. The W3C SVG 1.1 test suite was removed, because its files say "All Rights Reserved"; `gather_corpus.py` now refuses such files. `ProfileTests` reads them; the Python harness does not.
+- **`Tests/svg-corpus`** holds 976 real-world SVG files: 897 from 15 MIT- and ISC-licensed projects, gathered by `gather_corpus.py`, and 79 in `other` that the user added by hand. The projects are icon sets, emoji, every flag of flag-icons, animated icons, and the resvg test suite. The W3C SVG 1.1 test suite was removed, because its files say "All Rights Reserved"; `gather_corpus.py` now refuses such files. `ProfileTests` reads them; the Python harness does not.
   - `gather_corpus.py` downloads the sources at pinned versions, selects the files, and writes them and `THIRD-PARTY-NOTICES.md`.
   - Its `README.md` describes the selection and the expected results.
 - **`README.md`** at the root introduces the project on GitHub. It assumes a public repository under the MIT license.
@@ -52,13 +52,14 @@ The user's fire SVG (copied out of HTML, so its root's children sit at 4 spaces 
 - **Follow-ups (same session).**
   - Cleaned output no longer starts with a `# Cleaned … not exact` comment. Instead its header is `@sml 1.0-SVG-1 tidy`: `@sml VERSION [tidy]` (§11, grammar, CP-20). Both readers accept `tidy` and ignore it; only cleaning writes it, always.
   - **Two-space indentation is the default** (§6.4): without an `@indent` header the reader predicts two spaces, so both writers omit `@indent 2`. `@indent none` (header only) turns the model off; the writer writes it only when the default would change the document (`default_matters`/`DefaultMatters`: an element with a child element, a multi-line prolog or epilog comment, or multi-line root text). §14.2 rules 2 and 9, SV-60, the grammar, and the examples changed; test inputs that need exact reading start with `@indent none`. Over the corpus, 634 of the 972 accepted files have no `@indent` line in their canonical SML, and 207 have `@indent none`.
+  - **`standalone="no"` is no flag** (§11, SV-30; the user chose this over making `no` the SML default, since 964 of 976 corpus files have no flag). Importers and readers read `standalone="no"` and `@standalone no` as none; writers write only `@standalone yes` / `standalone="yes"`. SV-30 tests in both suites; the fuzzer writes `@standalone no` for documents without a flag.
   - **Comments are trimmed** (§§2, 3, 9; the user's rule). Both importers and both SML readers remove the spaces, tabs, and line breaks at a comment's ends (`comment_data` / `XmlRules.CommentData`), and XML output writes `<!-- data -->`, or `<!---->` when empty. A comment may now end with `-`. Laid-out comment blocks are gone (trimmed data never starts with a line break): a `@rem` block is always literal, and a pretty-printed multi-line comment keeps the indentation of its later lines in exact SML. `--clean` dedents those lines (`TidyComment`). `@comments` lines are trimmed too. Fixture 78 is now `78-multi-line-comment.svg`; SV-54, SV-77 to SV-80 changed in both test suites.
   - `@rem` is the comment directive; `@comment` is a synonym that both readers accept (§9). Both writers write only `@rem`, so every reference output with a comment changed. The run form stays `@comments """` (the user's choice). The fuzzer writes both spellings; `Tools/NodepadPlusPlus-SML-Syntax.xml` colors `@rem` too.
 
 ## Build and test results
 
 - `dotnet build SimplifiedMarkupLanguage.slnx -c Release`: 0 warnings, 0 errors.
-- `dotnet test`: 3,383/3,383 passed (with the user's 80 new files in `Tests/svg-corpus/other`), including the byte-for-byte comparison with the regenerated Python reference SML.
+- `dotnet test`: 3,384/3,384 passed (with the user's 80 new files in `Tests/svg-corpus/other`), including the byte-for-byte comparison with the regenerated Python reference SML.
 - `fuzz_roundtrip.py --docs 2000 --seed 7`: 0 findings (only the known parser divergences).
 - With trimmed comments: `crosscheck_csharp.py --seed 6` (1,000 documents, 4,000 mutants) and `fuzz_roundtrip.py --docs 1500 --seed 37`: 0 findings; the fuzzer now also writes comments with whitespace at their ends, which readers must trim. Python and C# byte-identical over the corpus; `--clean svg` output read back by Python for all 972 accepted files.
 - With the default indentation: `crosscheck_csharp.py --seed 5` (1,000 documents, 4,000 mutants) and `fuzz_roundtrip.py --docs 1500 --seed 35`: 0 findings; Python and C# byte-identical over the corpus (972 accepted, the same 4 rejected); `--clean svg` output read back by Python for all 972.
@@ -90,6 +91,7 @@ The user's fire SVG (copied out of HTML, so its root's children sit at 4 spaces 
 - Text whose first line follows its start tag directly, such as the second `p` of the W3C example (`<p>The diagram…` with the next line indented eight spaces), has no laid-out layout. It stays a literal `= """` block in the normal form, with the continuation line's extra indentation visible, because removing it would lose information.
 - Reflow never splits a single path command, so a long implicit coordinate run after one command stays on one line. One line in the Spanish flag is over 150 characters.
 - The language name still collides with Standard ML and W3C SML.
+- `Tests/svg-corpus/other` is not in `THIRD-PARTY-NOTICES.md`. Files under CC BY or CC BY-SA need an attribution there (author, license, source link). A free copyright license does not cover trademark rights, which the corpus policy cites for keeping brand logos out (the Windows logo and wordmark are in `other`). The svgrepo and Canva files have no recorded source or license.
 - The SVG corpus has no Inkscape or Illustrator files with editor metadata. None were found under an MIT-like license on hosts reachable from Claude Cloud.
 
 ## Recommended next step

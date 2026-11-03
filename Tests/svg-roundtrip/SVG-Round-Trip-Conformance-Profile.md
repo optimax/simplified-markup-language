@@ -46,7 +46,7 @@ Namespace declaration prefixes are metadata, not attributes under the usual expa
 
 ## 4. RT-2 document-level checks
 
-Include XML version and standalone declaration presence/value when available, plus leading/trailing comments and processing instructions. The XML encoding declaration is a serialization-level fact; it need not preserve original spelling when both files are UTF-8, but the exporter must produce a valid encoding declaration if emitted. If source contains DOCTYPE, DTD defaults, unresolved entities, entity definitions, XML 1.1 constructs, or other information not supported by the chosen converter profile, conversion MUST fail with a meaningful `UNSUPPORTED_XML_INFORMATION` result. It must not silently ignore or expand them.
+Include XML version and whether the declaration says `standalone="yes"` (`standalone="no"` counts as no flag, as in the specification §11), plus leading/trailing comments and processing instructions. The XML encoding declaration is a serialization-level fact; it need not preserve original spelling when both files are UTF-8, but the exporter must produce a valid encoding declaration if emitted. If source contains DOCTYPE, DTD defaults, unresolved entities, entity definitions, XML 1.1 constructs, or other information not supported by the chosen converter profile, conversion MUST fail with a meaningful `UNSUPPORTED_XML_INFORMATION` result. It must not silently ignore or expand them.
 
 ## 5. SVG-specific invariants
 
