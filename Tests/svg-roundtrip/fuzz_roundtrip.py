@@ -100,17 +100,15 @@ class Generator:
         data = self.value().replace('\r', '')
         while '--' in data:
             data = data.replace('--', '-x')
-        if data.endswith('-'):
-            data += 'x'
-        return S.Comment(data)
+        return S.Comment(data.strip(S.COMMENT_TRIM))
 
     def laid_out_lines(self) -> str:
         return '\n'.join(self.r.choice(['Created with an editor', 'http://example.org/', 'end', '"""', '', '  indented',
                                          '# x']) for _ in range(self.r.randint(1, 4)))
 
-    def laid_out_comment(self, indentation: str, unit: str) -> S.Comment:
-        """A comment in the layout a pretty-printer gives multi-line comments (§6.4)."""
-        return S.Comment(S.lay_out_block(self.laid_out_lines(), indentation, unit))
+    def multi_line_comment(self) -> S.Comment:
+        """A multi-line comment, as pretty-printers write them; its data is trimmed (§9)."""
+        return S.Comment(self.laid_out_lines().strip(S.COMMENT_TRIM))
 
     def pi(self) -> S.PI:
         data = self.value().replace('\r', '').replace('?>', '? >').lstrip(S.XML_WS)
@@ -174,7 +172,7 @@ class Generator:
             spaced = []
             for c in el.children:
                 if isinstance(c, S.Comment) and r.random() < 0.4:
-                    c = self.laid_out_comment(inner, self.unit)
+                    c = self.multi_line_comment()
                 elif (isinstance(c, S.Element) and (not c.children or (len(c.children) == 1
                       and isinstance(c.children[0], S.Text))) and r.random() < 0.5):
                     # A text-only element pretty-printed like <p>\n  text\n</p>, sometimes without attributes so
@@ -193,7 +191,7 @@ class Generator:
         d.standalone = r.choice([None, None, 'yes', 'no'])
         d.prolog = [self.comment() if r.random() < 0.5 else self.pi() for _ in range(r.choice([0, 0, 1, 2, 3]))]
         if self.unit is not None and r.random() < 0.3:
-            d.prolog.append(self.laid_out_comment('', self.unit))
+            d.prolog.append(self.multi_line_comment())
         if r.random() < 0.3:
             d.prolog.insert(r.randint(0, len(d.prolog)), self.doctype())
         d.root = self.element(0, dict(S.BASE_NS))
@@ -206,7 +204,7 @@ class Generator:
 
 def lxml_signature(node):
     if isinstance(node, etree._Comment):
-        return ['comment', node.text or '']
+        return ['comment', (node.text or '').strip(S.COMMENT_TRIM)]
     if isinstance(node, etree._ProcessingInstruction):
         return ['pi', node.target, node.text or '']
     attrs = sorted([str(k), v] for k, v in node.attrib.items())
@@ -228,7 +226,7 @@ def lxml_signature(node):
 
 def _misc(node):
     if isinstance(node, etree._Comment):
-        return ('comment', node.text or '')
+        return ('comment', (node.text or '').strip(S.COMMENT_TRIM))
     return ('pi', node.target, node.text or '')
 
 
@@ -493,7 +491,10 @@ class VariantWriter:
 
     def misc(self, item, ind: str) -> None:
         if isinstance(item, S.Comment):
-            self.value(ind + self.r.choice(['@rem', '@comment']), item.data, ind)
+            # A reader trims a comment's data (§9), so whitespace around it is optional.
+            pad = self.r.choice(['', '', '', ' ', '\t', '\n', ' \n  '])
+            data = pad + item.data + self.r.choice(['', '', ' ', '\n']) if item.data or pad else item.data
+            self.value(ind + self.r.choice(['@rem', '@comment']), data, ind)
         elif isinstance(item, S.PI):
             self.value(ind + '@pi ' + item.target, item.data, ind, block=False)
         else:

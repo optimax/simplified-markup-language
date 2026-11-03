@@ -155,7 +155,7 @@ comment
       </p>
   </info>
 </svg>''',
-'78-laid-out-comment.svg':'''<?xml version="1.0" encoding="UTF-8"?>
+'78-multi-line-comment.svg':'''<?xml version="1.0" encoding="UTF-8"?>
 <!--
   Prolog comment at depth 0
 -->
@@ -172,9 +172,9 @@ comment
     -->
     <rect/>
   </g>
-  <!--
-  flush lines are not laid out
-  -->
+  <!-- Starts at once
+       and goes on -->
+  <!--   ends with a dash -   -->
   <text><!--
     in mixed content
   -->x</text>
@@ -202,9 +202,10 @@ SECURE = dict(resolve_entities=False, load_dtd=False, no_network=True, strip_cda
 
 
 def lxml_signature(node):
-    """RT-1 element-tree signature computed by lxml, independently of the prototype."""
+    """RT-1 element-tree signature computed by lxml, independently of the prototype. A comment's data is trimmed
+    (§9)."""
     if isinstance(node, etree._Comment):
-        return ['comment', node.text or '']
+        return ['comment', (node.text or '').strip(' \t\n')]
     if isinstance(node, etree._ProcessingInstruction):
         return ['pi', node.target, node.text or '']
     attrs = sorted([str(k), v] for k, v in node.attrib.items())

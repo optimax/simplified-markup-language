@@ -9,7 +9,7 @@ svg(xmlns=http://www.w3.org/2000/svg)
   end
   g(id=layer)
     rect(height=10, width=10)/
-    @rem " note "
+    @rem note
     circle(r=5)/
   end
 end

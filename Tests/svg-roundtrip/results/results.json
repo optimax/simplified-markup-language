@@ -472,7 +472,7 @@
       "notes": []
     },
     {
-      "id": "78-laid-out-comment",
+      "id": "78-multi-line-comment",
       "xml_baseline": "PASS",
       "lxml_crosscheck": "PASS",
       "sml_round_trip": "PASS",
@@ -634,11 +634,11 @@
     "seed": 1,
     "documents": 300,
     "sml_mutants": 1200,
-    "sml_mutants_accepted": 243,
+    "sml_mutants_accepted": 277,
     "xml_mutants": 1200,
-    "xml_mutants_both_accepted": 363,
+    "xml_mutants_both_accepted": 352,
     "known_divergences": {
-      "libxml2 rejects namespace names that are not URI references; expat and the prototype accept them": 21
+      "libxml2 rejects namespace names that are not URI references; expat and the prototype accept them": 18
     },
     "findings": []
   }

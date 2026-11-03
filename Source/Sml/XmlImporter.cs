@@ -58,8 +58,9 @@ public static class XmlImporter
                             AppendText(stack.Peek().Element, reader.Value);
                         break;
                     case XmlNodeType.Comment:
-                        Rethrow(() => XmlRules.CheckComment(reader.Value, line));
-                        Place(doc, stack, new CommentNode(reader.Value));
+                        string comment = reader.Value;
+                        Rethrow(() => comment = XmlRules.CommentData(comment, line));
+                        Place(doc, stack, new CommentNode(comment));
                         break;
                     case XmlNodeType.ProcessingInstruction:
                         Rethrow(() => XmlRules.CheckProcessingInstruction(reader.Name, reader.Value, line));

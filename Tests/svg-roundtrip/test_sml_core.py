@@ -317,7 +317,8 @@ class SmlSideFixtures(Base):
     def test_SV54_outer_whitespace_is_quoted(self):
         doc = read('g\n  .a " x "\n  = " t "\n  @rem " c "\n  @pi p "d "\nend\n')
         out = S.write_sml(doc)
-        for fragment in ('.a " x "', '= " t "', '@rem " c "', '@pi p "d "'):
+        # A comment is trimmed instead (§9).
+        for fragment in ('.a " x "', '= " t "', '@rem c\n', '@pi p "d "'):
             self.assertIn(fragment, out)
         self.assertEqual(S.signature(read(out)), S.signature(doc))
 
@@ -385,34 +386,36 @@ class SmlSideFixtures(Base):
         self.rejects('g\n  @comments a\nend\n', 'takes a block')
         self.rejects('g\n  @comments """\n    a--b\n    """\nend\n', "'--'")
         self.rejects('g\n  @comments """\n    x\n    """\n  .a 1\nend\n', 'after the element')
+        self.rejects('g\n  @comments """\n    a\n     \t\n    b\n    """\nend\n', 'blank lines')
+        # Each line is trimmed like any comment, so a comment written with spaces at its ends joins the run.
+        self.assertEqual([c.data for c in read('@comments """\n  p  \n  \tq\n  """\ng/\n').prolog], ['p', 'q'])
         doc = read('g\n  @rem a\n  @rem " b"\n  @rem c\n  @rem d\n  @rem "\\"\\"\\""\nend\n')
-        self.assertEqual([c.data for c in kids(doc.root, S.Comment)], ['a', ' b', 'c', 'd', '"""'])
+        self.assertEqual([c.data for c in kids(doc.root, S.Comment)], ['a', 'b', 'c', 'd', '"""'])
         out = S.write_sml(doc)
-        self.assertIn('  @rem a\n  @rem " b"\n  @comments """"\n    c\n    d\n    """\n    """"\n', out)
+        self.assertIn('  @comments """"\n    a\n    b\n    c\n    d\n    """\n    """"\n', out)
         self.assertEqual(S.signature(read(out)), S.signature(doc))
 
-    def test_SV78_laid_out_comment_blocks(self):
-        src = '@indent 2\n@rem """\n  top\n  """\ng\n  @rem """\n    a\n\n    b\n    """\n  h\n    @rem """\n      deep\n      """\n  end\nend\n'
-        doc = read(src)
-        self.assertEqual(doc.prolog[0].data, '\n  top\n')
-        g = doc.root
-        self.assertEqual(kids(g, S.Comment)[0].data, '\n    a\n\n    b\n  ')
-        self.assertEqual(kids(kids(g)[0], S.Comment)[0].data, '\n      deep\n    ')
-        self.assertEqual(S.write_sml(doc), src.replace('@indent 2\n', '@sml 1.0-SVG-1\n'))
-        # Under @indent none, in @noindent elements, and in mixed content, blocks are literal.
-        self.assertEqual(kids(root('@indent none\ng\n  @rem """\n    a\n    """\nend\n'), S.Comment)[0].data, 'a')
-        el = root('@indent 2\ng\n  @noindent\n  @rem """\n    a\n    """\nend\n')
-        self.assertEqual(kids(el, S.Comment)[0].data, 'a')
-        el = root('@indent 2\ng\n  = x\n  @rem """\n    a\n    """\nend\n')
-        self.assertEqual(kids(el, S.Comment)[0].data, 'a')
-        self.assertEqual(kids(root('@indent 2\ng\n  @rem """\n  """\nend\n'), S.Comment)[0].data, '\n  ')
-        # Data without that layout is quoted, never a literal block, in a laid-out position. Data with it is a laid-out
-        # block even when its lines have trailing whitespace or more indentation, which blocks keep (§7).
-        for data, block in (('\n  flush\n  ', False), ('a\nb', False), ('\n    a  \n  ', True), ('\n      a\n      b\n  ', True)):
-            doc = S.read_xml(f'<g>\n  <!--{data}-->\n</g>'.encode())
-            out = S.write_sml(doc)
-            self.assertIn('@rem """' if block else '@rem "\\n' if data[0] == '\n' else '@rem "a', out)
-            self.assertEqual(S.signature(read(out)), S.signature(doc))
+    def test_SV78_comments_are_trimmed(self):
+        # A comment's data loses the spaces, tabs, and line breaks at its ends, from XML and from SML alike (§9).
+        doc = S.read_xml(b'<!--\n  top\n-->\n<g>\n  <!--\n    a\n\n    b\n  -->\n  <h>\n    <!-- deep -->\n  </h>\n'
+                         b'  <!--   ends with a dash -   -->\n  <!--\t-->\n</g>')
+        self.assertEqual(doc.prolog[0].data, 'top')
+        self.assertEqual([c.data for c in kids(doc.root, S.Comment)], ['a\n\n    b', 'ends with a dash -', ''])
+        out = S.write_sml(doc)
+        self.assertEqual(out, '@sml 1.0-SVG-1\n@rem top\ng\n  @rem """\n    a\n\n        b\n    """\n  h\n    @rem deep\n  end\n'
+                              '  @rem ends with a dash -\n  @rem\nend\n')
+        self.assertEqual(S.signature(read(out)), S.signature(doc))
+        # XML output separates the data from the delimiters by one space.
+        xml = S.write_xml(doc)
+        for fragment in ('<!-- top -->', '<!-- a\n\n    b -->', '<!-- deep -->', '<!-- ends with a dash - -->', '<!---->'):
+            self.assertIn(fragment, xml)
+        self.assertEqual(S.signature(S.read_xml(xml.encode())), S.signature(doc))
+        # SML is trimmed too; a block is literal wherever it is, also in a laid-out position.
+        g = root('g\n  @rem " x "\n  @rem "\\n  y\\n"\n  @comment """\n\n    z\n\n    """\n  @rem """\n    a\n      b\n    """\n  @rem "\\t"\nend\n')
+        self.assertEqual([c.data for c in kids(g, S.Comment)], ['x', 'y', 'z', 'a\n  b', ''])
+        self.assertEqual([c.data for c in kids(root('@indent none\ng\n  @rem """\n    a\n    """\nend\n'), S.Comment)], ['a'])
+        self.assertEqual(kids(root('g\n  @rem "x-"\nend\n'), S.Comment)[0].data, 'x-')
+        self.rejects('g\n  @rem "a--b"\nend\n', "'--'")
 
     def test_SV79_indent_0(self):
         el = root('@indent 0\ng\n  h/\n  k\n    m/\n  end\nend\n')
@@ -420,7 +423,7 @@ class SmlSideFixtures(Base):
         self.assertEqual([c.data for c in kids(el)[1].children if isinstance(c, S.Text)], ['\n', '\n'])
         doc = S.read_xml(b'<g>\n<h/>\n<k>\n<m/>\n</k>\n<!--\nline\n-->\n</g>')
         out = S.write_sml(doc)
-        self.assertEqual(out, '@sml 1.0-SVG-1\n@indent 0\ng\n  h/\n  k\n    m/\n  end\n  @rem """\n    line\n    """\nend\n')
+        self.assertEqual(out, '@sml 1.0-SVG-1\n@indent 0\ng\n  h/\n  k\n    m/\n  end\n  @rem line\nend\n')
         self.assertEqual(S.signature(read(out)), S.signature(doc))
 
     def test_SV80_line_breaks_are_quoted(self):
@@ -429,13 +432,11 @@ class SmlSideFixtures(Base):
         self.assertEqual(S.block_tag('a\n'), '"""')
         doc = S.read_xml(b'<g a="&#10;"><t>\n</t><h/>\n\n<h/><!--\n--></g>')
         out = S.write_sml(doc)
-        for fragment in ('.a "\\n"', 't = "\\n"', '= "\\n\\n"', '@rem "\\n"'):
+        for fragment in ('.a "\\n"', 't = "\\n"', '= "\\n\\n"', '  @rem\n'):
             self.assertIn(fragment, out)
         self.assertNotIn('"""', out)
         self.assertEqual(S.signature(read(out)), S.signature(doc))
         self.assertEqual(kids(root('g\n  = """\n\n\n  """\nend\n'), S.Text)[0].data, '\n')   # still readable
-        laid = S.read_xml(b'<g>\n  <!--\n  -->\n</g>')
-        self.assertIn('@rem "\\n  "', S.write_sml(laid))
 
     def test_SV81_local_indent(self):
         src = '@indent 2\ng\n  h\n    @indent 4\n    a/\n    b\n      c/\n    end\n  end\n  k\n    @indent tab\n    m/\n  end\nend\n'

@@ -310,6 +310,7 @@ public class ProfileTests
         SmlDocument doc = Xml("<svg xmlns='http://www.w3.org/2000/svg'>\n"
             + "        <desc>\n            Two lines\n\n\n            of text\n        </desc>\n"
             + "        <!--\n            A comment\n        -->\n"
+            + "        <!-- A comment\n             on two lines\t\n\n\n             and more\n        -->\n"
             + "        <text x='1'>\n            <tspan>A</tspan>\n            <tspan>B</tspan>\n        </text>\n"
             + "        <text x='2'><tspan>A</tspan>\n<tspan>B</tspan></text>\n</svg>");
         // The line break alone between the last two tspans renders as nothing in SVG 1.1, so it stays.
@@ -322,6 +323,12 @@ public class ProfileTests
                 of text
                 """
               @rem A comment
+              @rem """
+                A comment
+                on two lines
+
+                and more
+                """
               text(x=1)
                 tspan = A
                 tspan = B
@@ -347,6 +354,17 @@ public class ProfileTests
         Assert.Null(SmlWriter.TidyText(" a "));
         Assert.Null(SmlWriter.TidyText("\n \t\n"));
         Assert.Null(SmlWriter.TidyText("a\r\nb"));
+    }
+
+    [Fact]
+    public void TidiesComments()
+    {
+        // Comment data is trimmed (§9), so only the lines after the first can share indentation.
+        Assert.Equal("Title\n\nbody\n  more", SmlWriter.TidyComment("Title  \n\n\n    body\n      more"));
+        Assert.Equal("a\nb\n\tc", SmlWriter.TidyComment("a\n\tb\n\t\tc"));
+        Assert.Equal("a\n  b\nc", SmlWriter.TidyComment("a\n  b\nc"));
+        Assert.Null(SmlWriter.TidyComment("one line"));
+        Assert.Null(SmlWriter.TidyComment("a\r\nb"));
     }
 
     [Fact]
@@ -512,7 +530,7 @@ public class ProfileTests
     private static void Normalize(SmlDocument doc)
     {
         foreach (CommentNode comment in doc.Prolog.Concat(doc.Epilog).OfType<CommentNode>())
-            comment.Data = SmlWriter.TidyText(comment.Data) ?? comment.Data;
+            comment.Data = SmlWriter.TidyComment(comment.Data) ?? comment.Data;
         Normalize(doc.Root, inText: false, foreign: false, preserve: false);
     }
 
@@ -566,7 +584,7 @@ public class ProfileTests
             }
         }
         foreach (CommentNode comment in element.Children.OfType<CommentNode>())
-            comment.Data = SmlWriter.TidyText(comment.Data) ?? comment.Data;
+            comment.Data = SmlWriter.TidyComment(comment.Data) ?? comment.Data;
         foreach (ElementNode child in element.Children.OfType<ElementNode>())
             Normalize(child, inText || textContent, foreign, preserve);
     }

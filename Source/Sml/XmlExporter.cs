@@ -32,7 +32,7 @@ public static class XmlExporter
         switch (item)
         {
             case CommentNode comment:
-                return $"<!--{comment.Data}-->";
+                return comment.Data.Length > 0 ? $"<!-- {comment.Data} -->" : "<!---->";
             case ProcessingInstructionNode pi:
                 return pi.Data.Length > 0 ? $"<?{pi.Target} {pi.Data}?>" : $"<?{pi.Target}?>";
             case DoctypeNode dt:

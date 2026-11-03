@@ -15,9 +15,9 @@
     -->
     <rect/>
   </g>
-  <!--
-  flush lines are not laid out
-  -->
+  <!-- Starts at once
+       and goes on -->
+  <!--   ends with a dash -   -->
   <text><!--
     in mixed content
   -->x</text>

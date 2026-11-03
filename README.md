@@ -25,7 +25,7 @@ The same document in SML, as `smlxml` writes it:
 ```text
 @sml 1.0-SVG-1
 svg(xmlns=http://www.w3.org/2000/svg, viewBox=0 0 120 80)
-  @rem " A rounded badge with a label "
+  @rem A rounded badge with a label
   rect(fill=#4477cc, height=70, rx=8, width=110, x=5, y=5)/
   path(d=M20 60 L60 20 L100 60 Z, fill=white, opacity=0.5)/
   text(font-size=14, text-anchor=middle, x=60, y=45) = Hello, SML
@@ -35,6 +35,7 @@ end
 - An element is its name followed by its attributes.
 - `/` ends an element with no content, and `end` closes one that has content.
 - `= text` gives an element's text.
+- `@rem` is an XML comment. Its text is trimmed, and XML output separates it from `<!--` and `-->` by one space.
 - SML assumes indentation by two spaces, as the original has. The SML therefore leaves out the indentation whitespace, and converting back restores it exactly. Other indentation is declared with `@indent`, such as `@indent 4` or `@indent tab`.
 
 Converting this SML to XML gives the original document again. Only attribute order changes, which XML does not treat as information.
@@ -43,7 +44,7 @@ SML also has vertical attributes, multiline literal blocks for long paths, CSS, 
 
 ## Design
 
-- **Lossless within a defined subset.** For every document in the supported SVG/XML subset (§3 of the specification), XML → SML → XML and SML → XML → SML give the same document. The comparison covers elements, attributes, exact text including whitespace, comments, processing instructions, namespace prefixes and declarations, and DOCTYPE identifiers.
+- **Lossless within a defined subset.** For every document in the supported SVG/XML subset (§3 of the specification), XML → SML → XML and SML → XML → SML give the same document. The comparison covers elements, attributes, exact text including whitespace, comments (without the whitespace at their ends), processing instructions, namespace prefixes and declarations, and DOCTYPE identifiers.
 - **Strict.** Input outside the subset is rejected with an error, never silently changed. Examples are DTD internal subsets, declared entities, and XML 1.1.
 - **Values are opaque.** Path data, transforms, styles, and scripts are kept exactly as written; the converter never reformats numbers or geometry.
 - **Canonical form.** XML → SML output is deterministic, so converted files diff cleanly.

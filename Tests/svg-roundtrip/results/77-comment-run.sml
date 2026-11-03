@@ -9,8 +9,8 @@ svg(xmlns=http://www.w3.org/2000/svg)
     =  Example test case                     =
     # looks like a source comment
     ==========================================
+    spaced
     """
-  @rem " spaced "
   g
     @noindent
     @comments """"

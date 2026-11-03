@@ -156,10 +156,17 @@ public static class XmlRules
     public static void CheckComment(string data, int? line)
     {
         CheckChars(data, line);
-        if (data.Contains("--", StringComparison.Ordinal) || data.EndsWith('-'))
-            throw new SmlException("an XML comment cannot contain '--' or end with '-'", line);
+        if (data.Contains("--", StringComparison.Ordinal))
+            throw new SmlException("an XML comment cannot contain '--'", line);
         if (data.Contains('\r'))
             throw new SmlException("an XML comment cannot contain CR (U+000D)", line);
+    }
+
+    /// <summary>A comment's data (§9): checked, then trimmed of spaces, tabs, and line breaks at both ends.</summary>
+    public static string CommentData(string data, int? line)
+    {
+        CheckComment(data, line);
+        return data.Trim(' ', '\t', '\n');
     }
 
     public static void CheckProcessingInstruction(string target, string data, int? line)

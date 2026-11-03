@@ -186,12 +186,21 @@ def resolve_qname(qname: str, ns: dict, attr: bool, line: int | None, error=SmlE
     return (ns.get(None) or None, qname)
 
 
+COMMENT_TRIM = ' \t\n'
+
+
 def check_comment(data: str, line: int | None, error=SmlError) -> None:
     check_chars(data, line)
-    if '--' in data or data.endswith('-'):
-        raise error("an XML comment cannot contain '--' or end with '-'", line)
+    if '--' in data:
+        raise error("an XML comment cannot contain '--'", line)
     if '\r' in data:
         raise error('an XML comment cannot contain CR (U+000D)', line)
+
+
+def comment_data(data: str, line: int | None, error=SmlError) -> str:
+    """A comment's data (§9): checked, then trimmed of spaces, tabs, and line breaks at both ends."""
+    check_comment(data, line, error)
+    return data.strip(COMMENT_TRIM)
 
 
 def check_pi(target: str, data: str, line: int | None, error=SmlError) -> None:
@@ -831,15 +840,6 @@ class SmlReader:
             raise SmlError('@noindent may appear only once per element', ln)
         f.noindent = True
 
-    def laid_out_indentation(self) -> str | None:
-        """The indentation of a comment just added, if its position is laid out (§6.4), else None."""
-        if self.indent is None:
-            return None
-        if not self.stack:
-            return ''
-        f = self.stack[-1]
-        return f.indentation + f.step if f.layout else None
-
     def d_rem(self, rest: str, ln: int) -> None:
         """@rem, or its synonym @comment: an XML comment (§9)."""
         self.d_comment(rest, ln)
@@ -848,25 +848,25 @@ class SmlReader:
         kind, value = self.parse_value_tail(rest, ln)
         node = Comment(self.value_of(kind, value, ln))
         self.add_child(node, False, ln)
-        if kind == 'block' and (indentation := self.laid_out_indentation()) is not None:
-            node.data = lay_out_block(node.data, indentation, self.indent)
         if kind == 'quoted':
             def append(more, c=node):
                 c.data += more
-            self.pending = _Pending(append, lambda c=node: check_comment(c.data, ln))
+
+            def finish(c=node):
+                c.data = comment_data(c.data, ln)
+            self.pending = _Pending(append, finish)
         else:
-            check_comment(node.data, ln)
+            node.data = comment_data(node.data, ln)
 
     def d_comments(self, rest: str, ln: int) -> None:
         kind, value = self.parse_value_tail(rest, ln)
         if kind != 'block':
             raise SmlError('@comments takes a block: @comments """, one comment per line', ln)
         data = self.read_block(value, ln)
-        lines = data.split('\n')
-        if data == '' or '' in lines:
+        lines = [comment_data(line, ln) for line in data.split('\n')]
+        if '' in lines:
             raise SmlError('@comments cannot have blank lines; each line is one comment', ln)
         for line in lines:
-            check_comment(line, ln)
             self.add_child(Comment(line), False, ln)
 
     def d_pi(self, rest: str, ln: int) -> None:
@@ -982,16 +982,14 @@ def plan(el: Element, nodes: list, indentation: str, unit: str | None):
 
 def default_matters(doc: Document) -> bool:
     """Whether SML written without a unit would read differently under the default unit (§6.4): the document has an
-    element with a non-text child, a multi-line comment before or after the root, or multi-line text as the root's
-    only content. Then the writer declares @indent none (rule 9)."""
+    element with a non-text child, or multi-line text as the root's only content. Then the writer declares
+    @indent none (rule 9)."""
     stack = [doc.root]
     while stack:
         el = stack.pop()
         if any(not isinstance(n, Text) for n in content_nodes(el)):
             return True
         stack.extend(c for c in el.children if isinstance(c, Element))
-    if any(isinstance(n, Comment) and '\n' in n.data for n in doc.prolog + doc.epilog):
-        return True
     return any('\n' in n.data for n in content_nodes(doc.root))
 
 
@@ -1089,9 +1087,9 @@ def block_tag(value: str) -> str | None:
 
 
 def lay_out_block(value: str, indentation: str, unit: str) -> str:
-    """The data of a comment block, or of the block of a compact text element, in a laid-out position (§6.4): LF,
-    each payload line indented one unit deeper than the comment or element (empty lines stay empty), LF, and the
-    comment's or element's own indentation."""
+    """The text of a compact text element whose value is a block, in a laid-out position (§6.4): LF, each payload
+    line indented one unit deeper than the element (empty lines stay empty), LF, and the element's own
+    indentation."""
     if value == '':
         return '\n' + indentation
     inner = indentation + unit
@@ -1124,10 +1122,9 @@ def laid_out_value(data: str, indentation: str, unit: str) -> str | None:
 
 
 def comment_run_ok(data: str) -> bool:
-    """Whether a comment can be one line of an @comments block (§9): non-empty, one line, no space or tab at
-    either end, and none of the characters §4 says to escape."""
-    return (data != '' and '\n' not in data and '\r' not in data and data[0] not in ' \t'
-            and data[-1] not in ' \t' and not any(needs_escape(c) for c in data))
+    """Whether a comment can be one line of an @comments block (§9): non-empty, one line, and none of the
+    characters §4 says to escape. Comment data never begins or ends with whitespace."""
+    return data != '' and '\n' not in data and '\r' not in data and not any(needs_escape(c) for c in data)
 
 
 def split_segments(units: list[str]) -> list[str]:
@@ -1216,7 +1213,7 @@ class SmlWriter:
             elif isinstance(node, Element):
                 self.element(node, depth, indentation, laid_out)
             else:
-                self.misc(node, depth, laid_out, indentation)
+                self.misc(node, depth)
             i += 1
 
     def block(self, prefix: str, value: str, depth: int) -> None:
@@ -1227,18 +1224,9 @@ class SmlWriter:
             self.out.extend(ind + '  ' + ln if ln else '' for ln in value.split('\n'))
         self.out.append(ind + '  ' + marker)
 
-    def comment(self, data: str, depth: int, laid_out: bool, indentation: str) -> None:
-        """Writes a comment; in a laid-out position a block has predicted edges (§6.4), so a block is used only
-        for data in that layout, and other multi-line data is quoted."""
-        ind = '  ' * depth
-        if not laid_out or not data or (raw_ok(data) and len(ind) + 5 + len(data) <= LINE_LIMIT):
-            self.value(ind + '@rem', data, depth, allow_block=not laid_out)
-            return
-        value = laid_out_value(data, indentation, self.unit)
-        if value is None or not visible(value):
-            self.value(ind + '@rem', data, depth, allow_block=False)
-            return
-        self.block(ind + '@rem', value, depth)
+    def comment(self, data: str, depth: int) -> None:
+        """Writes a comment like any other value (rule 7): a block is literal wherever it is (§9)."""
+        self.value('  ' * depth + '@rem', data, depth)
 
     def compact_text(self, prefix: str, data: str, depth: int, indentation: str, laid_out: bool) -> bool:
         """Writes prefix and an element's only text in the compact form, and returns True; or returns False when
@@ -1256,10 +1244,10 @@ class SmlWriter:
         self.value(prefix, data, depth, allow_block=False)
         return True
 
-    def misc(self, item, depth: int, laid_out: bool = False, indentation: str = '') -> None:
+    def misc(self, item, depth: int) -> None:
         ind = '  ' * depth
         if isinstance(item, Comment):
-            self.comment(item.data, depth, laid_out, indentation)
+            self.comment(item.data, depth)
         elif isinstance(item, PI):
             self.value(ind + '@pi ' + item.target, item.data, depth, allow_block=False)
         elif isinstance(item, Doctype):
@@ -1437,8 +1425,7 @@ def read_xml(data) -> Document:
             kids.append(Text(data))
 
     def comment(data):
-        check_comment(data, line(), XmlInputError)
-        place(Comment(data))
+        place(Comment(comment_data(data, line(), XmlInputError)))
 
     def pi(target, data):
         check_pi(target, data, line(), XmlInputError)
@@ -1480,7 +1467,7 @@ def _esc_attr(s: str) -> str:
 
 def _misc_xml(item) -> str:
     if isinstance(item, Comment):
-        return f'<!--{item.data}-->'
+        return f'<!-- {item.data} -->' if item.data else '<!---->'
     if isinstance(item, PI):
         return f'<?{item.target} {item.data}?>' if item.data else f'<?{item.target}?>'
     s = '<!DOCTYPE ' + item.name

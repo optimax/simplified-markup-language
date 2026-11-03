@@ -171,6 +171,26 @@ public sealed class SmlWriter
         while (lines[^1].Length == 0)
             lines.RemoveAt(lines.Count - 1);
         lines = lines.Where((l, i) => l.Length > 0 || lines[i - 1].Length > 0).ToList();
+        string prefix = SharedIndentation(lines);
+        return string.Join('\n', lines.Select(l => l.Length == 0 ? "" : l[prefix.Length..]));
+    }
+
+    /// <summary>A multi-line comment tidied (§3.2) like text. Its data is trimmed (§9), so its first line has no
+    /// indentation, and the indentation removed is the one that the other lines share. Null for a comment without
+    /// LF or with a CR.</summary>
+    public static string? TidyComment(string data)
+    {
+        if (!data.Contains('\n') || data.Contains('\r'))
+            return null;
+        var lines = data.Split('\n').Select(l => l.TrimEnd(' ', '\t')).ToList();
+        lines = lines.Where((l, i) => i == 0 || l.Length > 0 || lines[i - 1].Length > 0).ToList();
+        string prefix = SharedIndentation(lines.Skip(1));
+        return string.Join('\n', lines.Select((l, i) => i == 0 || l.Length == 0 ? l : l[prefix.Length..]));
+    }
+
+    /// <summary>The leading spaces and tabs that all non-empty lines share.</summary>
+    private static string SharedIndentation(IEnumerable<string> lines)
+    {
         string? prefix = null;
         foreach (string line in lines.Where(l => l.Length > 0))
         {
@@ -180,7 +200,7 @@ public sealed class SmlWriter
                 k++;
             prefix = prefix is null ? lead : prefix[..k];
         }
-        return string.Join('\n', lines.Select(l => l.Length == 0 ? "" : l[prefix!.Length..]));
+        return prefix ?? "";
     }
 
     /// <summary>Whether a profile writes the value quoted with a continuation line per item.</summary>
@@ -408,8 +428,8 @@ public sealed class SmlWriter
     }
 
     /// <summary>Whether SML written without a unit would read differently under the default unit (§6.4): the
-    /// document has an element with a non-text child, a multi-line comment before or after the root, or multi-line
-    /// text as the root's only content. Then the writer declares @indent none (rule 9).</summary>
+    /// document has an element with a non-text child, or multi-line text as the root's only content. Then the
+    /// writer declares @indent none (rule 9).</summary>
     private static bool DefaultMatters(SmlDocument doc)
     {
         var stack = new Stack<ElementNode>([doc.Root]);
@@ -421,8 +441,6 @@ public sealed class SmlWriter
             foreach (ElementNode child in element.Children.OfType<ElementNode>())
                 stack.Push(child);
         }
-        if (doc.Prolog.Concat(doc.Epilog).Any(n => n is CommentNode c && c.Data.Contains('\n')))
-            return true;
         return ContentNodes(doc.Root).Any(n => n is TextNode t && t.Data.Contains('\n'));
     }
 
@@ -600,11 +618,10 @@ public sealed class SmlWriter
         _out.Add(inner + marker);
     }
 
-    /// <summary>Whether a comment can be one line of an @comments block (§9): non-empty, one line, no space or tab
-    /// at either end, and none of the characters §4 says to escape.</summary>
+    /// <summary>Whether a comment can be one line of an @comments block (§9): non-empty, one line, and none of the
+    /// characters §4 says to escape. Comment data never begins or ends with whitespace.</summary>
     public static bool CommentRunOk(string data) =>
-        data.Length > 0 && !data.AsSpan().ContainsAny('\n', '\r') && data[0] is not (' ' or '\t')
-        && data[^1] is not (' ' or '\t') && !data.EnumerateRunes().Any(XmlRules.NeedsEscape);
+        data.Length > 0 && !data.AsSpan().ContainsAny('\n', '\r') && !data.EnumerateRunes().Any(XmlRules.NeedsEscape);
 
     /// <summary>The block value that <see cref="SmlReader.LayOutBlock"/> turns into data, or null if the data does
     /// not have that layout.</summary>
@@ -669,38 +686,20 @@ public sealed class SmlWriter
                 case ElementNode child:
                     Element(child, depth, indentation, laidOut);
                     break;
-                case CommentNode comment when _profile is not null && TidyText(comment.Data) is { } tidy:
-                    // Cleaning: a multi-line comment is tidied, and laid out where its position is (§3.2, §6.4).
-                    string data = laidOut && _unit is not null && tidy.Contains('\n') ? SmlReader.LayOutBlock(tidy, indentation, _unit) : tidy;
-                    Comment(data, depth, laidOut, indentation);
+                case CommentNode comment when _profile is not null && TidyComment(comment.Data) is { } tidy:
+                    // Cleaning: a multi-line comment is tidied (§3.2).
+                    Comment(tidy, depth);
                     break;
                 default:
-                    Misc(nodes[i], depth, laidOut, indentation);
+                    Misc(nodes[i], depth);
                     break;
             }
             i++;
         }
     }
 
-    /// <summary>Writes a comment; in a laid-out position a block has predicted edges (§6.4), so a block is used only
-    /// for data in that layout, and other multi-line data is quoted.</summary>
-    private void Comment(string data, int depth, bool laidOut, string indentation)
-    {
-        string ind = Indentation(depth);
-        if (!laidOut || data.Length == 0
-            || (RawOk(data) && XmlRules.CodePointLength(ind) + 5 + XmlRules.CodePointLength(data) <= LineLimit))
-        {
-            Value(ind + "@rem", data, depth, allowBlock: !laidOut);
-            return;
-        }
-        string? value = LaidOutValue(data, indentation, _unit!);
-        if (value is null || !Visible(value))
-        {
-            Value(ind + "@rem", data, depth, allowBlock: false);
-            return;
-        }
-        Block(ind + "@rem", value, BlockMarker(value)!, depth);
-    }
+    /// <summary>Writes a comment like any other value (rule 7): a block is literal wherever it is (§9).</summary>
+    private void Comment(string data, int depth) => Value(Indentation(depth) + "@rem", data, depth);
 
     /// <summary>Writes prefix and an element's only text in the compact form, and returns true; or returns false
     /// when the element must use the normal form: in a laid-out position a compact block has predicted edges
@@ -725,13 +724,13 @@ public sealed class SmlWriter
         return true;
     }
 
-    private void Misc(SmlNode item, int depth, bool laidOut = false, string indentation = "")
+    private void Misc(SmlNode item, int depth)
     {
         string ind = Indentation(depth);
         switch (item)
         {
             case CommentNode comment:
-                Comment(comment.Data, depth, laidOut, indentation);
+                Comment(comment.Data, depth);
                 break;
             case ProcessingInstructionNode pi:
                 Value(ind + "@pi " + pi.Target, pi.Data, depth, allowBlock: false);

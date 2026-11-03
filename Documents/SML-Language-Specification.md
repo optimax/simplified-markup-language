@@ -105,7 +105,7 @@ A document contains exactly one root **element**, plus an ordered sequence of to
 - Attributes, each with a lexical qualified name, expanded name, and exact string value. Attribute order is not semantically significant.
 - An ordered sequence of element, text, XML comment, and processing-instruction children.
 
-Adjacent text nodes may be coalesced and zero-length text nodes ignored for semantic equality. All attribute and text characters otherwise remain exact, **including whitespace-only text**. Duplicate attribute expanded names are illegal.
+Adjacent text nodes may be coalesced and zero-length text nodes ignored for semantic equality. All attribute and text characters otherwise remain exact, **including whitespace-only text**. A comment's data, by contrast, never begins or ends with whitespace: XML import and SML reading both remove the spaces, tabs, and line breaks at its ends (§9). Duplicate attribute expanded names are illegal.
 
 **SVG-safe prefix rule:** Unlike a minimal namespace-only XML model, the strict profile (§1.2) retains **the original lexical prefixes and the places where `xmlns` bindings are declared**, including unused bindings. These can affect QName-like values, prefix-sensitive content, vendor metadata, or CSS. The writer MUST NOT arbitrarily rename/rebind prefixes. This stronger rule is a conservative SVG interoperability guarantee; it does not mean full byte-level XML source preservation.
 
@@ -124,7 +124,7 @@ ParseSML(WriteSML(D))  ≡  D
 ParseXML(WriteXML(D))  ≡  D
 ```
 
-The equality `≡` includes the ordered content, the SVG-safe prefix/declaration contract above, and the document type declaration's name, public ID, system ID, and position among prolog comments/PIs. It excludes merely lexical XML trivia such as indentation outside element text, attribute order, self-closing notation, character-reference spelling, CDATA boundaries, and the quotation marks around DOCTYPE literals. SML representation choices are not part of `D`. These include `@block` and `@node` aliases, `@indent`/`@noindent`, raw versus quoted values, continuation lines, block terminators, inline versus vertical attributes and namespace declarations, and `end QName`.
+The equality `≡` includes the ordered content, the SVG-safe prefix/declaration contract above, and the document type declaration's name, public ID, system ID, and position among prolog comments/PIs. It excludes merely lexical XML trivia such as indentation outside element text, the whitespace at the ends of a comment, attribute order, self-closing notation, character-reference spelling, CDATA boundaries, and the quotation marks around DOCTYPE literals. SML representation choices are not part of `D`. These include `@block` and `@node` aliases, `@indent`/`@noindent`, raw versus quoted values, continuation lines, block terminators, inline versus vertical attributes and namespace declarations, and `end QName`.
 
 **Do not confuse SVG rendering equivalence with information equivalence:** the XML text `<path d="M0 0 L2 2"/>` and `<path d="M0,0L2,2"/>` may render alike, but are not string-identical and MUST NOT be silently substituted during conversion.
 
@@ -161,7 +161,7 @@ An item never begins or ends with whitespace. Between items there is only whites
 
 A writer MAY still use a layout to show a value one item per line exactly, such as one that cannot be reflowed: as a quoted value split into continuation lines (§6.5) at item boundaries, with the separators kept inside the quotes. That value is unchanged.
 
-**Text and comments.** Tidying applies to multi-line text: the text of an element whose content is a single text node outside SVG text content, `foreignObject`, and `xml:space="preserve"`, such as a `style` sheet, a `script`, a `desc`, or metadata, and the data of a comment anywhere. It removes the spaces and tabs at the end of every line, the empty lines at the start and the end, runs of empty lines down to one, and the indentation that all non-empty lines share. Text without a line break, with a CR, or of whitespace only is left alone. Tidied text with more than one line is written as a block: as a laid-out text or comment block (§6.4) in a laid-out position, which puts the line breaks and indentation of pretty-printed text back around it, and otherwise as a literal block. Tidying is not applied to SVG text content, because SVG 1.1 removes line breaks without adding a space, so removing the indentation after one could join two words. In CSS such whitespace never matters, and in scripts only inside multi-line strings such as JavaScript template literals.
+**Text and comments.** Tidying applies to multi-line text: the text of an element whose content is a single text node outside SVG text content, `foreignObject`, and `xml:space="preserve"`, such as a `style` sheet, a `script`, a `desc`, or metadata, and the data of a comment anywhere. It removes the spaces and tabs at the end of every line, the empty lines at the start and the end, runs of empty lines down to one, and the indentation that all non-empty lines share. A comment's data is already trimmed (§9), so its first line has no indentation; for a comment, the indentation removed is the one that its other non-empty lines share. Text without a line break, with a CR, or of whitespace only is left alone. Tidied text with more than one line is written as a block: text as a laid-out text block (§6.4) in a laid-out position, which puts the line breaks and indentation of pretty-printed text back around it, and otherwise, and for every comment, as a literal block. Tidying is not applied to SVG text content, because SVG 1.1 removes line breaks without adding a space, so removing the indentation after one could join two words. In CSS such whitespace never matters, and in scripts only inside multi-line strings such as JavaScript template literals.
 
 ## 4. Encoding, lines, names, and structural model
 
@@ -424,38 +424,13 @@ Each case reproduces the element's content exactly, so the round trip of §3 hol
 
 **Laid-out positions.** A node is in a *laid-out position* when it is a child of a laid-out element, or when it comes before, after, or is the root element in a document without `@indent none`. Its *indentation* `W` is the whitespace predicted before it, without the LF: empty at the top level, and otherwise its parent's indentation followed by its parent's step. For an element, this is the indentation defined above.
 
-**Laid-out comment blocks.** Pretty-printed XML lays out a multi-line comment like the content around it. `<!--` is followed by a line break and the comment's lines, indented one unit deeper than the comment, then a line break and the comment's own indentation before `-->`. A block cannot reproduce that whitespace (§7), so `@indent` predicts it as well. A `@rem` block in a laid-out position with indentation `W` has this data:
+**Laid-out text blocks.** Pretty-printers lay out the multi-line text of an element such as `desc`, `style`, or `script` like the content around it: the start tag is followed by a line break and the text's lines, indented one unit deeper than the element, then a line break and the element's own indentation before the end tag. A block cannot reproduce that whitespace (§7), so `@indent` predicts it as well. A compact text element whose value is a block, `name = """` or `name(…) = """`, in a laid-out position with indentation `W` has this text:
 
 1. LF;
 2. each payload line, prefixed with `W + I` unless it is empty, joined by LF;
 3. LF and `W`.
 
-A block with no payload lines gives LF and `W`. Elsewhere, a comment block is literal (§7). Raw and quoted comments, and the lines of `@comments` (§9), are never predicted. The payload is indented by the unit `I`, never by a per-element step. For example,
-
-```sml
-svg
-  @ns http://www.w3.org/2000/svg
-  @rem """
-    Created with an editor
-    http://example.org/
-    """
-end
-```
-
-is the XML
-
-```xml
-<svg xmlns="http://www.w3.org/2000/svg">
-  <!--
-    Created with an editor
-    http://example.org/
-  -->
-</svg>
-```
-
-A writer MUST NOT write a comment in a laid-out position as a block unless its data has exactly this layout and the payload is a block that §7 reproduces exactly. Other multi-line comment data in a laid-out position is quoted.
-
-**Laid-out text blocks.** Pretty-printers lay out the multi-line text of an element such as `desc`, `style`, or `script` the same way. A compact text element whose value is a block, `name = """` or `name(…) = """`, in a laid-out position with indentation `W` has the text that a laid-out comment block with the same payload and indentation would have as its data. A text statement `= """` in the normal form is literal, and so is a compact text element elsewhere. For example,
+A block with no payload lines gives LF and `W`. The payload is indented by the unit `I`, never by a per-element step. A text statement `= """` in the normal form is literal, and so is a compact text element elsewhere. Comment blocks are always literal (§9). For example,
 
 ```sml
 svg
@@ -568,7 +543,7 @@ desc = """"
 
 The `desc` text is `Write a block like this:\n"""\nand close it.`. Everything else about the block is unchanged.
 
-Blocks may be used for `.attribute`, `=`, inline text, `@rem`, `@comments` (which takes only a block, §9), and alias invocations. Unless the document has `@indent none`, a `@rem` block and the block of a compact `name = """` element in a laid-out position get predicted edges (§6.4). For a compact `name = """` statement, the closing marker closes the value *and* implicitly closes the inline element; no `end` is needed.
+Blocks may be used for `.attribute`, `=`, inline text, `@rem`, `@comments` (which takes only a block, §9), and alias invocations. Unless the document has `@indent none`, the block of a compact `name = """` element in a laid-out position gets predicted edges (§6.4). A `@rem` block is always literal. For a compact `name = """` statement, the closing marker closes the value *and* implicitly closes the inline element; no `end` is needed.
 
 ## 8. Named attribute blocks (`@block`) and element aliases (`@node`) — SML Core
 
@@ -810,7 +785,7 @@ is the XML
 
 `#` introduces an SML-only source comment when it is the first non-indentation character. There are no end-of-line comments: `#` later in a line, and anywhere in a value, is ordinary data. Source comments are discarded on XML export, so they do not survive an SML → XML → SML round trip. A project that relies on `#` comments must keep the SML file as its source of truth.
 
-`@rem VALUE` creates an XML comment node. `@comment VALUE` is a synonym that readers MUST accept; writers write `@rem`. It may use raw, quoted, or block value syntax. XML comment constraints apply: no `--`, the final character cannot be `-`, and the decoded comment **cannot contain CR (U+000D)**. A literal XML source CR is normalized to LF before XML parsing, while XML character references are not decoded inside comments; thus an SML comment containing CR cannot be represented without information loss, and SML readers MUST reject it. Empty comments are permitted. Comments inside or outside the root are preserved in order. Comment text that begins or ends with a space, as in the common `<!-- text -->`, must be quoted: `@rem " text "`. Under `@indent`, a `@rem` block in a laid-out position gets predicted edges (§6.4).
+`@rem VALUE` creates an XML comment node. `@comment VALUE` is a synonym that readers MUST accept; writers write `@rem`. It may use raw, quoted, or block value syntax; a block is literal wherever it is (§7). A comment's data is the value without the spaces, tabs, and line breaks at its ends: a reader removes them, as XML import does, so `@rem text`, `@rem " text "`, and the XML `<!-- text -->` are the same comment. XML comment constraints apply: no `--`, and the decoded comment **cannot contain CR (U+000D)**. A literal XML source CR is normalized to LF before XML parsing, while XML character references are not decoded inside comments; thus an SML comment containing CR cannot be represented without information loss, and SML readers MUST reject it. Empty comments are permitted. Comments inside or outside the root are preserved in order. XML output writes a comment as `<!--`, a space, the data, a space, and `-->`, as in `<!-- text -->`, so its data may end with `-`; an empty comment is `<!---->`. A multi-line comment keeps the whitespace inside it, such as the indentation of its later lines.
 
 `@comments` followed by a block creates one XML comment per payload line, in order, and is exactly equivalent to one `@rem` statement per line. It is meant for banners of one-line comments:
 
@@ -822,7 +797,7 @@ is the XML
   """
 ```
 
-Each line, after the block's indentation is removed (§7), is one comment's data and obeys the constraints above. A payload line that is empty or only spaces and tabs is an error, and so is `@comments` without a block. Wherever the comments are, they are placed as that many `@rem` statements would be; in a laid-out element each is preceded by its predicted whitespace (§6.4). A line's data is never predicted.
+Each line, after the block's indentation is removed (§7) and the line is trimmed like any comment, is one comment's data and obeys the constraints above. A payload line that is empty or only spaces and tabs is an error, and so is `@comments` without a block. Wherever the comments are, they are placed as that many `@rem` statements would be; in a laid-out element each is preceded by its predicted whitespace (§6.4). A line's data is never predicted.
 
 `@pi TARGET [VALUE]` creates an XML processing instruction. `TARGET` is an `NCName` (Namespaces in XML 1.0 §7 forbids colons in PI targets) and cannot be `xml` in any case combination. Optional VALUE follows one or more spaces/tabs and uses raw or quoted form; no data means empty string. To represent multiline PI data, use quoted `\n` escapes.
 
@@ -877,7 +852,7 @@ Every namespace used by a prefixed element or attribute must be bound in scope. 
 
 **Other headers.** `@standalone yes|no` MAY appear once before the root to preserve an explicitly present XML standalone declaration; if it is absent, the standalone state is unspecified. `@indent` (§6.4) and `@doctype` (§11.1) MAY each appear once before the root (`@indent` also in declaration sections, as a per-element step), and `@node` (§8.7) and `@use` (§13) MAY appear before the root.
 
-**XML output.** All XML output uses version 1.0 and UTF-8 without a BOM. It begins with the declaration `<?xml version="1.0" encoding="UTF-8"?>`, adding `standalone="yes"` or `standalone="no"` when recorded. Top-level items (the declaration, prolog and epilog comments and PIs, the DOCTYPE, and the root) are separated by single LFs, and the output ends with an LF. The literal presence of the original `<?xml ...?>` declaration, its quote style, and its original encoding are not retained.
+**XML output.** All XML output uses version 1.0 and UTF-8 without a BOM. It begins with the declaration `<?xml version="1.0" encoding="UTF-8"?>`, adding `standalone="yes"` or `standalone="no"` when recorded. Top-level items (the declaration, prolog and epilog comments and PIs, the DOCTYPE, and the root) are separated by single LFs, and the output ends with an LF. Comments are written `<!-- data -->` (§9). The literal presence of the original `<?xml ...?>` declaration, its quote style, and its original encoding are not retained.
 
 Top-level `@rem`, `@comments`, and `@pi` before or after the root are valid and their relative order is preserved. Ordinary text, attributes, and extra root elements outside the root are errors. XML permits prolog/epilog whitespace between markup; the strict importer need not preserve that top-level lexical whitespace because it is outside this information model.
 
@@ -1064,7 +1039,7 @@ SML writers SHOULD emit:
 - A space before every block marker (`.attribute """`, `= """`, `name = """`, `@rem """`); readers also accept the forms without the space.
 - `@element` only for elements named `end`.
 - `@indent` and `@noindent` as §6.4's writer rule requires, including an `@indent` step for an element whose children are indented by a step other than the unit, and `@doctype` exactly as recorded, at its original prolog position.
-- `@comments` for consecutive one-line comments, and under `@indent`, laid-out comment and text blocks (§6.4) for comments and element text in the layout pretty-printers give them. A comment block, or the block of a compact text element, in a laid-out position MUST have that layout. Other multi-line comment data there is quoted; other multi-line text uses the normal form's literal `= """` statement when a block reproduces it, and is quoted otherwise.
+- `@comments` for consecutive one-line comments, literal blocks for multi-line comments, and, unless the document has `@indent none`, laid-out text blocks (§6.4) for element text in the layout pretty-printers give it. The block of a compact text element in a laid-out position MUST have that layout; other multi-line text there uses the normal form's literal `= """` statement when a block reproduces it, and is quoted otherwise.
 
 SML formatters MUST be idempotent. Under the strict profile they MUST NOT modify element, text, comment, or PI order or values, SVG strings, namespace declaration locations, or lexical prefixes. They SHOULD preserve `#` comments, blank-line grouping, and alias declarations, and MAY change alias spelling or layout only if every attribute value is preserved. Because alias invocations carry a block marker, introducing an alias cannot change how an existing child-element opener parses.
 
@@ -1083,8 +1058,6 @@ The canonical form is a function of the document alone: canonical writers MUST p
    2. **Block:** it contains LF and a character other than space, tab, and LF, and neither CR nor the characters §4 says to escape. A block reproduces every such value exactly (§7). The marker is the shortest of `"""`, `""""`, `"""""`, … that no payload line equals after trimming. TAB is literal in block payloads.
    3. **Quoted:** otherwise.
 
-   A comment in a laid-out position (§6.4) is written raw by 7.1; otherwise as a laid-out comment block if its data has that layout and the block's payload contains a character other than space, tab, and LF, with the marker chosen as in 7.2 for the payload; otherwise quoted. It is never written as a literal block, which would be read with predicted edges.
-
    The only text of an element in a laid-out position, under `@indent`, is written in the compact form the same way, as a laid-out text block when it has that layout, with one exception: text that 7.2 would write as a block, but that does not have the layout, makes the element use the normal form, where its `=` statement follows 7.1–7.3.
 8. **Quoted values.** Escapes are used only where required (`\\`, `\"`) and for CR, LF, TAB, and the characters listed in §4. They are written `\r`, `\n`, `\t`, and `\u{…}` with uppercase hexadecimal digits and no leading zeros. When a quoted value's statement line would exceed 100 code points, the value is split into continuation lines (§6.5). Each segment takes as many source characters as fit in 80 code points, ends after the last space within that span if there is one, and never splits an escape.
 9. **Whitespace model.** For a unit `I`, each element with a non-text child is compared with the prediction for its indentation (§6.4), from the root down:
@@ -1094,7 +1067,7 @@ The canonical form is a function of the document alone: canonical writers MUST p
 
    `@indent` uses the unit with which 9.1–9.3 lay out the most elements; among those, the one with the fewest per-element `@indent` statements; then, in this order: two spaces, four spaces, tab, then the other widths ascending from 0. The header is omitted when the unit is two spaces, the default. If no element would be laid out, the writer writes `@indent none`, unless reading without it would give the same document: when no element has a non-text child, no comment before or after the root has a line break, and the root's only content is not text with a line break.
 10. **Text.** Adjacent text nodes are coalesced and empty ones dropped. Each remaining text node is one `=` statement.
-11. **Comment runs.** Each maximal run of two or more consecutive comments that can be `@comments` lines is one `@comments` block. Consecutive means adjacent in the written statements: prolog or epilog items next to each other, or children with nothing between them but predicted whitespace (§6.4). A comment can be such a line when its data is not empty, contains no LF or CR, does not begin or end with a space or tab, and contains none of the characters §4 says to escape. The marker is chosen as in rule 7.2, and each comment is a payload line.
+11. **Comment runs.** Each maximal run of two or more consecutive comments that can be `@comments` lines is one `@comments` block. Consecutive means adjacent in the written statements: prolog or epilog items next to each other, or children with nothing between them but predicted whitespace (§6.4). A comment can be such a line when its data is not empty, contains no LF or CR, and contains none of the characters §4 says to escape. The marker is chosen as in rule 7.2, and each comment is a payload line.
 
 ### 14.3 XML output
 
@@ -1152,7 +1125,7 @@ The following fixtures are mandatory in addition to the baseline corpus:
 | SV-51 | Bare alias name as the first statement in a matching element's declaration section | Parsed as a child element; declaration section closes |
 | SV-52 | `alias """` with no matching active alias | Rejected |
 | SV-53 | Leading/trailing spaces and tabs on value lines, including an `@ns` URI and a `"""` marker followed by spaces | Trimmed; `.d """ ` starts a block; the namespace URI has no trailing space |
-| SV-54 | Attribute, text, comment, and PI values with significant outer whitespace | Writer quotes them; exact round trip |
+| SV-54 | Attribute, text, and PI values with significant outer whitespace; a comment quoted with spaces at its ends | Writer quotes the values, exact round trip; the comment trimmed and written raw |
 | SV-55 | Quoted value followed by trailing spaces on the line | Accepted; value unchanged |
 | SV-56 | Verbatim blocks: payload lines ending in spaces or tabs, lines indented beyond the closing marker, whitespace-only lines with and without its indentation, a line without it; Inkscape-style CSS indented with tabs | Trailing whitespace and extra indentation kept; whitespace-only lines without the indentation empty; the line without it rejected; the CSS written as a block and read back exactly |
 | SV-57 | PI target containing `:` | SML reader rejects; XML importer rejects |
@@ -1175,10 +1148,10 @@ The following fixtures are mandatory in addition to the baseline corpus:
 | SV-74 | `xmlns=""` on the root element | Preserved as `@ns ""` |
 | SV-75 | Explicit `xmlns:xml="http://www.w3.org/XML/1998/namespace"` | Preserved |
 | SV-76 | SML-authored corpus using blocks, `end` payload lines, aliases, continuation lines, inline `xmlns`, and `@indent` | SML → XML → SML → XML preserves information (reverse round trip) |
-| SV-77 | Runs of one-line comments in the prolog and in laid-out and exact elements, including lines `# x`, `end`, and `"""`; a comment with spaces at its ends; `@comments` with a blank line, without a block, or with `--` | One `@comments` block per run of two or more (marker `""""` when a line is `"""`); the spaced comment is quoted on its own; the three invalid forms rejected |
-| SV-78 | Pretty-printed multi-line comments at depths 0, 1, and 2 under `@indent`, one with an empty line; a multi-line comment whose lines are not indented one level deeper; a comment block without `@indent`, under `@noindent`, and in mixed content | Laid-out comment blocks, read back with the same data; the unindented one quoted; the last three literal blocks |
-| SV-79 | XML that puts each child on its own line without indentation, including a pretty-printed multi-line comment | `@indent 0`, no text statements, and a laid-out comment block; reads back with the same whitespace |
-| SV-80 | Text, attribute, and comment values made only of whitespace, such as line breaks, in exact elements and in a laid-out position | Quoted (`= "\n"`, `.a "\n"`, `@rem "\n"`), never blocks of blank lines; a block of blank lines is still read |
+| SV-77 | Runs of one-line comments in the prolog and in laid-out and exact elements, including lines `# x`, `end`, and `"""`; a comment with spaces at its ends; `@comments` lines with spaces at their ends; `@comments` with a blank line, a line of spaces and tabs, without a block, or with `--` | One `@comments` block per run of two or more (marker `""""` when a line is `"""`); the spaced comment and lines trimmed, the comment part of the run; the invalid forms rejected |
+| SV-78 | XML comments with whitespace at their ends: pretty-printed multi-line ones at depths 0, 1, and 2, one with an empty line; one ending with `-` before spaces; one of a tab only. SML comments with spaces or line breaks at their ends, quoted and as blocks, in laid-out positions and under `@indent none`; `@rem "a--b"` | Data trimmed from XML and SML alike; multi-line comments as literal blocks keeping their inner indentation; XML output `<!-- data -->`, and `<!---->` for the empty comment; exact round trips; `--` rejected |
+| SV-79 | XML that puts each child on its own line without indentation, including a comment of one line between line breaks | `@indent 0`, no text statements, and the comment trimmed (`@rem line`); reads back with the same whitespace |
+| SV-80 | Text and attribute values made only of whitespace, such as line breaks, in exact elements and in a laid-out position; a comment of a line break | Quoted (`= "\n"`, `.a "\n"`), never blocks of blank lines; the comment empty (`@rem`); a block of blank lines is still read |
 | SV-81 | Under `@indent 2`, a subtree whose children are indented by four more spaces, one indented by a tab, and the grandchildren of a four-space element; a per-element `@indent` without the header, twice in one element, after content, or after the root | `@indent 4` and `@indent tab` steps in the declaration sections; the grandchildren follow the unit again; exact round trip; the four invalid forms rejected |
 | SV-82 | Under `@indent`, pretty-printed multi-line text in `desc`, `style`, and `title`, including an empty line and a child of a four-space element; text without whitespace at its edges; text not indented one unit deeper; a compact block under `@noindent`, in mixed content, and without `@indent` | Laid-out text blocks (`desc = """`), read back with the same text; the edgeless text in the normal form with a literal `= """`; the unindented text quoted; the last three literal |
 | SV-83 | `@node` before the root and in a declaration section, used in every opener form, shadowed in a nested scope, and naming a prefixed element whose prefix is bound where it is used; `@element` and `end QName` with aliases; an alias that is `end` or prefixed, an alias declared twice in one scope, and `@node` after the root or after content | The document of the real names; aliases never chain; the invalid forms rejected; canonical output has no `@node` |
@@ -1354,7 +1327,7 @@ Here `@ns app urn:editor` belongs on `metadata` and is inherited by `app:setting
 ```
 
 ```sml
-@rem " Generator: Example Editor 1.0 "
+@rem Generator: Example Editor 1.0
 @doctype svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd"
 svg
   @ns http://www.w3.org/2000/svg
@@ -1363,7 +1336,7 @@ svg
 end
 ```
 
-The comment's surrounding spaces are data, so it is quoted. The DOCTYPE is preserved but its DTD is never loaded. The default two-space indentation regenerates the whitespace around `rect`.
+The comment is trimmed (§9), and XML output puts one space back on each side. The DOCTYPE is preserved but its DTD is never loaded. The default two-space indentation regenerates the whitespace around `rect`.
 
 ## 17. Remaining limitations and open engineering tasks
 
