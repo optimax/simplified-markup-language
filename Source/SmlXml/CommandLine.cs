@@ -29,11 +29,11 @@ public static class CommandLine
                                input: * stands for the input's name without its extension, and without a
                                folder each output goes beside its input. Example: smlxml -o *.out.svg *.sml
           -f, --force          Overwrite an existing output file.
-          -p, --profile <name> Write SML with a profile's aliases and layouts (XML to SML only). The SML
-                               still converts back to the same XML. A name without folder or extension is
-                               a profile beside smlxml: smlxml -p svg uses svg.smlprofile.
-          -r, --reflow         With --profile: put one item per line, such as one path command per line.
-                               Readable, but the values change: the XML written back differs in whitespace.
+          -c, --clean <name>   Write readable SML with a profile (XML to SML only): one item per line, such
+                               as one path command per line, tidy CSS and scripts, and the profile's aliases.
+                               The whitespace in those values changes, so the XML written back differs. A
+                               name without folder or extension is a profile beside smlxml: smlxml -c svg
+                               uses svg.smlprofile.
               --verbose        Write every attribute and namespace declaration on its own line, never in a
                                name(...) list (XML to SML only).
           -h, --help           Show this help.
@@ -53,7 +53,7 @@ public static class CommandLine
         }
         var inputs = new List<string>();
         string? output = null, profileName = null;
-        bool force = false, reflow = false, verbose = false;
+        bool force = false, verbose = false;
         for (int i = 0; i < args.Length; i++)
         {
             string arg = args[i];
@@ -72,13 +72,10 @@ public static class CommandLine
                         return Fail(stderr, $"{arg} needs a path");
                     output = args[++i];
                     break;
-                case "-p" or "--profile":
+                case "-c" or "--clean":
                     if (i + 1 >= args.Length)
                         return Fail(stderr, $"{arg} needs a profile name or file");
                     profileName = args[++i];
-                    break;
-                case "-r" or "--reflow":
-                    reflow = true;
                     break;
                 case "--verbose":
                     verbose = true;
@@ -101,8 +98,6 @@ public static class CommandLine
             return Fail(stderr, "an --output pattern can only use *");
         if (outputPattern && (Path.GetDirectoryName(output) ?? "").Contains('*'))
             return Fail(stderr, "an --output pattern can use * only in the file name");
-        if (reflow && profileName is null)
-            return Fail(stderr, "--reflow needs --profile");
         SmlProfile? profile = null;
         if (profileName is not null)
         {
@@ -128,7 +123,7 @@ public static class CommandLine
         // Expand every pattern before converting anything, so files written by this run never become inputs.
         // A name that exists literally is used as is (on Linux, * and ? are legal in file names).
         var files = new List<string>();
-        var writer = new SmlWriterOptions { Profile = profile, Reflow = reflow, VerticalAttributes = verbose };
+        var writer = new SmlWriterOptions { Clean = profile, VerticalAttributes = verbose };
         var run = new RunContext(force, writer, new HashSet<string>(FileExpander.PathComparer),
             new Dictionary<string, string>(FileExpander.PathComparer), stdout, stderr);
         int result = Success;
@@ -163,7 +158,7 @@ public static class CommandLine
     private sealed record RunContext(bool Force, SmlWriterOptions Writer, HashSet<string> Inputs,
         Dictionary<string, string> Outputs, TextWriter Out, TextWriter Err);
 
-    /// <summary>The file of a --profile argument: an existing file, or for a plain name (no folder or extension),
+    /// <summary>The file of a --clean argument: an existing file, or for a plain name (no folder or extension),
     /// name.smlprofile beside smlxml. Null if there is none.</summary>
     private static string? FindProfile(string name)
     {

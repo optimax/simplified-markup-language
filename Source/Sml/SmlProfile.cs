@@ -1,7 +1,7 @@
 namespace Sml;
 
-/// <summary>An SML profile: aliases and layouts that an SML writer applies when it converts XML (see
-/// <see cref="SmlWriter.Write(SmlDocument, SmlProfile, bool)"/>). A profile is writer configuration, not part of
+/// <summary>An SML profile: the aliases and layouts with which an SML writer cleans the SML it writes from XML (see
+/// <see cref="SmlWriter.Write(SmlDocument, SmlProfile)"/> and §3.2). A profile is writer configuration, not part of
 /// any document: the SML written with it declares every alias it uses, so it reads without the profile.</summary>
 /// <remarks>
 /// A profile is UTF-8 text with one statement per line; blank lines and lines starting with <c>#</c> are ignored.
@@ -17,6 +17,8 @@ namespace Sml;
 /// <item><c>@layout element-qname .attribute-qname kind</c> divides the attribute's values into items (§3.2), where
 /// kind is <c>path</c>, <c>numbers N</c>, <c>declarations</c>, <c>functions</c>, or <c>list</c>. The element
 /// <c>*</c> means any element without a layout of its own for that attribute.</item>
+/// <item><c>@layout element-qname = code</c> marks the element's text as code, such as CSS or a script, whose
+/// trailing whitespace, blank first and last lines, and shared indentation the writer removes (§3.2).</item>
 /// </list>
 /// </remarks>
 public sealed class SmlProfile
@@ -33,6 +35,7 @@ public sealed class SmlProfile
     private readonly List<Alias> _aliases = [];
     private readonly List<NodeAlias> _nodes = [];
     private readonly List<LayoutRule> _layouts = [];
+    private readonly List<ExpandedName> _code = [];
 
     private SmlProfile()
     {
@@ -43,6 +46,9 @@ public sealed class SmlProfile
     public IReadOnlyList<NodeAlias> Nodes => _nodes;
 
     public IReadOnlyList<LayoutRule> Layouts => _layouts;
+
+    /// <summary>The elements whose text is code (<c>@layout element = code</c>).</summary>
+    public IReadOnlyList<ExpandedName> CodeElements => _code;
 
     /// <summary>Parses a profile; throws <see cref="SmlException"/> with the line number of an error.</summary>
     public static SmlProfile Parse(string text)
@@ -90,6 +96,9 @@ public sealed class SmlProfile
     public Layout? FindLayout(ExpandedName element, ExpandedName attribute) =>
         (_layouts.Find(r => r.Element == element && r.Attribute == attribute)
             ?? _layouts.Find(r => r.Element is null && r.Attribute == attribute))?.Layout;
+
+    /// <summary>Whether the profile marks an element's text as code.</summary>
+    public bool IsCode(ExpandedName element) => _code.Contains(element);
 
     /// <summary>The alias for an attribute of an element, if the profile declares one.</summary>
     public Alias? FindAlias(ExpandedName element, ExpandedName attribute) =>
@@ -152,7 +161,19 @@ public sealed class SmlProfile
     private void LayoutStatement(string[] t, Dictionary<string, string> ns, int ln)
     {
         if (t.Length < 4)
-            throw new SmlException("@layout takes: element-qname .attribute-qname kind", ln);
+            throw new SmlException("@layout takes: element-qname .attribute-qname kind, or element-qname = code", ln);
+        if (t[2] == "=")
+        {
+            if (t.Length != 4 || t[3] != "code")
+                throw new SmlException($"unknown text layout '{string.Join(' ', t[3..])}'; expected code", ln);
+            if (t[1] == "*")
+                throw new SmlException("a code layout names an element, not *", ln);
+            ExpandedName code = XmlRules.Resolve(t[1], ns, attribute: false, ln);
+            if (_code.Contains(code))
+                throw new SmlException($"the text of element '{t[1]}' already has a layout", ln);
+            _code.Add(code);
+            return;
+        }
         ExpandedName? element = t[1] == "*" ? null : XmlRules.Resolve(t[1], ns, attribute: false, ln);
         ExpandedName attribute = AttributeName(t[2], ns, ln);
         Layout layout = (t[3], t.Length) switch

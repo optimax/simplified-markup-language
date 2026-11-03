@@ -261,7 +261,10 @@ public sealed partial class SmlReader
         {
             string raw = _lines[_index++];
             if (XmlRules.StripSpacesAndTabs(raw) == marker)
-                return XmlRules.CheckChars(DedentBlock(payload), ln);
+            {
+                string prefix = raw[..(raw.Length - raw.TrimStart(' ', '\t').Length)];
+                return XmlRules.CheckChars(DedentBlock(payload, prefix, ln + 1), ln);
+            }
             payload.Add(raw);
         }
         throw new SmlException($"unterminated block (expected a line {marker})", ln);
@@ -269,28 +272,23 @@ public sealed partial class SmlReader
 
     private string ValueOf(ValueKind kind, string value, int ln) => kind == ValueKind.Block ? ReadBlock(value, ln) : value;
 
-    /// <summary>The §7 dedentation algorithm.</summary>
-    public static string DedentBlock(IReadOnlyList<string> lines)
+    /// <summary>The §7 dedentation: prefix, the closing marker's indentation, comes off each payload line, and the
+    /// rest of the line is data. A line of spaces and tabs only that does not begin with prefix is empty; any other
+    /// line must begin with prefix. firstLine is the number of the first payload line, for errors.</summary>
+    public static string DedentBlock(IReadOnlyList<string> lines, string prefix, int firstLine)
     {
-        var trimmed = lines.Select(l => l.TrimEnd(' ', '\t')).ToList();
-        string? prefix = null;
-        foreach (string line in trimmed)
+        var result = new List<string>(lines.Count);
+        for (int k = 0; k < lines.Count; k++)
         {
-            if (line.Length == 0)
-                continue;
-            string lead = line[..(line.Length - line.TrimStart(' ', '\t').Length)];
-            if (prefix is null)
-            {
-                prefix = lead;
-                continue;
-            }
-            int k = 0;
-            while (k < prefix.Length && k < lead.Length && prefix[k] == lead[k])
-                k++;
-            prefix = prefix[..k];
+            string line = lines[k];
+            if (line.StartsWith(prefix, StringComparison.Ordinal))
+                result.Add(line[prefix.Length..]);
+            else if (XmlRules.StripSpacesAndTabs(line).Length == 0)
+                result.Add("");
+            else
+                throw new SmlException("a block line must begin with the closing marker's indentation", firstLine + k);
         }
-        int n = prefix?.Length ?? 0;
-        return string.Join('\n', trimmed.Select(l => l.Length == 0 ? "" : l[n..]));
+        return string.Join('\n', result);
     }
 
     /// <summary>Space-separated operands, each raw (no spaces) or quoted.</summary>

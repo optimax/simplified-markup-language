@@ -32,7 +32,7 @@ public class ReaderTests
     [Fact]
     public void CP02_LineEndings()
     {
-        const string lf = "g\n  .a 1\n  = \"\"\"\n    x\n    y\n  \"\"\"\nend\n";
+        const string lf = "g\n  .a 1\n  = \"\"\"\n    x\n    y\n    \"\"\"\nend\n";
         Same(lf.Replace("\n", "\r\n"), lf);
         Same(lf.Replace("\n", "\r"), lf);
     }
@@ -83,8 +83,8 @@ public class ReaderTests
     [Fact]
     public void CP08_CP09_BlockMarkers()
     {
-        Assert.Equal("end path\nend", Root("g\n  .a \"\"\"\n    end path\n    end\n  \"\"\"\nend\n").Attributes["a"]);
-        Assert.Equal("x\n\"\"\"", Root("g\n  .a \"\"\"\"\n    x\n    \"\"\"\n  \"\"\"\"\nend\n").Attributes["a"]);
+        Assert.Equal("end path\nend", Root("g\n  .a \"\"\"\n    end path\n    end\n    \"\"\"\nend\n").Attributes["a"]);
+        Assert.Equal("x\n\"\"\"", Root("g\n  .a \"\"\"\"\n    x\n    \"\"\"\n    \"\"\"\"\nend\n").Attributes["a"]);
         Rejects("g\n  .a \"\"\"\"\n    x\n  \"\"\"\nend\n", "unterminated block");
         Assert.Equal("", Root("g\n  .a \"\"\nend\n").Attributes["a"]);
         Rejects("g\n  .a \"\"\"x\nend\n");
@@ -125,8 +125,8 @@ public class ReaderTests
     [Fact]
     public void CP14_BlockDedentation()
     {
-        Assert.Equal("a\n\n  b\n\nc", Root("g\n  .a \"\"\"\n    a\n\n      b\n   \t  \n    c\n  \"\"\"\nend\n").Attributes["a"]);
-        Assert.Equal("\ta\n  b", Root("g\n  .a \"\"\"\n\ta\n  b\n  \"\"\"\nend\n").Attributes["a"]);
+        Assert.Equal("a\n\n  b\n\nc", Root("g\n  .a \"\"\"\n    a\n\n      b\n\n    c\n    \"\"\"\nend\n").Attributes["a"]);
+        Assert.Equal("\ta\n  b", Root("g\n  .a \"\"\"\n\ta\n  b\n\"\"\"\nend\n").Attributes["a"]);
         Assert.Equal("", Root("g\n  .a \"\"\"\n  \"\"\"\nend\n").Attributes["a"]);
     }
 
@@ -160,7 +160,7 @@ public class ReaderTests
     public void CP21_CP22_Extensions()
     {
         Rejects("@use geo 1.0\ng/\n", "not implemented");
-        Same("@use geo 1.0 optional\n@geo:grid 10\ng\n  .a 1\n  @geo:hint \"\"\"\n    x\n  \"\"\"\n  .b 2\nend\n",
+        Same("@use geo 1.0 optional\n@geo:grid 10\ng\n  .a 1\n  @geo:hint \"\"\"\n    x\n    \"\"\"\n  .b 2\nend\n",
              "g\n  .a 1\n  .b 2\nend\n");
     }
 
@@ -171,7 +171,7 @@ public class ReaderTests
         [
             "svg(xmlns=http://www.w3.org/2000/svg, width=10, d=x)\n  path(d=M0 0)/\nend\n",
             "svg\n  @ns http://www.w3.org/2000/svg\n  .d \"x\"\n  .width 10\n  path\n    .d M0 0\n  end\nend svg\n",
-            "# c\nsvg\n  @ns \"http://www.w3.org/2000/svg\"\n  @block path .d p\n  .width \"1\"\n    \"0\"\n  .d x\n  path\n    p \"\"\"\n      M0 0\n    \"\"\"\n  end\nend\n",
+            "# c\nsvg\n  @ns \"http://www.w3.org/2000/svg\"\n  @block path .d p\n  .width \"1\"\n    \"0\"\n  .d x\n  path\n    p \"\"\"\n      M0 0\n      \"\"\"\n  end\nend\n",
         ];
         Assert.Single(variants.Select(v => SmlWriter.Write(SmlReader.Read(v))).Distinct());
     }
@@ -179,7 +179,7 @@ public class ReaderTests
     [Fact]
     public void CP24_CanonicalWriterIsIdempotent()
     {
-        const string source = "@indent 2\nsvg(xmlns=http://www.w3.org/2000/svg)\n  text\n    @noindent\n    tspan = A\n    = \" B\"\n  end\n  style = \"\"\"\"\n    a\n    \"\"\"\n    end\n  \"\"\"\"\nend\n";
+        const string source = "@indent 2\nsvg(xmlns=http://www.w3.org/2000/svg)\n  text\n    @noindent\n    tspan = A\n    = \" B\"\n  end\n  style = \"\"\"\"\n    a\n    \"\"\"\n    end\n    \"\"\"\"\nend\n";
         string once = SmlWriter.Write(SmlReader.Read(source));
         Assert.Equal(once, SmlWriter.Write(SmlReader.Read(once)));
     }
@@ -187,22 +187,45 @@ public class ReaderTests
     [Fact]
     public void SV34_SV37_AliasesOnlyWithMarker()
     {
-        ElementNode svg = Root($"svg\n  @ns {Svg}\n  @block path .d data\n  path\n    data \"\"\"\n      M 0 0\n    \"\"\"\n  end\nend\n");
+        ElementNode svg = Root($"svg\n  @ns {Svg}\n  @block path .d data\n  path\n    data \"\"\"\n      M 0 0\n      \"\"\"\n  end\nend\n");
         ElementNode path = (ElementNode)svg.Children[0];
         Assert.Equal(new ExpandedName(Svg, "path"), path.Name);
         Assert.Equal("M 0 0", path.Attributes["d"]);
-        ElementNode g = Root("g\n  @block g .d data\n  data \"\"\"\n    v\n  \"\"\"\n  data\n    = child\n  end\nend\n");
+        ElementNode g = Root("g\n  @block g .d data\n  data \"\"\"\n    v\n    \"\"\"\n  data\n    = child\n  end\nend\n");
         Assert.Equal("v", g.Attributes["d"]);
         Assert.Equal("data", ((ElementNode)g.Children[0]).QualifiedName);
-        Rejects("g\n  data \"\"\"\n    v\n  \"\"\"\nend\n", "no active alias");
+        Rejects("g\n  data \"\"\"\n    v\n    \"\"\"\nend\n", "no active alias");
         foreach (string declaration in new[] { "@block g data .d", "@block g .d", "@block g .d data x" })
             Rejects($"g\n  {declaration}\nend\n", "@block takes: element-qname .attribute-qname alias");
     }
 
     [Fact]
+    public void SV45_SV56_VerbatimBlocks()
+    {
+        foreach (string value in new[] { " a\n b", "a \nb\t", "a\n", "\na", "\n  x\n  " })
+            Assert.Equal("\"\"\"", SmlWriter.BlockTag(value));
+        foreach (string value in new[] { "a\r\nb", "a\n\u2028", "\n\n", "\n \t\n" })
+            Assert.Null(SmlWriter.BlockTag(value));
+
+        // Trailing whitespace is data; only the closing marker's indentation comes off each line.
+        Assert.Equal("x  \n\ty\t", Root("g\n  .a \"\"\"\n    x  \n    \ty\t\n    \"\"\"\nend\n").Attributes["a"]);
+        Assert.Equal("  x\n  y", Root("g\n  .a \"\"\"\n      x\n      y\n    \"\"\"\nend\n").Attributes["a"]);
+        // A line of spaces and tabs that does not begin with that indentation is empty; one that does keeps the rest.
+        Assert.Equal("x\n\n\n  ", Root("g\n  .a \"\"\"\n    x\n\n  \n      \n    \"\"\"\nend\n").Attributes["a"]);
+        Rejects("g\n  .a \"\"\"\n    x\n   y\n    \"\"\"\nend\n", "closing marker's indentation");
+        Rejects("g\n  .a \"\"\"\n    x\n\ty\n    \"\"\"\nend\n", "closing marker's indentation");
+
+        // The writer copies such text exactly: Inkscape-style CSS indented with tabs, with trailing whitespace.
+        SmlDocument doc = XmlImporter.Read(Encoding.UTF8.GetBytes("<style>\n\t\ta {\t \n\t\t}\n    </style>"));
+        string sml = SmlWriter.Write(doc);
+        Assert.Equal("@sml 1.0-SVG-1\nstyle = \"\"\"\n\n  \t\ta {\t \n  \t\t}\n      \n  \"\"\"\n", sml);
+        Assert.Null(DocumentComparer.FirstDifference(doc, SmlReader.Read(sml)));
+    }
+
+    [Fact]
     public void SV53_SV55_LinesAreTrimmed()
     {
-        ElementNode g = Root($"g  \n  @ns {Svg}   \n  .x   value   \n  .q \"y\"   \n  .d \"\"\"  \n    v\n  \"\"\"\nend\n");
+        ElementNode g = Root($"g  \n  @ns {Svg}   \n  .x   value   \n  .q \"y\"   \n  .d \"\"\"  \n    v\n    \"\"\"\nend\n");
         Assert.Equal(Svg, g.NamespaceDeclarations[""]);
         Assert.Equal("value", g.Attributes["x"]);
         Assert.Equal("y", g.Attributes["q"]);
@@ -239,8 +262,8 @@ public class ReaderTests
     [Fact]
     public void SV71_SV72_BlockMarkers()
     {
-        Same("g\n  .d\"\"\"\n    v\n  \"\"\"\nend\n", "g\n  .d \"\"\"\n    v\n  \"\"\"\nend\n");
-        Same("g\n  @block g .y x\n  x\"\"\"\n    v\n  \"\"\"\nend\n", "g\n  .y \"\"\"\n    v\n  \"\"\"\nend\n");
+        Same("g\n  .d\"\"\"\n    v\n    \"\"\"\nend\n", "g\n  .d \"\"\"\n    v\n    \"\"\"\nend\n");
+        Same("g\n  @block g .y x\n  x\"\"\"\n    v\n    \"\"\"\nend\n", "g\n  .y \"\"\"\n    v\n    \"\"\"\nend\n");
         ElementNode bars = Root("g(a=|x, b=|)\n  .c |x y\n  @comment |c\n  @pi t |p\n  = |\nend\n");
         Assert.Equal(("|x", "|", "|x y"), (bars.Attributes["a"], bars.Attributes["b"], bars.Attributes["c"]));
         Assert.Equal("|c", ((CommentNode)bars.Children[0]).Data);
@@ -257,28 +280,28 @@ public class ReaderTests
     [Fact]
     public void SV77_CommentRuns()
     {
-        Assert.Equal(["a", "# b", "end"], Comments(Root("g\n  @comments \"\"\"\n    a\n    # b\n    end\n  \"\"\"\n  h/\nend\n")));
-        ElementNode laid = Root("@indent 2\ng\n  @comments \"\"\"\n    a\n    b\n  \"\"\"\nend\n");
+        Assert.Equal(["a", "# b", "end"], Comments(Root("g\n  @comments \"\"\"\n    a\n    # b\n    end\n    \"\"\"\n  h/\nend\n")));
+        ElementNode laid = Root("@indent 2\ng\n  @comments \"\"\"\n    a\n    b\n    \"\"\"\nend\n");
         Assert.Equal(["\n  ", "a", "\n  ", "b", "\n"],
             laid.Children.Select(c => c is CommentNode comment ? comment.Data : ((TextNode)c).Data).ToList());
-        Assert.Equal(["p", "q"], SmlReader.Read("@comments \"\"\"\n  p\n  q\n\"\"\"\ng/\n").Prolog.Cast<CommentNode>().Select(c => c.Data).ToList());
-        Rejects("g\n  @comments \"\"\"\n    a\n\n    b\n  \"\"\"\nend\n", "blank lines");
+        Assert.Equal(["p", "q"], SmlReader.Read("@comments \"\"\"\n  p\n  q\n  \"\"\"\ng/\n").Prolog.Cast<CommentNode>().Select(c => c.Data).ToList());
+        Rejects("g\n  @comments \"\"\"\n    a\n\n    b\n    \"\"\"\nend\n", "blank lines");
         Rejects("g\n  @comments \"\"\"\n  \"\"\"\nend\n", "blank lines");
         Rejects("g\n  @comments a\nend\n", "takes a block");
-        Rejects("g\n  @comments \"\"\"\n    a--b\n  \"\"\"\nend\n", "'--'");
-        Rejects("g\n  @comments \"\"\"\n    x\n  \"\"\"\n  .a 1\nend\n", "after the element");
+        Rejects("g\n  @comments \"\"\"\n    a--b\n    \"\"\"\nend\n", "'--'");
+        Rejects("g\n  @comments \"\"\"\n    x\n    \"\"\"\n  .a 1\nend\n", "after the element");
         SmlDocument doc = SmlReader.Read("g\n  @comment a\n  @comment \" b\"\n  @comment c\n  @comment d\n  @comment \"\\\"\\\"\\\"\"\nend\n");
         Assert.Equal(["a", " b", "c", "d", "\"\"\""], Comments(doc.Root));
         string sml = SmlWriter.Write(doc);
-        Assert.Contains("  @comment a\n  @comment \" b\"\n  @comments \"\"\"\"\n    c\n    d\n    \"\"\"\n  \"\"\"\"\n", sml);
+        Assert.Contains("  @comment a\n  @comment \" b\"\n  @comments \"\"\"\"\n    c\n    d\n    \"\"\"\n    \"\"\"\"\n", sml);
         Assert.Null(DocumentComparer.FirstDifference(doc, SmlReader.Read(sml)));
     }
 
     [Fact]
     public void SV78_LaidOutCommentBlocks()
     {
-        const string source = "@indent 2\n@comment \"\"\"\n  top\n\"\"\"\ng\n  @comment \"\"\"\n    a\n\n    b\n  \"\"\"\n"
-            + "  h\n    @comment \"\"\"\n      deep\n    \"\"\"\n  end\nend\n";
+        const string source = "@indent 2\n@comment \"\"\"\n  top\n  \"\"\"\ng\n  @comment \"\"\"\n    a\n\n    b\n    \"\"\"\n"
+            + "  h\n    @comment \"\"\"\n      deep\n      \"\"\"\n  end\nend\n";
         SmlDocument doc = SmlReader.Read(source);
         Assert.Equal("\n  top\n", ((CommentNode)doc.Prolog[0]).Data);
         Assert.Equal("\n    a\n\n    b\n  ", Comments(doc.Root)[0]);
@@ -286,17 +309,19 @@ public class ReaderTests
         Assert.Equal("@sml 1.0-SVG-1\n" + source, SmlWriter.Write(doc));
 
         // Without @indent, in @noindent elements, and in mixed content, blocks are literal.
-        Assert.Equal("a", Comments(Root("g\n  @comment \"\"\"\n    a\n  \"\"\"\nend\n"))[0]);
-        Assert.Equal("a", Comments(Root("@indent 2\ng\n  @noindent\n  @comment \"\"\"\n    a\n  \"\"\"\nend\n"))[0]);
-        Assert.Equal("a", Comments(Root("@indent 2\ng\n  = x\n  @comment \"\"\"\n    a\n  \"\"\"\nend\n"))[0]);
+        Assert.Equal("a", Comments(Root("g\n  @comment \"\"\"\n    a\n    \"\"\"\nend\n"))[0]);
+        Assert.Equal("a", Comments(Root("@indent 2\ng\n  @noindent\n  @comment \"\"\"\n    a\n    \"\"\"\nend\n"))[0]);
+        Assert.Equal("a", Comments(Root("@indent 2\ng\n  = x\n  @comment \"\"\"\n    a\n    \"\"\"\nend\n"))[0]);
         Assert.Equal("\n  ", Comments(Root("@indent 2\ng\n  @comment \"\"\"\n  \"\"\"\nend\n"))[0]);
 
         // Data without that layout is quoted, never a literal block, in a laid-out position.
-        foreach (string data in new[] { "\n  flush\n  ", "a\nb", "\n    a  \n  ", "\n      a\n      b\n  " })
+        // Data with that layout is a laid-out block even when its lines have trailing whitespace or more indentation.
+        foreach (var (data, form) in new[] { ("\n  flush\n  ", "@comment \"\\n"), ("a\nb", "@comment \"a"),
+                     ("\n    a  \n  ", "@comment \"\"\""), ("\n      a\n      b\n  ", "@comment \"\"\"") })
         {
             SmlDocument xml = XmlImporter.Read(Encoding.UTF8.GetBytes($"<g>\n  <!--{data}-->\n</g>"));
             string sml = SmlWriter.Write(xml);
-            Assert.Contains("@comment \"", sml);
+            Assert.Contains(form, sml);
             Assert.Null(DocumentComparer.FirstDifference(xml, SmlReader.Read(sml)));
         }
     }
@@ -309,7 +334,7 @@ public class ReaderTests
         Assert.Equal(["\n", "\n"], g.Children.OfType<ElementNode>().ElementAt(1).Children.OfType<TextNode>().Select(t => t.Data).ToList());
         SmlDocument doc = XmlImporter.Read(Encoding.UTF8.GetBytes("<g>\n<h/>\n<k>\n<m/>\n</k>\n<!--\nline\n-->\n</g>"));
         string sml = SmlWriter.Write(doc);
-        Assert.Equal("@sml 1.0-SVG-1\n@indent 0\ng\n  h/\n  k\n    m/\n  end\n  @comment \"\"\"\n    line\n  \"\"\"\nend\n", sml);
+        Assert.Equal("@sml 1.0-SVG-1\n@indent 0\ng\n  h/\n  k\n    m/\n  end\n  @comment \"\"\"\n    line\n    \"\"\"\nend\n", sml);
         Assert.Null(DocumentComparer.FirstDifference(doc, SmlReader.Read(sml)));
     }
 
@@ -353,7 +378,7 @@ public class ReaderTests
     [Fact]
     public void SV82_LaidOutText()
     {
-        const string source = "@indent 2\ng\n  p = \"\"\"\n    one\n\n    two\n  \"\"\"\n  q\n    @indent 4\n    r = \"\"\"\n      deep\n    \"\"\"\n  end\nend\n";
+        const string source = "@indent 2\ng\n  p = \"\"\"\n    one\n\n    two\n    \"\"\"\n  q\n    @indent 4\n    r = \"\"\"\n      deep\n      \"\"\"\n  end\nend\n";
         SmlDocument doc = SmlReader.Read(source);
         List<ElementNode> elements = doc.Root.Children.OfType<ElementNode>().ToList();
         Assert.Equal("\n    one\n\n    two\n  ", ((TextNode)elements[0].Children[0]).Data);
@@ -363,19 +388,21 @@ public class ReaderTests
         // The normal form, @noindent parents, mixed content, and documents without @indent stay literal.
         foreach (string literal in new[]
         {
-            "@indent 2\ng\n  p\n    = \"\"\"\n      a\n      b\n    \"\"\"\n  end\nend\n",
-            "@indent 2\ng\n  @noindent\n  p = \"\"\"\n    a\n    b\n  \"\"\"\nend\n",
-            "@indent 2\ng\n  = x\n  p = \"\"\"\n    a\n    b\n  \"\"\"\nend\n",
-            "g\n  p = \"\"\"\n    a\n    b\n  \"\"\"\nend\n",
+            "@indent 2\ng\n  p\n    = \"\"\"\n      a\n      b\n      \"\"\"\n  end\nend\n",
+            "@indent 2\ng\n  @noindent\n  p = \"\"\"\n    a\n    b\n    \"\"\"\nend\n",
+            "@indent 2\ng\n  = x\n  p = \"\"\"\n    a\n    b\n    \"\"\"\nend\n",
+            "g\n  p = \"\"\"\n    a\n    b\n    \"\"\"\nend\n",
         })
             Assert.Equal("a\nb", ((TextNode)Root(literal).Children.OfType<ElementNode>().First().Children[0]).Data);
 
-        // In a laid-out position, text that needs a literal block uses the normal form; other text is quoted.
+        // In a laid-out position, text without the layout uses the normal form, whose block is literal; text a block
+        // cannot hold, such as line breaks only, is quoted.
         SmlDocument xml = XmlImporter.Read(Encoding.UTF8.GetBytes("<g>\n  <p>a\nb</p>\n  <p>\n  flush\n  </p>\n  <p>\n    x\n  </p>\n</g>"));
         string sml = SmlWriter.Write(xml);
-        Assert.Contains("  p\n    = \"\"\"\n      a\n      b\n    \"\"\"\n  end\n", sml);
-        Assert.Contains("  p = \"\\n  flush\\n  \"\n", sml);
-        Assert.Contains("  p = \"\"\"\n    x\n  \"\"\"\n", sml);
+        Assert.Contains("  p\n    = \"\"\"\n      a\n      b\n      \"\"\"\n  end\n", sml);
+        Assert.Contains("  p\n    = \"\"\"\n\n        flush\n        \n      \"\"\"\n  end\n", sml);
+        Assert.Contains("  p = \"\\n\\n\"\n", SmlWriter.Write(XmlImporter.Read(Encoding.UTF8.GetBytes("<g>\n  <p>\n\n</p>\n</g>"))));
+        Assert.Contains("  p = \"\"\"\n    x\n    \"\"\"\n", sml);
         Assert.Null(DocumentComparer.FirstDifference(xml, SmlReader.Read(sml)));
     }
 

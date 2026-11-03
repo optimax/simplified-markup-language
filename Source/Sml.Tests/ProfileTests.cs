@@ -176,6 +176,9 @@ public class ProfileTests
     [InlineData("@layout path .d curves\n", 1, "unknown layout 'curves'")]
     [InlineData("# comment\n\n.d x\n", 3, "unknown profile statement")]
     [InlineData("@block path .xmlns d\n", 1, "cannot name a namespace declaration")]
+    [InlineData("@layout style = css\n", 1, "unknown text layout 'css'; expected code")]
+    [InlineData("@layout * = code\n", 1, "a code layout names an element, not *")]
+    [InlineData("@layout style = code\n@layout style = code\n", 2, "the text of element 'style' already has a layout")]
     [InlineData("@node g\n", 1, "@node takes")]
     [InlineData("@node g end\n", 1, "invalid element alias 'end'")]
     [InlineData("@node g a:b\n", 1, "invalid element alias 'a:b'")]
@@ -195,29 +198,31 @@ public class ProfileTests
     private static SmlDocument Xml(string xml) => XmlImporter.Read(Encoding.UTF8.GetBytes(xml));
 
     [Fact]
-    public void WritesExactlyWithContinuationLinesPerItem()
+    public void KeepsAValueThatCannotBeDividedCleanlyWithAContinuationLinePerItem()
     {
-        SmlDocument doc = Xml("<svg xmlns='http://www.w3.org/2000/svg'><path d='M 0 0 L 1 1 Z' fill='red'/></svg>");
+        SmlDocument doc = Xml("<svg xmlns='http://www.w3.org/2000/svg'><path d='M 0&#9;0 L 1 1 Z' fill='red'/></svg>");
+        string sml = SmlWriter.Write(doc, Svg);
         Assert.Equal("""
             @sml 1.0-SVG-1
             svg(xmlns=http://www.w3.org/2000/svg)
               path
-                .d "M 0 0 "
+                .d "M 0\t0 "
                   "L 1 1 "
                   "Z"
                 .fill red
               end
             end
 
-            """.ReplaceLineEndings("\n"), SmlWriter.Write(doc, Svg));
+            """.ReplaceLineEndings("\n"), sml);
+        Assert.Null(DocumentComparer.FirstDifference(doc, SmlReader.Read(sml)));
     }
 
     [Fact]
-    public void ReflowsIntoAliasBlocksDeclaredOnTheRoot()
+    public void CleansIntoAliasBlocksDeclaredOnTheRoot()
     {
         SmlDocument doc = Xml("<svg xmlns='http://www.w3.org/2000/svg'><path d='M 0 0 L 1 1 Z' fill='red'/></svg>");
         Assert.Equal(""""
-            # Readable conversion (SML §3.2), not strict: one item per line in d
+            # Cleaned (SML §3.2), not exact: one item per line in d
             @sml 1.0-SVG-1
             svg(xmlns=http://www.w3.org/2000/svg)
               @block path .d data
@@ -226,22 +231,22 @@ public class ProfileTests
                   M 0 0
                   L 1 1
                   Z
-                """
+                  """
                 .fill red
               end
             end
 
-            """".ReplaceLineEndings("\n"), SmlWriter.Write(doc, Svg, reflow: true));
+            """".ReplaceLineEndings("\n"), SmlWriter.Write(doc, Svg));
     }
 
     [Fact]
-    public void UsesAliasesForExactBlocksWithTheRootsPrefix()
+    public void UsesAliasesWithTheRootsPrefix()
     {
         SmlDocument doc = Xml("<s:svg xmlns:s='http://www.w3.org/2000/svg'><s:polygon points='0,0&#10;1,1'/></s:svg>");
         string sml = SmlWriter.Write(doc, Svg);
         Assert.Contains("  @block s:polygon .points points\n", sml);
-        Assert.Contains("    points \"\"\"\n      0,0\n      1,1\n    \"\"\"\n", sml);
-        Assert.Null(DocumentComparer.FirstDifference(doc, SmlReader.Read(sml)));
+        Assert.Contains("    points \"\"\"\n      0, 0\n      1, 1\n      \"\"\"\n", sml);
+        Assert.Equal("0, 0\n1, 1", SmlReader.Read(sml).Root.Children.OfType<ElementNode>().First().Attributes["points"]);
     }
 
     [Fact]
@@ -250,8 +255,49 @@ public class ProfileTests
         SmlDocument doc = Xml("<doc><svg xmlns='http://www.w3.org/2000/svg'><path d='M 0 0&#10;L 1 1'/></svg></doc>");
         string sml = SmlWriter.Write(doc, Svg);
         Assert.DoesNotContain("@block", sml);
-        Assert.Contains("      .d \"\"\"\n", sml);
-        Assert.Null(DocumentComparer.FirstDifference(doc, SmlReader.Read(sml)));
+        Assert.Contains("      .d \"\"\"\n        M 0 0\n        L 1 1\n        \"\"\"\n", sml);
+    }
+
+    [Fact]
+    public void TidiesCode()
+    {
+        Assert.Equal(":root {\n\t--x: 1;\n}", SmlWriter.TidyCode("\n\t\t:root {\t \n\t\t\t--x: 1;\n\t\t}\n    "));
+        Assert.Equal("a\n\n  b", SmlWriter.TidyCode("  a  \n \n    b\t"));
+        Assert.Equal("a", SmlWriter.TidyCode("a"));
+        Assert.Null(SmlWriter.TidyCode("\n \t\n"));
+        Assert.Null(SmlWriter.TidyCode("a\r\nb"));
+    }
+
+    [Fact]
+    public void CleansInkscapeStyleSheets()
+    {
+        SmlDocument doc = Xml("<svg xmlns='http://www.w3.org/2000/svg'>\n  <style id='style1'><![CDATA[\n\t\t:root {\n"
+            + "\t\t\t--blue: #303b5f;\n\t\t}\n\t\t.text1 {\t     \n\t\t\tfont-weight:bold;\t\t \n\t\t}\n    ]]></style>\n</svg>");
+        string sml = SmlWriter.Write(doc, Svg);
+        Assert.Equal(""""
+            # Cleaned (SML §3.2), not exact: code tidied in style
+            @sml 1.0-SVG-1
+            @indent 2
+            svg(xmlns=http://www.w3.org/2000/svg)
+              style(id=style1) = """
+                :root {
+                	--blue: #303b5f;
+                }
+                .text1 {
+                	font-weight:bold;
+                }
+                """
+            end
+
+            """".ReplaceLineEndings("\n"), sml);
+        string style = SmlReader.Read(sml).Root.Children.OfType<ElementNode>().First().Children.OfType<TextNode>().Single().Data;
+        Assert.Equal("\n    :root {\n    \t--blue: #303b5f;\n    }\n    .text1 {\n    \tfont-weight:bold;\n    }\n  ", style);
+        Assert.Equal(sml[(sml.IndexOf('\n') + 1)..], SmlWriter.Write(SmlReader.Read(sml), Svg));
+
+        // In the normal form, the tidied code is a literal block without edges.
+        string vertical = SmlWriter.Write(doc, new SmlWriterOptions { Clean = Svg, VerticalAttributes = true });
+        Assert.Contains("  style\n    .id style1\n    = \"\"\"\n      :root {\n", vertical);
+        Assert.Contains("      }\n      \"\"\"\n  end\n", vertical);
     }
 
     [Fact]
@@ -324,75 +370,70 @@ public class ProfileTests
 
     [Theory]
     [MemberData(nameof(SvgFiles))]
-    public void ProfileOutputReadsBackAsTheSameDocument(string file)
+    public void ElementAliasesChangeOnlyHowElementsAreOpened(string file)
     {
         if (Load(file) is not { } doc)
             return;
+        string sml = SmlWriter.Write(doc, SvgWithNodes);
+        Assert.Equal(SmlWriter.Write(SmlReader.Read(SmlWriter.Write(doc, Svg))), SmlWriter.Write(SmlReader.Read(sml)));
+    }
+
+    [Theory]
+    [MemberData(nameof(SvgFiles))]
+    public void CleaningChangesOnlyTheWhitespaceOfValuesWithALayoutAndOfCode(string file)
+    {
+        if (Load(file) is not { } doc)
+            return;
+        Assert.Equal(SmlWriter.Write(doc), SmlWriter.Write(doc, SmlProfile.Parse("")));
         string sml = SmlWriter.Write(doc, Svg);
         SmlDocument back = SmlReader.Read(sml);
-        Assert.Null(DocumentComparer.FirstDifference(doc, back));
-        Assert.Equal(sml, SmlWriter.Write(back, Svg));
-        Assert.Equal(SmlWriter.Write(doc), SmlWriter.Write(doc, SmlProfile.Parse("")));
-    }
 
-    [Theory]
-    [MemberData(nameof(SvgFiles))]
-    public void ElementAliasOutputReadsBackAsTheSameDocument(string file)
-    {
-        if (Load(file) is not { } doc)
-            return;
-        foreach (bool reflow in new[] { false, true })
-        {
-            string sml = SmlWriter.Write(doc, SvgWithNodes, reflow);
-            SmlDocument back = SmlReader.Read(sml);
-            if (!reflow)
-            {
-                Assert.Null(DocumentComparer.FirstDifference(doc, back));
-                Assert.Equal(sml, SmlWriter.Write(back, SvgWithNodes));
-            }
-            // Element aliases change only how elements are opened.
-            Assert.Equal(SmlWriter.Write(SmlReader.Read(SmlWriter.Write(doc, Svg, reflow))), SmlWriter.Write(back));
-        }
-    }
-
-    [Theory]
-    [MemberData(nameof(SvgFiles))]
-    public void ReflowChangesOnlyTheWhitespaceOfValuesWithALayout(string file)
-    {
-        if (Load(file) is not { } doc)
-            return;
-        string sml = SmlWriter.Write(doc, Svg, reflow: true);
-        SmlDocument back = SmlReader.Read(sml);
-
-        // The expected document: each value with a layout reflowed, which changes only separators.
+        // The expected document: each value with a layout reflowed, which changes only separators. Code is compared
+        // tidied on both sides, since tidying changes only whitespace.
         SmlDocument expected = Load(file)!;
-        bool changed = false;
-        var stack = new Stack<ElementNode>([expected.Root]);
-        while (stack.Count > 0)
+        bool reflowed = false;
+        foreach (ElementNode element in Elements(expected.Root))
         {
-            ElementNode element = stack.Pop();
             foreach (string name in element.Attributes.Keys.ToList())
             {
                 string value = element.Attributes[name];
                 if (Svg.FindLayout(element.Name, element.AttributeNames[name]) is { } layout
-                    && ValueLayout.Reflow(value, layout) is { } reflowed && reflowed != value)
+                    && ValueLayout.Reflow(value, layout) is { } items && items != value)
                 {
-                    Assert.Equal(StripSeparators(value), StripSeparators(reflowed));
-                    element.Attributes[name] = reflowed;
-                    changed = true;
+                    Assert.Equal(StripSeparators(value), StripSeparators(items));
+                    element.Attributes[name] = items;
+                    reflowed = true;
                 }
             }
-            foreach (ElementNode child in element.Children.OfType<ElementNode>())
-                stack.Push(child);
         }
+        TidyAllCode(expected);
+        TidyAllCode(back);
         Assert.Null(DocumentComparer.FirstDifference(expected, back));
-        Assert.Equal(changed, sml.StartsWith("# Readable conversion", StringComparison.Ordinal));
+        if (reflowed)
+            Assert.StartsWith("# Cleaned (SML §3.2), not exact: one item per line in ", sml);
 
-        // Written again, exactly, the reflowed document gives the same SML without the comment.
-        string body = changed ? sml[(sml.IndexOf('\n') + 1)..] : sml;
-        Assert.Equal(body, SmlWriter.Write(back, Svg));
-        SmlDocument fromXml = XmlImporter.Read(Encoding.UTF8.GetBytes(XmlExporter.Write(back)));
-        Assert.Null(DocumentComparer.FirstDifference(back, fromXml));
+        // Cleaned again, the cleaned document gives the same SML without the comment, and survives XML.
+        SmlDocument cleaned = SmlReader.Read(sml);
+        string body = sml.StartsWith('#') ? sml[(sml.IndexOf('\n') + 1)..] : sml;
+        Assert.Equal(body, SmlWriter.Write(cleaned, Svg));
+        SmlDocument fromXml = XmlImporter.Read(Encoding.UTF8.GetBytes(XmlExporter.Write(cleaned)));
+        Assert.Null(DocumentComparer.FirstDifference(cleaned, fromXml));
+    }
+
+    private static IEnumerable<ElementNode> Elements(ElementNode root) =>
+        root.Children.OfType<ElementNode>().SelectMany(Elements).Prepend(root);
+
+    /// <summary>Replaces the text of each code element whose content is text only with its tidied form.</summary>
+    private static void TidyAllCode(SmlDocument doc)
+    {
+        foreach (ElementNode element in Elements(doc.Root).Where(e => Svg.IsCode(e.Name)))
+        {
+            if (element.Children.Count == 0 || !element.Children.All(c => c is TextNode))
+                continue;
+            string text = string.Concat(element.Children.Cast<TextNode>().Select(t => t.Data));
+            element.Children.Clear();
+            element.Children.Add(new TextNode(SmlWriter.TidyCode(text) ?? text));
+        }
     }
 
     private static string StripSeparators(string value) =>

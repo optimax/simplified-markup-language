@@ -48,7 +48,8 @@ SML also has vertical attributes, multiline literal blocks for long paths, CSS, 
 - **Strict.** Input outside the subset is rejected with an error, never silently changed. Examples are DTD internal subsets, declared entities, and XML 1.1.
 - **Values are opaque.** Path data, transforms, styles, and scripts are kept exactly as written; the converter never reformats numbers or geometry.
 - **Canonical form.** XML → SML output is deterministic, so converted files diff cleanly.
-- **Readable on request.** A writer profile can break long path data and point lists at item boundaries. An explicit, lossy *reflow* goes further and puts each item on its own line in a block (§3.2).
+- **Verbatim blocks.** A multiline block keeps its text exactly, trailing whitespace and indentation included; only the closing `"""`'s indentation comes off each line. CSS and scripts copied from an editor stay readable text.
+- **Readable on request.** `--clean` with a profile puts path data, point lists, styles, and transforms one item per line in blocks, and tidies the whitespace of CSS and scripts (§3.2). It is explicit and lossy.
 - **Safe.** External DTDs and entities are never loaded.
 
 ## Repository contents
@@ -73,8 +74,7 @@ SML also has vertical attributes, multiline literal blocks for long paths, CSS, 
 | `smlxml drawing.sml` | Writes `drawing.svg` |
 | `smlxml art\**\*.svg` | Converts every SVG below `art`; `smlxml` expands wildcards itself, so this works in Windows shells too |
 | `smlxml -o *.out.svg *.sml` | Writes `name.out.svg` for each `name.sml` |
-| `smlxml --profile svg drawing.svg` | Writes `drawing.sml` with path data, point lists, styles, and transforms broken at items, exactly |
-| `smlxml --profile svg --reflow drawing.svg` | Writes them one item per line in blocks: more readable, but no longer lossless |
+| `smlxml --clean svg drawing.svg` | Writes path data, point lists, styles, and transforms one item per line in blocks, and tidies CSS and scripts: more readable, but no longer lossless |
 | `smlxml --verbose drawing.svg` | Writes every attribute on its own line instead of in `name(...)` lists |
 
 An existing file is never overwritten without `-f`. Errors are reported as `file(line): error: message`. See [`Source/SmlXml/README.md`](Source/SmlXml/README.md) for all options.

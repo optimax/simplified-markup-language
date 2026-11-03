@@ -10,9 +10,8 @@
   `smlxml 1.0.0 (SML 1.0-SVG-1)`, `Copyright (c) 2026 Optimax Technologies, Inc.`, `Freely distributed under MIT license.`
   The SML version in it is `SmlReader.Version`, the revision the reader implements.
 - `--output` accepts a `*` pattern, so that `smlxml *.svg` followed by `smlxml -o *.out.svg *.sml` leaves `name.sml` and `name.out.svg` beside each `name.svg`.
-- `--profile` converts XML to SML with an SML profile, which defines blocks for path `d`, polyline `points`, and other SVG values that are more readable one item per line. The `svg` profile ships with `smlxml`.
+- `--clean <profile>` converts XML to readable SML with an SML profile, which defines blocks for path `d`, polyline `points`, and other SVG values that are more readable one item per line, tidies CSS and scripts, and supplies aliases. The `svg` profile ships with `smlxml`. A profile applies only with `--clean`: there is no exact profile mode and no separate `--profile` option.
 - `--verbose` writes every attribute and namespace declaration on its own line, never in a `name(...)` list.
-- The profile is exact by default. `--reflow` switches to the readable, lossy form. This "both, switchable" design was the user's choice over always reflowing and over exact output only.
 
 ## Behavior
 
@@ -38,18 +37,17 @@
 - **Banner.** `WriteBanner` runs first in every run, including `--help`, usage errors, and failed conversions; errors still go to standard error.
   - The version comes from `<Version>` and the copyright from `<Copyright>` in `SmlXml.csproj`. `<Company>` and `<Copyright>` also appear in the `.exe`'s file properties on Windows.
   - `-v` / `--version` prints only the banner, because its first line is the version.
-- **Profiles.** `-p` / `--profile` takes a file, or a plain name (no folder or extension) for `name.smlprofile` beside the executable (`AppContext.BaseDirectory`).
+- **Cleaning.** `-c` / `--clean` takes a profile: a file, or a plain name (no folder or extension) for `name.smlprofile` beside the executable (`AppContext.BaseDirectory`).
   - The profile is parsed once, before any conversion. A missing or invalid profile is a usage error (exit 2), reported as `file(line): error: message`.
   - It applies to XML input only; SML input converts as usual.
-  - `-r` / `--reflow` needs `--profile`.
   - `SmlWriter.Write(doc, SmlWriterOptions)` does the work; the format and the writer rules are in `SmlProfile` and the README.
-  - Without reflow, the output reads back as the same document. Values with a layout and at least two items are quoted with a continuation line per item; values that need a block use the profile's alias.
-  - With reflow, values become one item per line (specification §3.2), and the first line is a `#` comment naming the attributes reflowed.
+  - `SmlWriterOptions.Clean` holds the profile. Values with a layout become one item per line (specification §3.2), the text of code elements (`@layout element = code`) is tidied, and the first line is a `#` comment naming what changed. A value with a layout that cannot be divided cleanly is quoted with a continuation line per item; values written as blocks use the profile's alias.
+  - Tidied code in a compact element in a laid-out position is written as a laid-out text block (§6.4), so pretty-printed `<style>` content becomes a plain block; in the normal form (with `--verbose`) it is a literal block without edges.
   - Aliases are declared only on the root, only for aliases actually used, and only where the root's namespace declarations name the element and attribute. One declaration serves the whole document, and the output never depends on the profile.
   - Element aliases (`@node`, specification §8.7) are declared before the root, only for aliases actually used. An SML element alias stands for a lexical name, while a profile names an expanded name, so the writer declares the alias for the lexical name of the first element with that expanded name and opens only the elements with both. An alias that an element of the document is named like is not used at all, so the writer never needs `@element` for it. The shipped `svg.smlprofile` declares `@node g group` and `@node p para`.
 - **Verbose.** `--verbose` sets `SmlWriterOptions.VerticalAttributes`. It replaces canonical rule 5 (inline or vertical) with "always vertical" and changes nothing else.
   - Value forms and the compact forms of elements without declarations (`g/`, `title = Text`) are as in the canonical form.
-  - It combines with `--profile` and applies to XML input only.
+  - It combines with `--clean` and applies to XML input only.
   - It has no short form, because `-v` is `--version` and `-V` would be easy to confuse with it.
 - **No arguments** prints the usage text on standard output and exits with 2, because nothing was converted. `--help` exits with 0.
 - **Errors** are reported on standard error as `file(line): error: message`, a format Visual Studio can jump to, and conversion continues with the next file.
@@ -61,7 +59,7 @@
 - `FileExpander` (wildcards) is public for the same reason; `FileExpanderTests` covers its matcher.
 - All format logic is in `Source/Sml` (`SmlReader`, `SmlWriter` with `SmlWriterOptions`, `XmlImporter`, `XmlExporter`, `SmlProfile`, `ValueLayout`).
 - `svg.smlprofile` is the built-in profile. `SmlXml.csproj` copies every `*.smlprofile` to the build and publish output; `ExcludeFromSingleFile` keeps the profile beside the executable rather than inside the single-file bundle.
-- `Source/Sml.Tests/ProfileTests.cs` covers the layouts, the profile format, and the writer. It runs both modes over every fixture in `Tests/svg-roundtrip/corpus` and every file in `Tests/svg-corpus`. `WriterOptionsTests.cs` does the same for vertical attributes.
+- `Source/Sml.Tests/ProfileTests.cs` covers the layouts, the profile format, and the writer. It cleans every fixture in `Tests/svg-roundtrip/corpus` and every file in `Tests/svg-corpus`, and checks that only the whitespace of values with a layout and of code changes, and that cleaning twice gives the same SML. `WriterOptionsTests.cs` does the same for vertical attributes.
 
 ## Build
 

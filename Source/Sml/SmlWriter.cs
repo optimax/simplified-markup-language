@@ -16,7 +16,6 @@ public sealed class SmlWriter
     private readonly List<string> _out = [];
     private readonly string? _unit;
     private readonly SmlProfile? _profile;
-    private readonly bool _reflow;
     private readonly bool _vertical;
 
     /// <summary>The alias declarations written on the root: element QName, alias, and attribute QName.</summary>
@@ -34,12 +33,14 @@ public sealed class SmlWriter
     /// <summary>The lexical names of the attributes whose values were reflowed.</summary>
     private readonly SortedSet<string> _reflowed = new(Comparer<string>.Create(XmlRules.CompareCodePoints));
 
+    /// <summary>The lexical names of the elements whose code text was tidied.</summary>
+    private readonly SortedSet<string> _tidied = new(Comparer<string>.Create(XmlRules.CompareCodePoints));
+
     private SmlWriter(SmlDocument doc, SmlWriterOptions options)
     {
         _doc = doc;
         _unit = ChooseIndent(doc);
-        _profile = options.Profile;
-        _reflow = options.Reflow && _profile is not null;
+        _profile = options.Clean;
         _vertical = options.VerticalAttributes;
         if (_profile is not null)
         {
@@ -53,19 +54,18 @@ public sealed class SmlWriter
 
     /// <summary>Writes the document with options; anything but the default options gives output that is not
     /// canonical.
-    /// <para>With a profile and without reflow, the output reads back as the same document. A value written as a
-    /// block uses the profile's alias for its attribute, declared on the root element. A value with a layout and
-    /// at least two items is quoted, with a continuation line for each item (§6.5).</para>
-    /// <para>With reflow, the readable conversion of §3.2: each value with a layout is written with one item per
-    /// line, so the output reads back as a different document whose values contain line breaks. The output then
-    /// starts with a <c>#</c> comment that names the attributes reflowed.</para>
+    /// <para>Cleaned with a profile, the readable conversion of §3.2: each value with a layout is written with one
+    /// item per line, and the text of each code element is tidied, so the output reads back as a document that
+    /// differs in whitespace. A value written as a block uses the profile's alias for its attribute, declared on the
+    /// root element, and elements with an element alias are opened with it. A value with a layout that cannot be
+    /// divided cleanly keeps its whitespace and is quoted with a continuation line per item (§6.5). The output starts
+    /// with a <c>#</c> comment that names what changed.</para>
     /// <para>With vertical attributes, every attribute and namespace declaration is on its own line; the output
     /// reads back as the same document.</para></summary>
     public static string Write(SmlDocument doc, SmlWriterOptions options) => new SmlWriter(doc, options).Write();
 
-    /// <summary>Writes the document with a profile: the options overload with Profile and Reflow set.</summary>
-    public static string Write(SmlDocument doc, SmlProfile profile, bool reflow = false) =>
-        Write(doc, new SmlWriterOptions { Profile = profile, Reflow = reflow });
+    /// <summary>Writes the document cleaned with a profile: the options overload with Clean set.</summary>
+    public static string Write(SmlDocument doc, SmlProfile clean) => Write(doc, new SmlWriterOptions { Clean = clean });
 
     private string Write()
     {
@@ -78,8 +78,13 @@ public sealed class SmlWriter
         Items(_doc.Prolog, 0, _unit is not null, "");
         Element(_doc.Root, 0, "", _unit is not null);
         Items(_doc.Epilog, 0, _unit is not null, "");
+        var changes = new List<string>();
         if (_reflowed.Count > 0)
-            _out.Insert(0, "# Readable conversion (SML §3.2), not strict: one item per line in " + string.Join(", ", _reflowed));
+            changes.Add("one item per line in " + string.Join(", ", _reflowed));
+        if (_tidied.Count > 0)
+            changes.Add("code tidied in " + string.Join(", ", _tidied));
+        if (changes.Count > 0)
+            _out.Insert(0, "# Cleaned (SML §3.2), not exact: " + string.Join("; ", changes));
         return string.Join('\n', _out) + "\n";
     }
 
@@ -92,9 +97,33 @@ public sealed class SmlWriter
         if (_profile is null)
             return (value, null);
         Layout? layout = _profile.FindLayout(element.Name, element.AttributeNames[name]);
-        if (_reflow && layout is { } l && ValueLayout.Reflow(value, l) is { } reflowed)
+        if (layout is { } l && ValueLayout.Reflow(value, l) is { } reflowed)
             return (reflowed, layout);
         return (value, layout);
+    }
+
+    /// <summary>Code text tidied (§3.2): trailing spaces and tabs removed from each line, blank first and last lines
+    /// dropped, and the indentation that all other lines share removed. Null for text with a CR or nothing
+    /// visible.</summary>
+    public static string? TidyCode(string text)
+    {
+        if (text.Contains('\r') || !Visible(text))
+            return null;
+        var lines = text.Split('\n').Select(l => l.TrimEnd(' ', '\t')).ToList();
+        while (lines[0].Length == 0)
+            lines.RemoveAt(0);
+        while (lines[^1].Length == 0)
+            lines.RemoveAt(lines.Count - 1);
+        string? prefix = null;
+        foreach (string line in lines.Where(l => l.Length > 0))
+        {
+            string lead = line[..(line.Length - line.TrimStart(' ', '\t').Length)];
+            int k = 0;
+            while (prefix is not null && k < prefix.Length && k < lead.Length && prefix[k] == lead[k])
+                k++;
+            prefix = prefix is null ? lead : prefix[..k];
+        }
+        return string.Join('\n', lines.Select(l => l.Length == 0 ? "" : l[prefix!.Length..]));
     }
 
     /// <summary>Whether a profile writes the value quoted with a continuation line per item.</summary>
@@ -366,10 +395,13 @@ public sealed class SmlWriter
         return depth == 0;
     }
 
-    /// <summary>The marker to write a value that contains LF and something else as a block (canonical rule 7.2), or
-    /// null. A value of line breaks only would be a block of blank lines; it is clearer quoted.</summary>
-    public static string? BlockTag(string value) =>
-        value.Contains('\n') && value.AsSpan().ContainsAnyExcept('\n') ? BlockMarker(value) : null;
+    /// <summary>Whether a value has a character other than a space, tab, or line break: a block of whitespace only
+    /// would show nothing, so it is clearer quoted (canonical rule 7.2).</summary>
+    public static bool Visible(string value) => value.AsSpan().ContainsAnyExcept(' ', '\t', '\n');
+
+    /// <summary>The marker to write a value that contains LF and a visible character as a block (canonical rule 7.2),
+    /// or null.</summary>
+    public static string? BlockTag(string value) => value.Contains('\n') && Visible(value) ? BlockMarker(value) : null;
 
     /// <summary>The marker to write a value as a block's payload (§7): the shortest run of three or more quotation
     /// marks that no payload line equals, or null if a block cannot reproduce the value. The empty value has no
@@ -379,10 +411,6 @@ public sealed class SmlWriter
         if (value.Contains('\r') || value.EnumerateRunes().Any(XmlRules.NeedsEscape))
             return null;
         string[] lines = value.Length == 0 ? [] : value.Split('\n');
-        if (lines.Any(l => l != l.TrimEnd(' ', '\t')))
-            return null;
-        if (SmlReader.DedentBlock(lines) != value)
-            return null;
         var stripped = lines.Select(XmlRules.StripSpacesAndTabs).ToHashSet(StringComparer.Ordinal);
         string marker = "\"\"\"";
         while (stripped.Contains(marker))
@@ -458,7 +486,7 @@ public sealed class SmlWriter
         string ind = Indentation(depth), inner = ind + "  ";
         _out.Add(prefix + " " + marker);
         _out.AddRange(value.Split('\n').Select(line => line.Length == 0 ? "" : inner + line));
-        _out.Add(ind + marker);
+        _out.Add(inner + marker);
     }
 
     /// <summary>Whether a comment can be one line of an @comments block (§9): non-empty, one line, no space or tab
@@ -518,7 +546,7 @@ public sealed class SmlWriter
                 string marker = BlockMarker(string.Join('\n', lines))!;
                 _out.Add(ind + "@comments " + marker);
                 _out.AddRange(lines.Select(line => ind + "  " + line));
-                _out.Add(ind + marker);
+                _out.Add(ind + "  " + marker);
                 i = j;
                 continue;
             }
@@ -550,7 +578,7 @@ public sealed class SmlWriter
             return;
         }
         string? value = LaidOutValue(data, indentation, _unit!);
-        if (value is null || !value.AsSpan().ContainsAnyExcept('\n'))
+        if (value is null || !Visible(value))
         {
             Value(ind + "@comment", data, depth, allowBlock: false);
             return;
@@ -570,7 +598,7 @@ public sealed class SmlWriter
             return true;
         }
         string? value = LaidOutValue(data, indentation, _unit);
-        if (value is not null && value.AsSpan().ContainsAnyExcept('\n'))
+        if (value is not null && Visible(value))
         {
             Block(prefix, value, BlockMarker(value)!, depth);
             return true;
@@ -609,6 +637,7 @@ public sealed class SmlWriter
     {
         string ind = Indentation(depth), inner = Indentation(depth + 1);
         List<SmlNode> nodes = ContentNodes(element);
+        string? code = _profile is not null && nodes is [TextNode text] && _profile.IsCode(element.Name) ? TidyCode(text.Data) : null;
         bool noIndent = false, laidOut = false;
         string? step = _unit, local = null;
         if (_unit is not null && nodes.Any(n => n is not TextNode))
@@ -660,8 +689,18 @@ public sealed class SmlWriter
                 _out.Add(ind + opener + "/");
                 return;
             }
-            if (nodes is [TextNode only] && CompactText(ind + opener + " =", only.Data, depth, indentation, laidOutPosition))
-                return;
+            if (nodes is [TextNode only])
+            {
+                // Tidied code is written with the edges of a laid-out block (§6.4) where the compact block gets them.
+                string data = code is null ? only.Data
+                    : code.Contains('\n') && laidOutPosition && _unit is not null ? SmlReader.LayOutBlock(code, indentation, _unit) : code;
+                if (CompactText(ind + opener + " =", data, depth, indentation, laidOutPosition))
+                {
+                    if (data != only.Data)
+                        _tidied.Add(element.QualifiedName);
+                    return;
+                }
+            }
         }
         if (isEnd)
             _out.Add(ind + "@element end");
@@ -687,6 +726,11 @@ public sealed class SmlWriter
             _out.Add(inner + "@indent " + (local == "\t" ? "tab" : local.Length.ToString()));
         if (noIndent)
             _out.Add(inner + "@noindent");
+        if (code is not null && nodes is [TextNode original] && code != original.Data)
+        {
+            nodes = [new TextNode(code)];
+            _tidied.Add(element.QualifiedName);
+        }
         Items(nodes, depth + 1, laidOut, indentation + (step ?? ""));
         _out.Add(ind + "end");
     }

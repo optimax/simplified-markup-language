@@ -305,16 +305,16 @@ public sealed class CommandLineTests : IDisposable
     private const string PathXml = "<svg xmlns=\"http://www.w3.org/2000/svg\"><path d=\"M 0 0 L 1 1\"/></svg>";
 
     [Fact]
-    public void WritesWithTheBuiltInSvgProfileExactlyOrReflowed()
+    public void CleansWithTheBuiltInSvgProfile()
     {
         File.WriteAllText(PathOf("drawing.svg"), PathXml);
-        Assert.Equal(CommandLine.Success, Run("--profile", "svg", PathOf("drawing.svg")).Code);
-        Assert.Contains("    .d \"M 0 0 \"\n      \"L 1 1\"\n", File.ReadAllText(PathOf("drawing.sml")));
-        Assert.Equal(CommandLine.Success, Run("-p", "svg", "-r", "-f", PathOf("drawing.svg")).Code);
-        string reflowed = File.ReadAllText(PathOf("drawing.sml"));
-        Assert.StartsWith("# Readable conversion", reflowed);
-        Assert.Contains("  @block path .d data\n", reflowed);
-        Assert.Contains("    data \"\"\"\n      M 0 0\n      L 1 1\n    \"\"\"\n", reflowed);
+        Assert.Equal(CommandLine.Success, Run("--clean", "svg", PathOf("drawing.svg")).Code);
+        string cleaned = File.ReadAllText(PathOf("drawing.sml"));
+        Assert.StartsWith("# Cleaned (SML §3.2), not exact: one item per line in d\n", cleaned);
+        Assert.Contains("  @block path .d data\n", cleaned);
+        Assert.Contains("    data \"\"\"\n      M 0 0\n      L 1 1\n      \"\"\"\n", cleaned);
+        Assert.Equal(CommandLine.Success, Run("-c", "svg", "-f", PathOf("drawing.svg")).Code);
+        Assert.Equal(cleaned, File.ReadAllText(PathOf("drawing.sml")));
     }
 
     [Fact]
@@ -323,8 +323,9 @@ public sealed class CommandLineTests : IDisposable
         File.WriteAllText(PathOf("mine.smlprofile"), "@layout * .v numbers 1\n");
         File.WriteAllText(PathOf("data.xml"), "<r v=\"1 2\"/>");
         File.WriteAllText(PathOf("other.sml"), "r(v=3)/\n");
-        Assert.Equal(CommandLine.Success, Run("-p", PathOf("mine.smlprofile"), PathOf("data.xml"), PathOf("other.sml")).Code);
-        Assert.Equal("@sml 1.0-SVG-1\nr\n  .v \"1 \"\n    \"2\"\nend\n", File.ReadAllText(PathOf("data.sml")));
+        Assert.Equal(CommandLine.Success, Run("-c", PathOf("mine.smlprofile"), PathOf("data.xml"), PathOf("other.sml")).Code);
+        Assert.Equal("# Cleaned (SML §3.2), not exact: one item per line in v\n@sml 1.0-SVG-1\nr\n  .v \"\"\"\n    1\n    2\n    \"\"\"\nend\n",
+            File.ReadAllText(PathOf("data.sml")));
         Assert.Equal("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<r v=\"3\"/>\n", File.ReadAllText(PathOf("other.xml")));
     }
 
@@ -333,13 +334,13 @@ public sealed class CommandLineTests : IDisposable
     {
         File.WriteAllText(PathOf("drawing.svg"), PathXml);
         File.WriteAllText(PathOf("bad.smlprofile"), "# fine\n@layout path .d curves\n");
-        var (code, _, error) = Run("-p", PathOf("bad.smlprofile"), PathOf("drawing.svg"));
+        var (code, _, error) = Run("-c", PathOf("bad.smlprofile"), PathOf("drawing.svg"));
         Assert.Equal(CommandLine.UsageError, code);
         Assert.Contains($"{PathOf("bad.smlprofile")}(2): error: unknown layout 'curves'", error);
-        Assert.Contains("profile 'nonesuch' not found", Run("-p", "nonesuch", PathOf("drawing.svg")).Err);
-        Assert.Contains("profile 'x.smlprofile' not found", Run("-p", "x.smlprofile", PathOf("drawing.svg")).Err);
-        Assert.Contains("--reflow needs --profile", Run("--reflow", PathOf("drawing.svg")).Err);
-        Assert.Equal(CommandLine.UsageError, Run("-p").Code);
+        Assert.Contains("profile 'nonesuch' not found", Run("--clean", "nonesuch", PathOf("drawing.svg")).Err);
+        Assert.Contains("profile 'x.smlprofile' not found", Run("-c", "x.smlprofile", PathOf("drawing.svg")).Err);
+        Assert.Contains("-c needs a profile name or file", Run("-c").Err);
+        Assert.Equal(CommandLine.UsageError, Run("--clean").Code);
         Assert.False(File.Exists(PathOf("drawing.sml")));
     }
 
@@ -351,7 +352,7 @@ public sealed class CommandLineTests : IDisposable
         Assert.Equal("@sml 1.0-SVG-1\nsvg\n  @ns http://www.w3.org/2000/svg\n  rect\n    .width 1\n  end\nend\n",
             File.ReadAllText(PathOf("drawing.sml")));
         File.WriteAllText(PathOf("path.svg"), PathXml);
-        Assert.Equal(CommandLine.Success, Run("--verbose", "-p", "svg", "-r", PathOf("path.svg")).Code);
+        Assert.Equal(CommandLine.Success, Run("--verbose", "-c", "svg", PathOf("path.svg")).Code);
         Assert.Contains("svg\n  @ns http://www.w3.org/2000/svg\n  @block path .d data\n  path\n    data \"\"\"\n", File.ReadAllText(PathOf("path.sml")));
         Assert.Contains("--verbose", Run("--help").Out);
     }

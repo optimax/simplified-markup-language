@@ -73,7 +73,7 @@ svg
       M 0 0
       L 100 50
       Z
-    """
+      """
   end
 end
 ```
@@ -94,7 +94,7 @@ It defines these profiles:
 
 - **Core:** the SML syntax itself. Core has no vocabulary-specific knowledge.
 - **Strict profile:** the information-preserving XML↔SML conversion of §§2–3, including preservation of namespace prefixes and declaration locations. This document also calls it the *SVG-safe* profile; despite the name, its rules are generic XML, and SVG is its primary test corpus. Strict importers and exporters MUST implement it. In this document, "strict" always refers to this profile.
-- **Readable import profile** (§§3.1–3.2): lossy, SVG-aware import options that normalize formatting whitespace or reflow structured attribute values.
+- **Readable import profile** (§§3.1–3.2): lossy, SVG-aware import options that normalize formatting whitespace, reflow structured attribute values, or tidy code such as CSS.
 
 Examples, notes, and §16 are informative; all other text is normative. Where an example conflicts with normative text, the normative text governs.
 
@@ -133,7 +133,7 @@ The equality `≡` includes the ordered content, the SVG-safe prefix/declaration
 
 A converter MAY offer a *readable* XML import that normalizes formatting whitespace. Its output is ordinary SML, but the conversion is **lossy**: it MUST NOT be described as strict or SVG-safe, and it SHOULD begin its output with a `#` source comment stating that formatting whitespace was normalized. Unlike Core parsing, this profile is deliberately SVG-aware.
 
-Apart from the attribute reflow of §3.2, a readable import may change only the whitespace-only text children of an **eligible** element. Whitespace here means U+0020, U+0009, U+000A, and U+000D. An element is eligible only if all of the following hold:
+Apart from the cleanup of §3.2, a readable import may change only the whitespace-only text children of an **eligible** element. Whitespace here means U+0020, U+0009, U+000A, and U+000D. An element is eligible only if all of the following hold:
 
 1. it is in the SVG namespace (`http://www.w3.org/2000/svg`);
 2. it is not `text`, `tspan`, `textPath`, `tref`, `altGlyph`, or `foreignObject`, and has no such ancestor;
@@ -144,9 +144,9 @@ In an eligible element, the readable import replaces all whitespace-only text ch
 
 These conditions are deliberately conservative. Whitespace between `tspan` elements (as in `<tspan>A</tspan> <tspan>B</tspan>`), inside `xml:space="preserve"` scopes, and in foreign content can change rendering, so a readable import MUST NOT drop or normalize it.
 
-### 3.2 Readable attribute reflow
+### 3.2 Readable cleanup: reflow and code
 
-A readable import MAY also *reflow* structured attribute values, rewriting each value so that every item is on its own line. A writer can then show the value as a block (§7), usually through an alias (§8). Reflow changes attribute strings, so its result is a different document (§3). It MUST be selected explicitly, and its output SHOULD begin with a `#` source comment naming the attributes reflowed. A converter reflows only the attributes it has been given a *layout* for, such as by a writer profile. Core SML has no knowledge of layouts, and an SML reader needs none: the output contains only the reflowed values and ordinary alias declarations.
+A readable import MAY also *clean* the SML: *reflow* structured attribute values, rewriting each value so that every item is on its own line, and *tidy* the text of code elements. A writer can then show such a value as a block (§7), an attribute value usually through an alias (§8). Cleaning changes attribute strings and text, so its result is a different document (§3). It MUST be selected explicitly, and its output SHOULD begin with a `#` source comment naming the attributes reflowed and the elements whose code was tidied. A converter reflows only the attributes it has been given a *layout* for, and tidies only the elements it has been told hold code, such as by a writer profile. Core SML has no knowledge of layouts, and an SML reader needs none: the output contains only the cleaned values and ordinary alias declarations.
 
 A layout names how a value divides into items. Whitespace here means U+0020, U+0009, U+000A, and U+000D.
 
@@ -160,7 +160,9 @@ A layout names how a value divides into items. Whitespace here means U+0020, U+0
 
 An item never begins or ends with whitespace. Between items there is only whitespace, a comma (`numbers`, `functions`), or nothing. The reflowed value is the items joined by single LFs, without leading or trailing whitespace. In the `path` layout, each item is also spaced. A space is inserted after the command letter, after each comma, and between two parameters written together, wherever no space follows and the item continues: `M10,20` becomes `M 10, 20`, and `a.75.75 0 01-.69-.35` becomes `a .75 .75 0 0 1 -.69 -.35`. Parameters are read as SVG path data reads them: numbers in SVG number syntax, each as long as possible, and the two flags of an arc command (the 4th and 5th of every 7 parameters) as single characters `0` or `1`. A space therefore goes only where path data already has a boundary. If the rest of an item is not such parameters, separated by spaces and at most one comma, only the letter and the commas are spaced. Items of the `numbers` layout are spaced the same way, without the letter: `10,20` becomes `10, 20`, and `1-2` becomes `1 -2`. Reflow MUST NOT be applied to a value that does not have its layout's form, that has fewer than two items, or that has an item containing TAB, LF, or CR; such a value is converted exactly. In SVG path data, coordinate and number lists, CSS declarations, transform lists, and SMIL value lists, a line feed is an allowed separator wherever these layouts put one, and path data and number lists allow a space after a command letter or a comma and between parameters. So for the attributes these layouts are meant for, the reflowed document renders as the original does.
 
-Without reflow, a writer MAY still use a layout to show a value one item per line, exactly: as a quoted value split into continuation lines (§6.5) at item boundaries, with the separators kept inside the quotes. This is not a readable import; the document is unchanged.
+A writer MAY still use a layout to show a value one item per line exactly, such as one that cannot be reflowed: as a quoted value split into continuation lines (§6.5) at item boundaries, with the separators kept inside the quotes. That value is unchanged.
+
+**Code.** Tidying applies to an element whose content is a single text node without CR, such as CSS in `style` or a script in `script`. It removes the spaces and tabs at the end of every line, the empty lines at the start and the end, and the indentation that all non-empty lines share; a text of whitespace only is left alone. The tidied text is written as a block. For a compact element in a laid-out position under `@indent`, that is a laid-out text block (§6.4), which puts the line breaks and indentation of pretty-printed text back around it. In CSS such whitespace never matters, and in most scripts it does not; it does inside a script's multi-line strings, such as JavaScript template literals, so a writer tidies only the elements it is told to.
 
 ## 4. Encoding, lines, names, and structural model
 
@@ -168,7 +170,7 @@ Without reflow, a writer MAY still use a layout to show a value one item per lin
 - CRLF and lone CR source *line separators* are normalized to LF for lexical processing. `\r` within a quoted value represents an actual U+000D data character.
 - Only LF, CR, and CRLF separate lines. U+0085 (NEL), U+2028 (LINE SEPARATOR), and U+2029 (PARAGRAPH SEPARATOR) are ordinary data characters. Writers SHOULD write them, the C1 control characters, and other invisible format characters (Unicode general category Cf, such as bidirectional controls) as `\u{…}` escapes in quoted values, so that no data is invisible.
 - Unicode normalization (NFC, NFD, etc.) MUST NOT be performed.
-- An ordinary statement is one physical line. Outside multiline blocks, **leading and trailing spaces/tabs are removed from every line** before it is interpreted; they never carry data. Data that begins or ends with a space or tab must therefore be quoted (§6.2). Blank lines outside blocks are ignored.
+- An ordinary statement is one physical line. Outside multiline blocks, **leading and trailing spaces/tabs are removed from every line** before it is interpreted; there they never carry data. Data that begins or ends with a space or tab must therefore be quoted (§6.2), or be in a block, whose lines keep them (§7). Blank lines outside blocks are ignored.
 - A name is an XML Namespaces 1.0 **QName** (`NCName` or `NCName:NCName`); names are case-sensitive. PI targets are **NCName**s: Namespaces in XML 1.0 §7 forbids colons in PI targets, and namespace-aware XML parsers reject them.
 - XML 1.0 character validity and namespace restrictions apply to all names and decoded values.
 - The parser maintains an element stack. Only `end` (or a checked `end QName`, §5.3) closes a normal element. Indentation is advisory and never closes a node.
@@ -440,7 +442,7 @@ svg
   @comment """
     Created with an editor
     http://example.org/
-  """
+    """
 end
 ```
 
@@ -466,7 +468,7 @@ svg
   desc = """
     A map of the town centre,
     drawn from the 2025 survey.
-  """
+    """
 end
 ```
 
@@ -488,7 +490,7 @@ desc
   = """
     first line
     second line
-  """
+    """
 end
 ```
 
@@ -513,14 +515,39 @@ Spaces at a split point are visible inside the quotes, so the joined value is ex
 
 ## 7. Multiline literal blocks — one form only
 
-A value of three quotation marks, `"""`, begins a multiline block; the space before the marker may be omitted (§6.2). The block ends at the first following physical line whose trimmed content is exactly the marker, regardless of its indentation. That closing line belongs to the *value*, not to the surrounding element. The payload is literal: no escapes are processed, and lines that look like statements are payload. There is no nested block syntax.
+A value of three quotation marks, `"""`, begins a multiline block; the space before the marker may be omitted (§6.2). The block ends at the first following physical line that is the marker, with nothing else on it but spaces and tabs before and after it. That closing line belongs to the *value*, not to the surrounding element. The payload is verbatim: no escapes are processed, lines that look like statements are payload, and spaces and tabs are data, at the end of a line too. There is no nested block syntax.
+
+**Indentation.** The spaces and tabs before the closing marker are the block's *indentation*. It is removed from the start of every payload line, and the rest of the line is data, so a block can sit at any depth of the SML while its content keeps its own indentation:
 
 ```sml
 style = """
-    .road { stroke: #123456; }
+  .road { stroke: #123456; }
     .label { font: 12px sans-serif; }
-"""
+  """
 ```
+
+The `style` text is `.road { stroke: #123456; }` LF `  .label { font: 12px sans-serif; }`: the closing marker's two spaces come off each line, and the second line keeps its two more.
+
+Precisely, the payload lines before the closing marker give the value as follows. Tabs and spaces are compared as characters, never as visual columns.
+
+1. A line that begins with the block's indentation gives the rest of the line, trailing spaces and tabs included.
+2. A line of spaces and tabs only that does not begin with the indentation gives an empty line. An editor that empties whitespace-only lines therefore does not break a block.
+3. Any other line is an error.
+4. The lines are joined with LF. No terminal LF is added, and a block with no payload lines is the empty string.
+
+A block therefore holds any text without CR and without the characters §4 says to escape, including indentation that every line shares, spaces and tabs at the ends of lines, and empty or whitespace-only first and last lines. For example, CSS as an editor wrote it, indented with tabs and with a last line of four spaces before the closing tag:
+
+```sml
+style = """
+
+  		:root {
+  			--notice-blue: #303b5f;
+  		}
+      
+  """
+```
+
+Each payload line starts with the closing marker's two spaces; the CSS lines then start with TABs, and the line before the closing marker is six spaces. The text is LF, `\t\t:root {`, LF, `\t\t\t--notice-blue: #303b5f;`, LF, `\t\t}`, LF, and four spaces. Whitespace at the end of a line is invisible, and an editor that removes it changes the block's data; writers use a block only for a value with a character other than whitespace (§14.2).
 
 A payload line `end` needs no special care, because `end` closes only elements:
 
@@ -529,26 +556,22 @@ desc = """
   if fill is none then
     use stroke
   end
-"""
+  """
 ```
 
 The `desc` text is `if fill is none then\n  use stroke\nend`.
 
-**Longer markers.** A marker may be any run of three or more quotation marks, and the block ends at a line that is exactly the same run. Use a longer marker when a payload line is exactly `"""`:
+**Longer markers.** A marker may be any run of three or more quotation marks, and the block ends at a line that is exactly the same run. Use a longer marker when a payload line is exactly `"""`, apart from spaces and tabs:
 
 ```sml
 desc = """"
   Write a block like this:
   """
   and close it.
-""""
+  """"
 ```
 
 The `desc` text is `Write a block like this:\n"""\nand close it.`. Everything else about the block is unchanged.
-
-**Dedentation algorithm:** collect all physical payload lines preceding the closing marker; remove trailing spaces/tabs from each line (as in §4, they never carry data); determine the longest shared character prefix consisting only of spaces/tabs among all *nonblank* payload lines; remove that prefix from every nonblank line; convert blank lines (all spaces/tabs) to empty lines; join with LF. Do **not** automatically add a terminal LF. For zero lines, the result is the empty string. Tabs and spaces are compared as characters, never visual columns.
-
-This transformation deliberately strips *shared* leading whitespace. Therefore, for values where leading indentation itself is significant (particularly a one-line value or CSS whose first character must be a space), and for values in which any line ends with a space or tab, use a quoted value with explicit `\n` and `\t` escapes. A line consisting only of a block's own marker cannot appear in its payload; use a longer marker. This avoids making indentation structural in contradiction with §4.
 
 Blocks may be used for `.attribute`, `=`, inline text, `@comment`, `@comments` (which takes only a block, §9), and alias invocations. Under `@indent`, a `@comment` block and the block of a compact `name = """` element in a laid-out position get predicted edges (§6.4). For a compact `name = """` statement, the closing marker closes the value *and* implicitly closes the inline element; no `end` is needed.
 
@@ -592,7 +615,7 @@ body
       margin: 10 0 10 0;
       padding: 0 5 0 5;
       font-weight: bold;
-    """
+      """
   end
 end
 ```
@@ -617,7 +640,7 @@ svg
       M 10 10
       C 20 30 40 30 50 10
       Z
-    """
+      """
   end
 end
 ```
@@ -634,14 +657,14 @@ path
     M 10 10
     L 100 100
     Z
-  """
+    """
   .stroke black
 end
 ```
 
 Given `@block path .d data` in scope with an appropriate default namespace, this sets `d` to the exact string `M 10 10\nL 100 100\nZ` (where `\n` in this explanation denotes LF). The block ends at its own closing marker; the enclosing element still needs its `end`.
 
-The §7 rules for dedentation, LF joining, and termination, including longer markers, apply **unchanged**. No implicit SVG command parsing, folding, trimming, whitespace optimization, escaping, or type conversion occurs. A block may hold arbitrary XML-compatible string data, not only SVG path commands.
+The §7 rules for indentation, LF joining, and termination, including longer markers, apply **unchanged**. No implicit SVG command parsing, folding, trimming, whitespace optimization, escaping, or type conversion occurs. A block may hold arbitrary XML-compatible string data, not only SVG path commands.
 
 A named block is an **attribute declaration** for ordering and duplicate detection, so additional ordinary attributes may follow it. An invocation after child content has begun is an error, and so is an invocation when no active alias of that name matches the current element. A bare `alias-name` line without the marker is never an invocation: it is always an ordinary element opener, inside the declaration section or after it. An alias therefore never changes how a line without a block marker parses, and a real child element whose name equals an alias needs no special spelling.
 
@@ -658,7 +681,7 @@ A named block is an **attribute declaration** for ordering and duplicate detecti
 
 An XML-to-SML writer MAY introduce or use `@block` aliases as a formatting choice. It MUST emit any required alias declaration on the invoking element itself or on an ancestor, where the target element and attribute names resolve correctly, before any invocation. The result MUST remain self-contained: decoding it cannot depend on an external alias registry.
 
-A writer MUST choose a named block only if the complete attribute string can be represented **exactly** by §7's dedentation and marker rules, using a longer marker if a payload line is `"""`. Otherwise it MUST fall back to an ordinary `.attribute` value, usually quoted with explicit escapes. It MUST preserve XML namespace prefixes/declaration locations under the SVG-safe profile. Because invocations carry a block marker, a real child element whose name equals an active alias is written as an ordinary element. Writers MUST NOT alter the text of SVG `d`, CSS `style`, `points`, or any other attribute to make an alias representation possible. The only exception is the readable attribute reflow of §3.2, which must be selected explicitly and is not a strict conversion.
+A writer MUST choose a named block only if the complete attribute string can be represented **exactly** by a block (§7): it has no CR and none of the characters §4 says to escape, and a longer marker is used if a payload line is `"""`. Otherwise it MUST fall back to an ordinary `.attribute` value, usually quoted with explicit escapes. It MUST preserve XML namespace prefixes/declaration locations under the SVG-safe profile. Because invocations carry a block marker, a real child element whose name equals an active alias is written as an ordinary element. Writers MUST NOT alter the text of SVG `d`, CSS `style`, `points`, or any other attribute to make an alias representation possible. The only exception is the readable attribute reflow of §3.2, which must be selected explicitly and is not a strict conversion.
 
 ### 8.6 Invalid and ambiguous cases
 
@@ -671,7 +694,7 @@ container
     .d M 0 0
     data """
       L 10 10
-    """
+      """
   end
 end
 ```
@@ -685,7 +708,7 @@ container
     @comment geometry follows
     data """
       M 0 0
-    """
+      """
   end
 end
 ```
@@ -698,7 +721,7 @@ container
   rect
     data """
       M 0 0
-    """
+      """
   end
 end
 ```
@@ -789,10 +812,10 @@ is the XML
   ================================
   =  Example test case           =
   ================================
-"""
+  """
 ```
 
-Each line, after the block's dedentation (§7), is one comment's data and obeys the constraints above. A blank payload line is an error, and so is `@comments` without a block. Wherever the comments are, they are placed as that many `@comment` statements would be; in a laid-out element each is preceded by its predicted whitespace (§6.4). A line's data is never predicted.
+Each line, after the block's indentation is removed (§7), is one comment's data and obeys the constraints above. A payload line that is empty or only spaces and tabs is an error, and so is `@comments` without a block. Wherever the comments are, they are placed as that many `@comment` statements would be; in a laid-out element each is preceded by its predicted whitespace (§6.4). A line's data is never predicted.
 
 `@pi TARGET [VALUE]` creates an XML processing instruction. `TARGET` is an `NCName` (Namespaces in XML 1.0 §7 forbids colons in PI targets) and cannot be `xml` in any case combination. Optional VALUE follows one or more spaces/tabs and uses raw or quoted form; no data means empty string. To represent multiline PI data, use quoted `\n` escapes.
 
@@ -979,7 +1002,7 @@ Notes on the grammar:
 - A `Block` consumes its closing marker **instead of** an additional statement EOL; this prevents a double-terminator ambiguity. A `QuotedValue` never consists of three or more quotation marks alone; such a value is a `Marker`. Namespace, PI, and DOCTYPE operands have no block form.
 - For `@ns`, an optional `NCName` prefix is recognized only when **two** operands are present (§10).
 - `EOL` may be EOF where no open construct remains.
-- Leading and trailing spaces/tabs are removed from **every** line outside blocks (§4). Block payload lines lose trailing spaces/tabs and their shared indentation (§7).
+- Leading and trailing spaces/tabs are removed from **every** line outside blocks (§4). Block payload lines lose only the block's indentation, the spaces and tabs before its closing marker (§7).
 - `Neutral` statements (blank lines, source comments, extension directives) never end a declaration section; a preserved XML comment or PI does. `DeclarationSection` encodes the `@ns`-first rule of §5.1. `NoIndent` and `LocalIndent` may each appear at most once in a declaration section, and `LocalIndent` only in a document with the `@indent` header.
 
 The EBNF is a *statement grammar*, not a substitute for XML name validity, UTF-8 validity, whitespace and delimiter interpretation, namespace resolution, or semantic validation.
@@ -991,7 +1014,7 @@ SML readers MUST reject, among other malformed syntax:
 - **Names and structure:** unbound prefixes anywhere; invalid names or characters; use of the reserved name `end` in ordinary element forms; mismatched `end QName`; document content outside the root; unclosed elements or blocks.
 - **Attributes and namespaces:** duplicate expanded attributes (including aliased duplicates); `.xmlns` attributes; namespace declarations that break §10 (repeated, reserved, or raw-relative URIs, or the wrong number of `@ns` operands); `@ns` after another declaration statement; attribute, namespace, or block declarations after content.
 - **Aliases:** unbound prefixes in `@block` declarations; conflicting aliases within a lexical scope; declarations whose operands are not an element QName, a dot-prefixed attribute QName, and an alias, in that order; alias invocations with no matching active alias or after the declaration section has closed; element aliases that are prefixed or `end`, declared twice in one scope, or declared after the root or after an element's content has begun (§8.7).
-- **Values:** malformed escapes; raw values beginning with `"`; anything after a block marker on its line; misplaced continuation lines; unbalanced parentheses in inline raw values.
+- **Values:** malformed escapes; raw values beginning with `"`; anything after a block marker on its line; a block line, other than one of spaces and tabs only, that does not begin with the block's indentation (§7); misplaced continuation lines; unbalanced parentheses in inline raw values.
 - **Comments and PIs:** invalid comments or PIs, including PI targets containing colons and PI data beginning with whitespace; `@comments` without a block, or with a blank payload line.
 - **Headers:** text statements in a laid-out element (§6.4); repeated or misplaced `@sml`, `@indent`, `@noindent`, or `@doctype`; an `@indent` step in a declaration section without the `@indent` header (§6.4); unknown draft versions; malformed `@doctype` identifiers.
 - **Extensions:** unknown directives, and required extensions the reader does not implement.
@@ -1023,7 +1046,7 @@ SML writers SHOULD emit:
 - `name = value` for a short text-only element and `name/` for an empty one, declaring any namespaces with inline `xmlns` entries (§6.3).
 - Value forms by this precedence:
   1. **Raw** when §6.2 allows it and the value contains no TAB and none of the characters §4 says to escape.
-  2. **A block** when the value contains LF and something else, and §7 reproduces it exactly, with a longer marker if a payload line is `"""`. A value of line breaks only is clearer quoted (`"\n"`) than as a block of blank lines.
+  2. **A block** when the value contains LF and a character other than space, tab, and LF, and neither CR nor the characters §4 says to escape, with a longer marker if a payload line is `"""`. A value of whitespace only is clearer quoted (`"\n  "`) than as a block of blank lines.
   3. **Quoted** otherwise, split with continuation lines (§6.5) when long.
 
   Quoting is **required** (§6.2) for values that begin or end with a space or tab, or begin with `"`.
@@ -1043,16 +1066,16 @@ The canonical form is a function of the document alone: canonical writers MUST p
 
 1. **File.** UTF-8 without BOM, LF line endings, and a final LF. No blank lines, `#` comments, `@block` or `@node` aliases, `end QName`, or `@use`.
 2. **Prolog.** `@sml 1.0-SVG-1`, then `@standalone` if recorded, then `@indent` if chosen (rule 9), then the prolog comments, PIs, and `@doctype` in document order. The epilog follows the root in document order.
-3. **Indentation.** Two spaces per element depth. Block payload lines and continuation lines are indented one level deeper than their statement; a block terminator is at the statement's level.
+3. **Indentation.** Two spaces per element depth. Block payload lines, a block's closing marker, and continuation lines are indented one level deeper than their statement; an empty payload line is written empty.
 4. **Order.** Namespace declarations come first: the default namespace, then prefixes in ascending code-point order. Then attributes: those without a namespace by local name, then namespaced ones by namespace URI and then local name, all in ascending code-point order. This is the attribute order of Canonical XML.
 5. **Inline or vertical.** An element's namespace declarations and attributes are written inline, as one list, when every value is representable as a raw inline value (§6.3) under rule 7, and the indentation, element name, and inline list together are at most 100 code points long. Otherwise all are vertical: `@ns` lines, then `.attribute` lines.
 6. **Element form.** For an element with an inline list, or with no declarations or attributes: `name/` if it has no content; `name = value` if its only content is one text node, unless rule 7 says the text needs the normal form. Otherwise the normal form with `end`. An element named `end` is always written `@element end` in the normal form.
 7. **Value form.** Each value is written in the first form that applies:
    1. **Raw:** §6.2 allows it, it contains none of TAB, CR, LF, or the characters §4 says to escape, and the statement line is at most 100 code points.
-   2. **Block:** it contains LF and a character other than LF, but no CR, and §7 reproduces it exactly. The marker is the shortest of `"""`, `""""`, `"""""`, … that no payload line equals after trimming. TAB is literal in block payloads.
+   2. **Block:** it contains LF and a character other than space, tab, and LF, and neither CR nor the characters §4 says to escape. A block reproduces every such value exactly (§7). The marker is the shortest of `"""`, `""""`, `"""""`, … that no payload line equals after trimming. TAB is literal in block payloads.
    3. **Quoted:** otherwise.
 
-   A comment in a laid-out position (§6.4) is written raw by 7.1; otherwise as a laid-out comment block if its data has that layout and the block's payload contains a character other than LF, with the marker chosen as in 7.2 for the payload; otherwise quoted. It is never written as a literal block, which would be read with predicted edges.
+   A comment in a laid-out position (§6.4) is written raw by 7.1; otherwise as a laid-out comment block if its data has that layout and the block's payload contains a character other than space, tab, and LF, with the marker chosen as in 7.2 for the payload; otherwise quoted. It is never written as a literal block, which would be read with predicted edges.
 
    The only text of an element in a laid-out position, under `@indent`, is written in the compact form the same way, as a laid-out text block when it has that layout, with one exception: text that 7.2 would write as a block, but that does not have the layout, makes the element use the normal form, where its `=` statement follows 7.1–7.3.
 8. **Quoted values.** Escapes are used only where required (`\\`, `\"`) and for CR, LF, TAB, and the characters listed in §4. They are written `\r`, `\n`, `\t`, and `\u{…}` with uppercase hexadecimal digits and no leading zeros. When a quoted value's statement line would exceed 100 code points, the value is split into continuation lines (§6.5). Each segment takes as many source characters as fit in 80 code points, ends after the last space within that span if there is one, and never splits an escape.
@@ -1110,7 +1133,7 @@ The following fixtures are mandatory in addition to the baseline corpus:
 | SV-42 | Alias name `end` | Reject reserved alias name |
 | SV-43 | Inherited alias shadowed in nested scope | Nearest mapping applies; same-scope duplicate declaration fails |
 | SV-44 | Named block containing a line `"""` as data | Writer uses the longer marker `""""` |
-| SV-45 | Named block with significant leading spaces or terminal LF | Writer falls back if dedentation/termination would change exact string |
+| SV-45 | Values with leading spaces on every line, trailing spaces or tabs, a first or last empty line, or a terminal LF; values with CR, an escaped character, or whitespace only | The first written as blocks that keep them exactly; the others quoted |
 | SV-46 | Malformed `@block` declarations: `@block g data .d` (operands out of order), `@block g .d` (no alias), `@block g .d data x` (an extra operand) | Rejected |
 | SV-47 | `style """` after the declaration section closed | Rejected; a bare `style` line there is a child element |
 | SV-48 | Block aliases under two default namespace scopes | Expanded-name lookup distinguishes namespaces without SVG-specific code |
@@ -1121,7 +1144,7 @@ The following fixtures are mandatory in addition to the baseline corpus:
 | SV-53 | Leading/trailing spaces and tabs on value lines, including an `@ns` URI and a `"""` marker followed by spaces | Trimmed; `.d """ ` starts a block; the namespace URI has no trailing space |
 | SV-54 | Attribute, text, comment, and PI values with significant outer whitespace | Writer quotes them; exact round trip |
 | SV-55 | Quoted value followed by trailing spaces on the line | Accepted; value unchanged |
-| SV-56 | Block payload lines ending in spaces or tabs | Trailing whitespace removed on read; writer uses quoted fallback for values whose lines end in whitespace |
+| SV-56 | Verbatim blocks: payload lines ending in spaces or tabs, lines indented beyond the closing marker, whitespace-only lines with and without its indentation, a line without it; Inkscape-style CSS indented with tabs | Trailing whitespace and extra indentation kept; whitespace-only lines without the indentation empty; the line without it rejected; the CSS written as a block and read back exactly |
 | SV-57 | PI target containing `:` | SML reader rejects; XML importer rejects |
 | SV-58 | PI data beginning with space, TAB, LF, or CR | SML reader rejects |
 | SV-59 | PI data ending with whitespace | Quoted on write; preserved through the XML round trip |
@@ -1145,7 +1168,7 @@ The following fixtures are mandatory in addition to the baseline corpus:
 | SV-77 | Runs of one-line comments in the prolog and in laid-out and exact elements, including lines `# x`, `end`, and `"""`; a comment with spaces at its ends; `@comments` with a blank line, without a block, or with `--` | One `@comments` block per run of two or more (marker `""""` when a line is `"""`); the spaced comment is quoted on its own; the three invalid forms rejected |
 | SV-78 | Pretty-printed multi-line comments at depths 0, 1, and 2 under `@indent`, one with an empty line; a multi-line comment whose lines are not indented one level deeper; a comment block without `@indent`, under `@noindent`, and in mixed content | Laid-out comment blocks, read back with the same data; the unindented one quoted; the last three literal blocks |
 | SV-79 | XML that puts each child on its own line without indentation, including a pretty-printed multi-line comment | `@indent 0`, no text statements, and a laid-out comment block; reads back with the same whitespace |
-| SV-80 | Text, attribute, and comment values made only of line breaks, in exact elements and in a laid-out position | Quoted (`= "\n"`, `.a "\n"`, `@comment "\n"`), never blocks of blank lines; a block of blank lines is still read |
+| SV-80 | Text, attribute, and comment values made only of whitespace, such as line breaks, in exact elements and in a laid-out position | Quoted (`= "\n"`, `.a "\n"`, `@comment "\n"`), never blocks of blank lines; a block of blank lines is still read |
 | SV-81 | Under `@indent 2`, a subtree whose children are indented by four more spaces, one indented by a tab, and the grandchildren of a four-space element; a per-element `@indent` without the header, twice in one element, after content, or after the root | `@indent 4` and `@indent tab` steps in the declaration sections; the grandchildren follow the unit again; exact round trip; the four invalid forms rejected |
 | SV-82 | Under `@indent`, pretty-printed multi-line text in `desc`, `style`, and `title`, including an empty line and a child of a four-space element; text without whitespace at its edges; text not indented one unit deeper; a compact block under `@noindent`, in mixed content, and without `@indent` | Laid-out text blocks (`desc = """`), read back with the same text; the edgeless text in the normal form with a literal `= """`; the unindented text quoted; the last three literal |
 | SV-83 | `@node` before the root and in a declaration section, used in every opener form, shadowed in a nested scope, and naming a prefixed element whose prefix is bound where it is used; `@element` and `end QName` with aliases; an alias that is `end` or prefixed, an alias declared twice in one scope, and `@node` after the root or after content | The document of the real names; aliases never chain; the invalid forms rejected; canonical output has no `@node` |
@@ -1174,7 +1197,7 @@ Reject—not drop—unsupported input. Rendering comparisons are useful suppleme
 | CP-11 | `a( x = 1 , y=2 )` | Accepted |
 | CP-12 | `transform=translate(10,20)`, `fill=url(#a)`; `a=(x`; `a=x)y` | First two accepted with exact values; last two rejected |
 | CP-13 | Continuation lines after `.attr`, `=`, inline text, `@comment`, and `@pi` with quoted values; after a raw value; after a blank or `#` line; after `@ns` | Joined exactly; rejected; rejected; rejected |
-| CP-14 | Blocks with blank lines, whitespace-only lines, mixed tab/space indentation, and no payload lines | Dedented per §7; an empty block is the empty string |
+| CP-14 | Blocks with blank lines, whitespace-only lines, mixed tab/space indentation, and no payload lines | The closing marker's indentation removed per §7; whitespace-only lines without it empty; an empty block is the empty string |
 | CP-15 | Alias invoked inside an element opened with `@element` | Works as for any element |
 | CP-16 | `@ns` after `.attr`, `@block`, an alias invocation, or `@noindent` | Rejected |
 | CP-17 | `@ns s`; `@ns a b c`; `@ns ""`; `@ns "relative"`; inline `xmlns=s` | Rejected; rejected; accepted; accepted; rejected |
@@ -1247,7 +1270,7 @@ svg
       M 10 10
       C 20 30 40 30 50 10
       Z
-    """
+      """
   end
 end
 ```
@@ -1274,7 +1297,7 @@ style = """"
   line one
   """
   end
-""""
+  """"
 ```
 
 A quoted value is equivalent: `style = "line one\n\"\"\"\nend"`.

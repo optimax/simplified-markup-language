@@ -438,9 +438,9 @@ class VariantWriter:
                 if r.random() < 0.3 and longer not in {S.strip_ht(x) for x in lines}:
                     marker = longer
                 self.emit(ind + '@comments' + r.choice([' ', '', '  ']) + marker)
-                pad = ind + r.choice(['  ', '    ', '\t', ' '])
+                pad = ind + r.choice(['  ', '    ', '\t', ' ', ''])
                 self.out.extend(pad + x for x in lines)
-                self.out.append(ind + r.choice(['', '  ', '\t']) + marker)
+                self.out.append(pad + marker + r.choice(['', ' ', '\t']))
                 i = k
                 continue
             node = nodes[i]
@@ -482,10 +482,13 @@ class VariantWriter:
             stripped = {S.strip_ht(x) for x in v.split('\n')}
             longer = tag + '"' * r.randint(1, 2)
             marker = longer if r.random() < 0.3 and longer not in stripped else tag
+            # Verbatim block (§7): every line keeps what follows the closing marker's indentation, pad. An empty line
+            # may also be written as pad, or as spaces and tabs that pad does not begin with.
             self.emit(head + r.choice([' ', '', '  ']) + marker)
-            pad = ind + r.choice(['  ', '    ', '\t', ' '])
-            self.out.extend(pad + x if x else r.choice(['', '']) for x in v.split('\n'))
-            self.out.append(ind + r.choice(['', '  ', '\t']) + marker)
+            pad = ind + r.choice(['  ', '    ', '\t', ' ', ''])
+            empties = ['', pad] + ([pad[:-1]] if pad else [])
+            self.out.extend(pad + x if x else r.choice(empties) for x in v.split('\n'))
+            self.out.append(pad + marker + r.choice(['', ' ', '\t']))
 
     def misc(self, item, ind: str) -> None:
         if isinstance(item, S.Comment):

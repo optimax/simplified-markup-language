@@ -260,23 +260,19 @@ class _Pending:
         self.finish = finish
 
 
-def dedent_block(lines: list[str]) -> str:
-    """The §7 dedentation algorithm."""
-    lines = [ln.rstrip(' \t') for ln in lines]
-    prefix = None
-    for ln in lines:
-        if not ln:
-            continue
-        lead = ln[:len(ln) - len(ln.lstrip(' \t'))]
-        if prefix is None:
-            prefix = lead
+def dedent_block(lines: list[str], prefix: str, first_line: int = 0) -> str:
+    """The §7 dedentation: prefix, the closing marker's indentation, comes off each payload line, and the rest of
+    the line is data. A line of spaces and tabs only that does not begin with prefix is empty; any other line must
+    begin with prefix. first_line is the number of the first payload line, for errors."""
+    out = []
+    for k, ln in enumerate(lines):
+        if ln.startswith(prefix):
+            out.append(ln[len(prefix):])
+        elif strip_ht(ln) == '':
+            out.append('')
         else:
-            k = 0
-            while k < len(prefix) and k < len(lead) and prefix[k] == lead[k]:
-                k += 1
-            prefix = prefix[:k]
-    n = len(prefix or '')
-    return '\n'.join(ln[n:] if ln else '' for ln in lines)
+            raise SmlError("a block line must begin with the closing marker's indentation", first_line + k)
+    return '\n'.join(out)
 
 
 class SmlReader:
@@ -411,7 +407,8 @@ class SmlReader:
             raw = self.lines[self.i]
             self.i += 1
             if strip_ht(raw) == marker:
-                return check_chars(dedent_block(payload), ln)
+                prefix = raw[:len(raw) - len(raw.lstrip(' \t'))]
+                return check_chars(dedent_block(payload, prefix, ln + 1), ln)
             payload.append(raw)
         raise SmlError(f'unterminated block (expected a line {marker})', ln)
 
@@ -1006,10 +1003,6 @@ def block_marker(value: str) -> str | None:
     if '\r' in value or any(needs_escape(c) for c in value):
         return None
     lines = value.split('\n') if value else []
-    if any(ln != ln.rstrip(' \t') for ln in lines):
-        return None
-    if dedent_block(lines) != value:
-        return None
     stripped = {strip_ht(ln) for ln in lines}
     marker = '"""'
     while marker in stripped:
@@ -1017,10 +1010,16 @@ def block_marker(value: str) -> str | None:
     return marker
 
 
+def visible(value: str) -> bool:
+    """Whether a value has a character other than a space, tab, or line break: a block of whitespace only would show
+    nothing, so it is clearer quoted (canonical rule 7.2)."""
+    return value.strip(' \t\n') != ''
+
+
 def block_tag(value: str) -> str | None:
-    """The marker to write a value that contains LF and something else as a block (canonical rule 7.2), or None.
-    A value of line breaks only would be a block of blank lines; it is clearer quoted."""
-    return block_marker(value) if '\n' in value and value.strip('\n') else None
+    """The marker to write a value that contains LF and a visible character as a block (canonical rule 7.2), or
+    None."""
+    return block_marker(value) if '\n' in value and visible(value) else None
 
 
 def lay_out_block(value: str, indentation: str, unit: str) -> str:
@@ -1115,7 +1114,7 @@ class SmlWriter:
             self.out.append(prefix + ' ' + tag)
             inner = ind + '  '
             self.out.extend(inner + ln if ln else '' for ln in value.split('\n'))
-            self.out.append(ind + tag)
+            self.out.append(inner + tag)
             return
         units = escape_units(value)
         if len(prefix) + 3 + sum(map(len, units)) <= LINE_LIMIT:
@@ -1139,7 +1138,7 @@ class SmlWriter:
                 marker = block_marker('\n'.join(lines))
                 self.out.append(ind + '@comments ' + marker)
                 self.out.extend(ind + '  ' + ln for ln in lines)
-                self.out.append(ind + marker)
+                self.out.append(ind + '  ' + marker)
                 i = j
                 continue
             node = nodes[i]
@@ -1157,7 +1156,7 @@ class SmlWriter:
         self.out.append(prefix + ' ' + marker)
         if value:
             self.out.extend(ind + '  ' + ln if ln else '' for ln in value.split('\n'))
-        self.out.append(ind + marker)
+        self.out.append(ind + '  ' + marker)
 
     def comment(self, data: str, depth: int, laid_out: bool, indentation: str) -> None:
         """Writes a comment; in a laid-out position a block has predicted edges (§6.4), so a block is used only
@@ -1167,7 +1166,7 @@ class SmlWriter:
             self.value(ind + '@comment', data, depth, allow_block=not laid_out)
             return
         value = laid_out_value(data, indentation, self.unit)
-        if value is None or not value.strip('\n'):
+        if value is None or not visible(value):
             self.value(ind + '@comment', data, depth, allow_block=False)
             return
         self.block(ind + '@comment', value, depth)
@@ -1180,7 +1179,7 @@ class SmlWriter:
             self.value(prefix, data, depth)
             return True
         value = laid_out_value(data, indentation, self.unit)
-        if value is not None and value.strip('\n'):
+        if value is not None and visible(value):
             self.block(prefix, value, depth)
             return True
         if block_tag(data) is not None:

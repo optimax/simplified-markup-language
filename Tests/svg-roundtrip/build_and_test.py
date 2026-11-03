@@ -138,7 +138,7 @@ comment
   <desc>Starts at once
     and goes on.</desc>
   <desc x="1" y="2">
-  flush text is quoted
+  flush text keeps its indentation
   </desc>
   <info xmlns="urn:x">
       <p>

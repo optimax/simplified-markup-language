@@ -6,7 +6,12 @@ svg(xmlns=http://www.w3.org/2000/svg)
     = """
       First
       Second	Third
-    """
+      """
   end
-  text(xml:space=preserve) = " A  B\n C "
+  text(xml:space=preserve)
+    = """
+       A  B
+       C 
+      """
+  end
 end
