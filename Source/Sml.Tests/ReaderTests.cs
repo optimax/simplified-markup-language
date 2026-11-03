@@ -70,7 +70,7 @@ public class ReaderTests
 
     [Fact]
     public void CP06_PrefixedEndIsAllowed() =>
-        Assert.Equal("x:end", ((ElementNode)Root("g(xmlns:x=urn:x)\n  x:end/\nend\n").Children[0]).QualifiedName);
+        Assert.Equal("x:end", ((ElementNode)Root("@indent none\ng(xmlns:x=urn:x)\n  x:end/\nend\n").Children[0]).QualifiedName);
 
     [Fact]
     public void CP07_CheckedEnd()
@@ -193,11 +193,11 @@ public class ReaderTests
     [Fact]
     public void SV34_SV37_AliasesOnlyWithMarker()
     {
-        ElementNode svg = Root($"svg\n  @ns {Svg}\n  @block path .d data\n  path\n    data \"\"\"\n      M 0 0\n      \"\"\"\n  end\nend\n");
+        ElementNode svg = Root($"@indent none\nsvg\n  @ns {Svg}\n  @block path .d data\n  path\n    data \"\"\"\n      M 0 0\n      \"\"\"\n  end\nend\n");
         ElementNode path = (ElementNode)svg.Children[0];
         Assert.Equal(new ExpandedName(Svg, "path"), path.Name);
         Assert.Equal("M 0 0", path.Attributes["d"]);
-        ElementNode g = Root("g\n  @block g .d data\n  data \"\"\"\n    v\n    \"\"\"\n  data\n    = child\n  end\nend\n");
+        ElementNode g = Root("@indent none\ng\n  @block g .d data\n  data \"\"\"\n    v\n    \"\"\"\n  data\n    = child\n  end\nend\n");
         Assert.Equal("v", g.Attributes["d"]);
         Assert.Equal("data", ((ElementNode)g.Children[0]).QualifiedName);
         Rejects("g\n  data \"\"\"\n    v\n    \"\"\"\nend\n", "no active alias");
@@ -224,7 +224,7 @@ public class ReaderTests
         // The writer copies such text exactly: Inkscape-style CSS indented with tabs, with trailing whitespace.
         SmlDocument doc = XmlImporter.Read(Encoding.UTF8.GetBytes("<style>\n\t\ta {\t \n\t\t}\n    </style>"));
         string sml = SmlWriter.Write(doc);
-        Assert.Equal("@sml 1.0-SVG-1\nstyle = \"\"\"\n\n  \t\ta {\t \n  \t\t}\n      \n  \"\"\"\n", sml);
+        Assert.Equal("@sml 1.0-SVG-1\n@indent none\nstyle = \"\"\"\n\n  \t\ta {\t \n  \t\t}\n      \n  \"\"\"\n", sml);
         Assert.Null(DocumentComparer.FirstDifference(doc, SmlReader.Read(sml)));
     }
 
@@ -270,7 +270,7 @@ public class ReaderTests
     {
         Same("g\n  .d\"\"\"\n    v\n    \"\"\"\nend\n", "g\n  .d \"\"\"\n    v\n    \"\"\"\nend\n");
         Same("g\n  @block g .y x\n  x\"\"\"\n    v\n    \"\"\"\nend\n", "g\n  .y \"\"\"\n    v\n    \"\"\"\nend\n");
-        ElementNode bars = Root("g(a=|x, b=|)\n  .c |x y\n  @rem |c\n  @pi t |p\n  = |\nend\n");
+        ElementNode bars = Root("@indent none\ng(a=|x, b=|)\n  .c |x y\n  @rem |c\n  @pi t |p\n  = |\nend\n");
         Assert.Equal(("|x", "|", "|x y"), (bars.Attributes["a"], bars.Attributes["b"], bars.Attributes["c"]));
         Assert.Equal("|c", ((CommentNode)bars.Children[0]).Data);
         Assert.Equal("|p", ((ProcessingInstructionNode)bars.Children[1]).Data);
@@ -314,10 +314,10 @@ public class ReaderTests
         Assert.Equal("\n  top\n", ((CommentNode)doc.Prolog[0]).Data);
         Assert.Equal("\n    a\n\n    b\n  ", Comments(doc.Root)[0]);
         Assert.Equal("\n      deep\n    ", Comments(doc.Root.Children.OfType<ElementNode>().First())[0]);
-        Assert.Equal("@sml 1.0-SVG-1\n" + source, SmlWriter.Write(doc));
+        Assert.Equal("@sml 1.0-SVG-1\n" + source.Replace("@indent 2\n", ""), SmlWriter.Write(doc));
 
         // Without @indent, in @noindent elements, and in mixed content, blocks are literal.
-        Assert.Equal("a", Comments(Root("g\n  @rem \"\"\"\n    a\n    \"\"\"\nend\n"))[0]);
+        Assert.Equal("a", Comments(Root("@indent none\ng\n  @rem \"\"\"\n    a\n    \"\"\"\nend\n"))[0]);
         Assert.Equal("a", Comments(Root("@indent 2\ng\n  @noindent\n  @rem \"\"\"\n    a\n    \"\"\"\nend\n"))[0]);
         Assert.Equal("a", Comments(Root("@indent 2\ng\n  = x\n  @rem \"\"\"\n    a\n    \"\"\"\nend\n"))[0]);
         Assert.Equal("\n  ", Comments(Root("@indent 2\ng\n  @rem \"\"\"\n  \"\"\"\nend\n"))[0]);
@@ -375,8 +375,9 @@ public class ReaderTests
         Assert.Equal(["\n      ", "\n      ", "\n  "], Texts(h));
         Assert.Equal(["\n        ", "\n      "], Texts(h.Children.OfType<ElementNode>().ElementAt(1)));
         Assert.Equal(["\n  \t", "\n  "], Texts(doc.Root.Children.OfType<ElementNode>().ElementAt(1)));
-        Assert.Equal("@sml 1.0-SVG-1\n" + source, SmlWriter.Write(doc));
-        Rejects("g\n  @indent 4\n  h/\nend\n", "needs the @indent header");
+        Assert.Equal("@sml 1.0-SVG-1\n" + source.Replace("@indent 2\n", ""), SmlWriter.Write(doc));
+        Rejects("@indent none\ng\n  @indent 4\n  h/\nend\n", "not allowed under @indent none");
+        Rejects("@indent 2\ng\n  @indent none\nend\n", "width from 0 to 16");
         Rejects("@indent 2\ng\n  @indent 4\n  @indent 2\nend\n", "only once");
         Rejects("@indent 2\ng\n  h/\n  @indent 4\nend\n", "after the element");
         Rejects("@indent 2\ng\n  @indent 3x\nend\n", "width from 0 to 16");
@@ -391,7 +392,7 @@ public class ReaderTests
         List<ElementNode> elements = doc.Root.Children.OfType<ElementNode>().ToList();
         Assert.Equal("\n    one\n\n    two\n  ", ((TextNode)elements[0].Children[0]).Data);
         Assert.Equal("\n        deep\n      ", ((TextNode)elements[1].Children.OfType<ElementNode>().First().Children[0]).Data);
-        Assert.Equal("@sml 1.0-SVG-1\n" + source, SmlWriter.Write(doc));
+        Assert.Equal("@sml 1.0-SVG-1\n" + source.Replace("@indent 2\n", ""), SmlWriter.Write(doc));
 
         // The normal form, @noindent parents, mixed content, and documents without @indent stay literal.
         foreach (string literal in new[]
@@ -399,7 +400,7 @@ public class ReaderTests
             "@indent 2\ng\n  p\n    = \"\"\"\n      a\n      b\n      \"\"\"\n  end\nend\n",
             "@indent 2\ng\n  @noindent\n  p = \"\"\"\n    a\n    b\n    \"\"\"\nend\n",
             "@indent 2\ng\n  = x\n  p = \"\"\"\n    a\n    b\n    \"\"\"\nend\n",
-            "g\n  p = \"\"\"\n    a\n    b\n    \"\"\"\nend\n",
+            "@indent none\ng\n  p = \"\"\"\n    a\n    b\n    \"\"\"\nend\n",
         })
             Assert.Equal("a\nb", ((TextNode)Root(literal).Children.OfType<ElementNode>().First().Children[0]).Data);
 
@@ -417,7 +418,7 @@ public class ReaderTests
     [Fact]
     public void SV83_NodeAliases()
     {
-        const string source = "@node g group\n@node p para\nsvg(xmlns=http://www.w3.org/2000/svg)\n  group(id=a)\n    rect/\n  end group\n"
+        const string source = "@indent none\n@node g group\n@node p para\nsvg(xmlns=http://www.w3.org/2000/svg)\n  group(id=a)\n    rect/\n  end group\n"
             + "  group/\n  g = plain\n  foreignObject\n    @node div box\n    box(xmlns=http://www.w3.org/1999/xhtml)\n"
             + "      para = Hello\n      @element para\n      end para\n    end div\n  end\n  box/\nend\n";
         SmlDocument doc = SmlReader.Read(source);
@@ -452,7 +453,7 @@ public class ReaderTests
         // its own step, and everything below it is laid out.
         SmlDocument doc = XmlImporter.Read(Encoding.UTF8.GetBytes("<svg xmlns=\"urn:s\">\n    <g>\n      <rect/>\n    </g>\n    <rect/>\n  </svg>"));
         string sml = SmlWriter.Write(doc);
-        Assert.Equal("@sml 1.0-SVG-1\n@indent 2\nsvg(xmlns=urn:s)\n  @indent 4\n  = \"\\n    \"\n  g\n    rect/\n  end\n"
+        Assert.Equal("@sml 1.0-SVG-1\nsvg(xmlns=urn:s)\n  @indent 4\n  = \"\\n    \"\n  g\n    rect/\n  end\n"
             + "  = \"\\n    \"\n  rect/\n  = \"\\n  \"\nend\n", sml);
         Assert.Null(DocumentComparer.FirstDifference(doc, SmlReader.Read(sml)));
         // An exact element takes its own step only if that lays out more of its child elements.

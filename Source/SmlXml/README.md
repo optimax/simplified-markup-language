@@ -68,7 +68,7 @@ Elements without attributes keep their compact forms (`g/`, `title = Text`), and
 
 ## Cleaning with a profile
 
-`smlxml --clean svg drawing.svg`, or `smlxml --tidy svg drawing.svg`, writes SML that is easier to read and edit, using a profile. `smlxml` comes with the `svg` profile, `svg.smlprofile` beside `smlxml.exe`. Cleaning ignores how the input was indented: the SML always uses `@indent 2` and needs no other indentation statements, and the XML written back from it is indented by two spaces. It tidies multi-line text and comments. The profile gives long, structured attribute values a layout, with one path command, coordinate pair, CSS declaration, or transform function per line, and it supplies aliases. For example:
+`smlxml --clean svg drawing.svg`, or `smlxml --tidy svg drawing.svg`, writes SML that is easier to read and edit, using a profile. `smlxml` comes with the `svg` profile, `svg.smlprofile` beside `smlxml.exe`. Cleaning ignores how the input was indented: the SML always uses the default two-space indentation and needs no indentation statements, and the XML written back from it is indented by two spaces. It tidies multi-line text and comments. The profile gives long, structured attribute values a layout, with one path command, coordinate pair, CSS declaration, or transform function per line, and it supplies aliases. For example:
 
 ```xml
 <svg xmlns="http://www.w3.org/2000/svg">
@@ -87,7 +87,6 @@ becomes
 
 ```text
 @sml 1.0-SVG-1 tidy
-@indent 2
 @node g group
 svg(xmlns=http://www.w3.org/2000/svg)
   @block path .d data

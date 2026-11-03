@@ -18,11 +18,11 @@ Provide `smlxml`, a two-way SML ↔ XML/SVG command-line converter in C# on .NET
   - It expands wildcards in input names itself (`*`, `?`, `**`; `FileExpander`).
   - It accepts `*` patterns in `--output` (one output per input, `ApplyOutputPattern`).
   - It shows the usage when run without arguments.
-  - `--clean <profile>` (alias `--tidy`) writes readable, lossy SML (specification §§3.1–3.2): formatting whitespace replaced by `@indent 2` whatever the input's, values with a layout one item per line, multi-line text and comments tidied, and the profile's aliases. `svg.smlprofile` beside the executable is the built-in profile; it declares element aliases `g group` and `p para`. A profile is used only for cleaning.
+  - `--clean <profile>` (alias `--tidy`) writes readable, lossy SML (specification §§3.1–3.2): formatting whitespace replaced by the default two-space indentation whatever the input's, values with a layout one item per line, multi-line text and comments tidied, and the profile's aliases. `svg.smlprofile` beside the executable is the built-in profile; it declares element aliases `g group` and `p para`. A profile is used only for cleaning.
   - With `--verbose`, it writes every attribute and namespace declaration on its own line.
 
   Behavior and requirements are in `Source/SmlXml/implementation.md`, usage and the profile format in `Source/SmlXml/README.md`.
-- **`Source/Sml.Tests`** has 3,145 xUnit tests:
+- **`Source/Sml.Tests`** has 3,382 xUnit tests:
   - the corpus, compared byte for byte with the Python reference output;
   - both round trips;
   - the negative corpus;
@@ -51,13 +51,15 @@ The user's fire SVG (copied out of HTML, so its root's children sit at 4 spaces 
 
 - **Follow-ups (same session).**
   - Cleaned output no longer starts with a `# Cleaned … not exact` comment. Instead its header is `@sml 1.0-SVG-1 tidy`: `@sml VERSION [tidy]` (§11, grammar, CP-20). Both readers accept `tidy` and ignore it; only cleaning writes it, always.
+  - **Two-space indentation is the default** (§6.4): without an `@indent` header the reader predicts two spaces, so both writers omit `@indent 2`. `@indent none` (header only) turns the model off; the writer writes it only when the default would change the document (`default_matters`/`DefaultMatters`: an element with a child element, a multi-line prolog or epilog comment, or multi-line root text). §14.2 rules 2 and 9, SV-60, the grammar, and the examples changed; test inputs that need exact reading start with `@indent none`. Over the corpus, 634 of the 972 accepted files have no `@indent` line in their canonical SML, and 207 have `@indent none`.
   - `@rem` is the comment directive; `@comment` is a synonym that both readers accept (§9). Both writers write only `@rem`, so every reference output with a comment changed. The run form stays `@comments """` (the user's choice). The fuzzer writes both spellings; `Tools/NodepadPlusPlus-SML-Syntax.xml` colors `@rem` too.
 
 ## Build and test results
 
 - `dotnet build SimplifiedMarkupLanguage.slnx -c Release`: 0 warnings, 0 errors.
-- `dotnet test`: 3,145/3,145 passed, including the byte-for-byte comparison with the regenerated Python reference SML.
+- `dotnet test`: 3,382/3,382 passed (with the user's 80 new files in `Tests/svg-corpus/other`), including the byte-for-byte comparison with the regenerated Python reference SML.
 - `fuzz_roundtrip.py --docs 2000 --seed 7`: 0 findings (only the known parser divergences).
+- With the default indentation: `crosscheck_csharp.py --seed 5` (1,000 documents, 4,000 mutants) and `fuzz_roundtrip.py --docs 1500 --seed 35`: 0 findings; Python and C# byte-identical over the corpus (972 accepted, the same 4 rejected); `--clean svg` output read back by Python for all 972.
 - `crosscheck_csharp.py` seeds 1–4 with the new indentation choice (4,000 documents, 16,000 SML mutants): 0 differences (seed 2 first found the zero-step bug, fixed).
 - `smlxml --verbose` over a copy of `Tests/svg-corpus`: the Python prototype read all 893 accepted files back equal to their originals.
 - Over a copy of `Tests/svg-corpus` with the real executable, checked by the Python prototype (script not in the repository):

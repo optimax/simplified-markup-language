@@ -20,7 +20,10 @@ public sealed partial class SmlReader
     private readonly HashSet<string> _optionalExtensions = new(StringComparer.Ordinal);
     private int _index;
     private string _phase = "prolog";
-    private string? _indent;
+    private string? _indent = DefaultUnit;     // §6.4; @indent none turns the model off
+
+    /// <summary>The indentation unit without an @indent header (§6.4).</summary>
+    public const string DefaultUnit = "  ";
     private readonly Dictionary<string, string> _nodes = new(StringComparer.Ordinal);
     private bool _seenStatement;
     private Pending? _pending;
@@ -673,6 +676,12 @@ public sealed partial class SmlReader
     private void Indent(string rest, int ln)
     {
         string value = XmlRules.StripSpacesAndTabs(rest);
+        if (value == "none" && _stack.Count == 0)
+        {
+            Header("indent", ln);
+            _indent = null;
+            return;
+        }
         string unit;
         if (value == "tab")
             unit = "\t";
@@ -680,13 +689,13 @@ public sealed partial class SmlReader
                                   && int.Parse(value) <= 16))
             unit = new string(' ', int.Parse(value));
         else
-            throw new SmlException("@indent takes tab or a width from 0 to 16", ln);
+            throw new SmlException("@indent takes tab, a width from 0 to 16, or (as a header) none", ln);
         if (_stack.Count > 0)
         {
             // In an element: how much deeper its children are (§6.4).
             Frame f = DeclarationFrame(ln, "@indent");
             if (_indent is null)
-                throw new SmlException("@indent in an element needs the @indent header", ln);
+                throw new SmlException("@indent in an element is not allowed under @indent none", ln);
             if (f.LocalStep)
                 throw new SmlException("@indent may appear only once per element", ln);
             (f.Step, f.LocalStep) = (unit, true);

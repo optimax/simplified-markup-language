@@ -335,7 +335,7 @@ class SmlSideFixtures(Base):
         # The writer copies such text exactly: Inkscape-style CSS indented with tabs, with trailing whitespace.
         doc = S.read_xml(b'<style>\n\t\ta {\t \n\t\t}\n    </style>')
         out = S.write_sml(doc)
-        self.assertEqual(out, '@sml 1.0-SVG-1\nstyle = """\n\n  \t\ta {\t \n  \t\t}\n      \n  """\n')
+        self.assertEqual(out, '@sml 1.0-SVG-1\n@indent none\nstyle = """\n\n  \t\ta {\t \n  \t\t}\n      \n  """\n')
         self.assertEqual(sig(out), S.signature(doc))
 
     def test_SV58_pi_leading_whitespace(self):
@@ -356,14 +356,14 @@ class SmlSideFixtures(Base):
         self.rejects('@doctype svg SYSTEM "a\\rb"\nsvg/\n', 'CR')
 
     def test_SV71_marker_without_space(self):
-        spaced = ('g\n  .d """\n    v\n    """\n  @rem """\n    c\n    """\n  = """\n    t\n    """\n'
+        spaced = ('@indent none\ng\n  .d """\n    v\n    """\n  @rem """\n    c\n    """\n  = """\n    t\n    """\n'
                   '  h = """\n    i\n    """\nend\n')
         unspaced = re.sub(r'(?<=\S) """', '"""', spaced)
         self.assertEqual(sig(unspaced), sig(spaced))
         self.assertIn('.d """', S.write_sml(read('g\n  .d"""\n    v\n    w\n    """\nend\n')))
 
     def test_SV72_bar_at_value_start(self):
-        el = root('g(a=|x, b=|)\n  .c |x y\n  @rem |c\n  @pi t |p\n  = |\nend\n')
+        el = root('@indent none\ng(a=|x, b=|)\n  .c |x y\n  @rem |c\n  @pi t |p\n  = |\nend\n')
         self.assertEqual((el.attrs['a'], el.attrs['b'], el.attrs['c']), ('|x', '|', '|x y'))
         self.assertEqual([(type(n).__name__, getattr(n, 'data', None)) for n in el.children],
                          [('Comment', '|c'), ('PI', '|p'), ('Text', '|')])
@@ -398,9 +398,9 @@ class SmlSideFixtures(Base):
         g = doc.root
         self.assertEqual(kids(g, S.Comment)[0].data, '\n    a\n\n    b\n  ')
         self.assertEqual(kids(kids(g)[0], S.Comment)[0].data, '\n      deep\n    ')
-        self.assertEqual(S.write_sml(doc), src.replace('@indent 2\n', '@sml 1.0-SVG-1\n@indent 2\n'))
-        # Without @indent, in @noindent elements, and in mixed content, blocks are literal.
-        self.assertEqual(kids(root('g\n  @rem """\n    a\n    """\nend\n'), S.Comment)[0].data, 'a')
+        self.assertEqual(S.write_sml(doc), src.replace('@indent 2\n', '@sml 1.0-SVG-1\n'))
+        # Under @indent none, in @noindent elements, and in mixed content, blocks are literal.
+        self.assertEqual(kids(root('@indent none\ng\n  @rem """\n    a\n    """\nend\n'), S.Comment)[0].data, 'a')
         el = root('@indent 2\ng\n  @noindent\n  @rem """\n    a\n    """\nend\n')
         self.assertEqual(kids(el, S.Comment)[0].data, 'a')
         el = root('@indent 2\ng\n  = x\n  @rem """\n    a\n    """\nend\n')
@@ -446,8 +446,9 @@ class SmlSideFixtures(Base):
         self.assertEqual([t.data for t in b.children if isinstance(t, S.Text)], ['\n        ', '\n      '])
         k = kids(doc.root)[1]
         self.assertEqual([t.data for t in k.children if isinstance(t, S.Text)], ['\n  \t', '\n  '])
-        self.assertEqual(S.write_sml(doc), '@sml 1.0-SVG-1\n' + src)
-        self.rejects('g\n  @indent 4\n  h/\nend\n', 'needs the @indent header')
+        self.assertEqual(S.write_sml(doc), '@sml 1.0-SVG-1\n' + src.replace('@indent 2\n', '', 1))
+        self.rejects('@indent none\ng\n  @indent 4\n  h/\nend\n', 'not allowed under @indent none')
+        self.rejects('@indent 2\ng\n  @indent none\nend\n', 'width from 0 to 16')
         self.rejects('@indent 2\ng\n  @indent 4\n  @indent 2\nend\n', 'only once')
         self.rejects('@indent 2\ng\n  h/\n  @indent 4\nend\n', 'after the element')
         self.rejects('@indent 2\ng\n  @indent 3x\nend\n', 'width from 0 to 16')
@@ -459,12 +460,12 @@ class SmlSideFixtures(Base):
         p, q = kids(doc.root)
         self.assertEqual(p.children[0].data, '\n    one\n\n    two\n  ')
         self.assertEqual(kids(q)[0].children[0].data, '\n        deep\n      ')
-        self.assertEqual(S.write_sml(doc), '@sml 1.0-SVG-1\n' + src)
+        self.assertEqual(S.write_sml(doc), '@sml 1.0-SVG-1\n' + src.replace('@indent 2\n', '', 1))
         # The normal form, @noindent parents, mixed content, and documents without @indent stay literal.
         literal = ('@indent 2\ng\n  p\n    = """\n      a\n      b\n      """\n  end\nend\n',
                    '@indent 2\ng\n  @noindent\n  p = """\n    a\n    b\n    """\nend\n',
                    '@indent 2\ng\n  = x\n  p = """\n    a\n    b\n    """\nend\n',
-                   'g\n  p = """\n    a\n    b\n    """\nend\n')
+                   '@indent none\ng\n  p = """\n    a\n    b\n    """\nend\n')
         for text in literal:
             self.assertEqual([c for c in kids(read(text).root)][0].children[0].data, 'a\nb')
         # In a laid-out position, text without the layout uses the normal form, whose block is literal; text a block
@@ -478,7 +479,7 @@ class SmlSideFixtures(Base):
         self.assertEqual(S.signature(read(out)), S.signature(doc))
 
     def test_SV83_node_aliases(self):
-        src = ('@node g group\n@node p para\nsvg(xmlns=http://www.w3.org/2000/svg)\n  group(id=a)\n    rect/\n  end group\n'
+        src = ('@indent none\n@node g group\n@node p para\nsvg(xmlns=http://www.w3.org/2000/svg)\n  group(id=a)\n    rect/\n  end group\n'
                '  group/\n  g = plain\n  foreignObject\n    @node div box\n    box(xmlns=http://www.w3.org/1999/xhtml)\n'
                '      para = Hello\n      @element para\n      end para\n    end div\n  end\n  box/\nend\n')
         doc = read(src)
@@ -487,7 +488,7 @@ class SmlSideFixtures(Base):
         self.assertIsNone(S.first_difference(S.signature(doc), S.signature(S.read_xml(xml.encode()))))
         self.assertNotIn('@node', S.write_sml(doc))
         # The alias stands for the name as written: its prefix is resolved where the element is opened.
-        el = read('@node d:info info\nsvg\n  info(xmlns:d=urn:d)/\nend\n').root.children[0]
+        el = kids(read('@node d:info info\nsvg\n  info(xmlns:d=urn:d)/\nend\n').root)[0]
         self.assertEqual((el.qname, el.expanded), ('d:info', ('urn:d', 'info')))
         # Shadowing in a nested scope; aliases do not chain.
         self.assertEqual([e.qname for e in kids(read('@node g x\nsvg\n  @node p x\n  x/\n  h\n    x/\n  end\nend\n').root)],
@@ -508,7 +509,7 @@ class SmlSideFixtures(Base):
         # own step, and everything below it is laid out.
         doc = S.read_xml(b'<svg xmlns="urn:s">\n    <g>\n      <rect/>\n    </g>\n    <rect/>\n  </svg>')
         out = S.write_sml(doc)
-        self.assertEqual(out, '@sml 1.0-SVG-1\n@indent 2\nsvg(xmlns=urn:s)\n  @indent 4\n  = "\\n    "\n  g\n    rect/\n  end\n'
+        self.assertEqual(out, '@sml 1.0-SVG-1\nsvg(xmlns=urn:s)\n  @indent 4\n  = "\\n    "\n  g\n    rect/\n  end\n'
                               '  = "\\n    "\n  rect/\n  = "\\n  "\nend\n')
         self.assertEqual(S.signature(read(out)), S.signature(doc))
         # An exact element takes its own step only if that lays out more of its child elements.

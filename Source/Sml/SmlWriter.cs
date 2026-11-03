@@ -128,8 +128,15 @@ public sealed class SmlWriter
         _out.Add("@sml " + SmlReader.Version + (_profile is not null ? " tidy" : ""));
         if (_doc.Standalone is not null)
             _out.Add("@standalone " + _doc.Standalone);
-        if (_unit is not null)
+        if (_unit is null)
+        {
+            if (DefaultMatters(_doc))
+                _out.Add("@indent none");
+        }
+        else if (_unit != SmlReader.DefaultUnit)
+        {
             _out.Add("@indent " + (_unit == "\t" ? "tab" : _unit.Length.ToString()));
+        }
         _out.AddRange(_nodeDeclarations.Select(d => $"@node {d.Element} {d.Alias}"));
         Items(_doc.Prolog, 0, _unit is not null, "");
         Element(_doc.Root, 0, "", _unit is not null);
@@ -398,6 +405,25 @@ public sealed class SmlWriter
             local = null;
         }
         return (false, local ?? unit, local, nodes[0] is not TextNode);
+    }
+
+    /// <summary>Whether SML written without a unit would read differently under the default unit (§6.4): the
+    /// document has an element with a non-text child, a multi-line comment before or after the root, or multi-line
+    /// text as the root's only content. Then the writer declares @indent none (rule 9).</summary>
+    private static bool DefaultMatters(SmlDocument doc)
+    {
+        var stack = new Stack<ElementNode>([doc.Root]);
+        while (stack.Count > 0)
+        {
+            ElementNode element = stack.Pop();
+            if (ContentNodes(element).Any(n => n is not TextNode))
+                return true;
+            foreach (ElementNode child in element.Children.OfType<ElementNode>())
+                stack.Push(child);
+        }
+        if (doc.Prolog.Concat(doc.Epilog).Any(n => n is CommentNode c && c.Data.Contains('\n')))
+            return true;
+        return ContentNodes(doc.Root).Any(n => n is TextNode t && t.Data.Contains('\n'));
     }
 
     /// <summary>The @indent unit (rule 9): the one with which the writer lays out the most elements, and then writes

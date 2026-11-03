@@ -415,6 +415,7 @@ class VariantWriter:
             self.emit(r.choice(['@sml 1.0-SVG-1', '@sml 1.0', '@sml 1.0-SVG-1 tidy', '@sml\t1.0  tidy']))
         if d.standalone:
             self.emit('@standalone ' + d.standalone)
+        self.emit(r.choice(['@indent none', '@indent\tnone']))     # whitespace is written out below
         if r.random() < 0.3:
             self.declare_nodes('', 3)
         self.items(d.prolog, '')

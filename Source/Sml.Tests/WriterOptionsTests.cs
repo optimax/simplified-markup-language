@@ -18,6 +18,7 @@ public class WriterOptionsTests
             + " fill='#fff'/><text x='5'>Hi</text><title>T</title><g/></svg>");
         Assert.Equal("""
             @sml 1.0-SVG-1
+            @indent none
             svg
               @ns http://www.w3.org/2000/svg
               @ns x urn:x
@@ -51,7 +52,6 @@ public class WriterOptionsTests
         SmlDocument doc = Xml("<g transform='scale(2)'><g transform='translate(1,2) rotate(3)'/></g>");
         Assert.Equal(""""
             @sml 1.0-SVG-1 tidy
-            @indent 2
             g
               @block g .transform t
               .transform scale(2)

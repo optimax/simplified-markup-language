@@ -201,7 +201,6 @@ public class ProfileTests
         string sml = SmlWriter.Write(doc, Svg);
         Assert.Equal("""
             @sml 1.0-SVG-1 tidy
-            @indent 2
             svg(xmlns=http://www.w3.org/2000/svg)
               path
                 .d "M 0\t0 "
@@ -221,7 +220,6 @@ public class ProfileTests
         SmlDocument doc = Xml("<svg xmlns='http://www.w3.org/2000/svg'>\n  <path d='M 0 0 L 1 1 Z' fill='red'/>\n</svg>");
         Assert.Equal(""""
             @sml 1.0-SVG-1 tidy
-            @indent 2
             svg(xmlns=http://www.w3.org/2000/svg)
               @block path .d data
               path
@@ -268,7 +266,6 @@ public class ProfileTests
         string sml = SmlWriter.Write(doc, Svg);
         Assert.Equal("""
             @sml 1.0-SVG-1 tidy
-            @indent 2
             svg(xmlns=http://www.w3.org/2000/svg, viewBox=0 0 200 60)
               defs
                 linearGradient(id=fire)
@@ -318,7 +315,6 @@ public class ProfileTests
         // The line break alone between the last two tspans renders as nothing in SVG 1.1, so it stays.
         Assert.Equal(""""
             @sml 1.0-SVG-1 tidy
-            @indent 2
             svg(xmlns=http://www.w3.org/2000/svg)
               desc = """
                 Two lines
@@ -361,7 +357,6 @@ public class ProfileTests
         string sml = SmlWriter.Write(doc, Svg);
         Assert.Equal(""""
             @sml 1.0-SVG-1 tidy
-            @indent 2
             svg(xmlns=http://www.w3.org/2000/svg)
               style(id=style1) = """
                 :root {
@@ -392,7 +387,6 @@ public class ProfileTests
         string sml = SmlWriter.Write(doc, profile);
         Assert.Equal("""
             @sml 1.0-SVG-1 tidy
-            @indent 2
             @node g group
             @node svg drawing
             drawing(xmlns=http://www.w3.org/2000/svg)
@@ -416,7 +410,7 @@ public class ProfileTests
         SmlDocument doc = Xml("<s:svg xmlns:s='http://www.w3.org/2000/svg'><s:g/><g xmlns='http://www.w3.org/2000/svg'/>"
             + "<g xmlns='urn:x'/><s:rect/><box/></s:svg>");
         string sml = SmlWriter.Write(doc, profile);
-        Assert.StartsWith("@sml 1.0-SVG-1 tidy\n@indent 2\n@node s:g group\ns:svg", sml);
+        Assert.StartsWith("@sml 1.0-SVG-1 tidy\n@node s:g group\ns:svg", sml);
         Assert.Contains("  group/\n  g(xmlns=http://www.w3.org/2000/svg)/\n  g(xmlns=urn:x)/\n  s:rect/\n  box/\n", sml);
         Assert.DoesNotContain("@node s:rect", sml);
         Assert.Equal(doc.Root.Children.OfType<ElementNode>().Select(e => (e.QualifiedName, e.Name)),
@@ -428,7 +422,7 @@ public class ProfileTests
     {
         SmlDocument doc = Xml("<doc><end/><end>x</end></doc>");
         string sml = SmlWriter.Write(doc, SmlProfile.Parse("@node end finish\n"));
-        Assert.Equal("@sml 1.0-SVG-1 tidy\n@indent 2\n@node end finish\ndoc\n"
+        Assert.Equal("@sml 1.0-SVG-1 tidy\n@node end finish\ndoc\n"
             + "  finish/\n  finish = x\nend\n", sml);
         Assert.Equal(["end", "end"], SmlReader.Read(sml).Root.Children.OfType<ElementNode>().Select(e => e.QualifiedName));
     }

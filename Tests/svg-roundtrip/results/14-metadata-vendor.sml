@@ -1,4 +1,5 @@
 @sml 1.0-SVG-1
+@indent none
 svg(xmlns=http://www.w3.org/2000/svg, xmlns:app=urn:app, xmlns:dc=http://purl.org/dc/elements/1.1/)
   metadata
     dc:title = Drawing

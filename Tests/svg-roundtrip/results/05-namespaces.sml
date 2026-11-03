@@ -1,4 +1,5 @@
 @sml 1.0-SVG-1
+@indent none
 svg
   @ns http://www.w3.org/2000/svg
   @ns v urn:vendor:graphics

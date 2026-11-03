@@ -289,7 +289,7 @@ class SmlReader:
         self.doc = Document()
         self.stack: list[_Frame] = []
         self.phase = 'prolog'
-        self.indent: str | None = None
+        self.indent: str | None = DEFAULT_UNIT     # §6.4; @indent none turns the model off
         self.nodes: dict[str, str] = {}     # element aliases declared in the prolog (§8.7)
         self.seen_statement = False
         self.seen: set[str] = set()
@@ -703,16 +703,20 @@ class SmlReader:
 
     def d_indent(self, rest: str, ln: int) -> None:
         value = strip_ht(rest)
+        if value == 'none' and not self.stack:
+            self.header('indent', ln)
+            self.indent = None
+            return
         if value == 'tab':
             unit = '\t'
         elif re.fullmatch(r'0|[1-9][0-9]?', value) and int(value) <= 16:
             unit = ' ' * int(value)
         else:
-            raise SmlError('@indent takes tab or a width from 0 to 16', ln)
+            raise SmlError('@indent takes tab, a width from 0 to 16, or (as a header) none', ln)
         if self.stack:     # in an element: how much deeper its children are (§6.4)
             f = self.decl_frame(ln, '@indent')
             if self.indent is None:
-                raise SmlError('@indent in an element needs the @indent header', ln)
+                raise SmlError('@indent in an element is not allowed under @indent none', ln)
             if f.local_step:
                 raise SmlError('@indent may appear only once per element', ln)
             f.step, f.local_step = unit, True
@@ -894,6 +898,7 @@ def read_sml(source) -> Document:
 # ---------------------------------------------------------------------------------------------
 # Canonical SML writer (§14.2)
 
+DEFAULT_UNIT = '  '     # the unit without an @indent header (§6.4)
 INDENT_CANDIDATES = ['  ', '    ', '\t'] + [' ' * n for n in (0, 1, 3) + tuple(range(5, 17))]
 
 
@@ -973,6 +978,21 @@ def plan(el: Element, nodes: list, indentation: str, unit: str | None):
                          <= laid_out_children(el, indentation + unit, unit)):
         local = None
     return False, unit if local is None else local, local, not isinstance(nodes[0], Text)
+
+
+def default_matters(doc: Document) -> bool:
+    """Whether SML written without a unit would read differently under the default unit (§6.4): the document has an
+    element with a non-text child, a multi-line comment before or after the root, or multi-line text as the root's
+    only content. Then the writer declares @indent none (rule 9)."""
+    stack = [doc.root]
+    while stack:
+        el = stack.pop()
+        if any(not isinstance(n, Text) for n in content_nodes(el)):
+            return True
+        stack.extend(c for c in el.children if isinstance(c, Element))
+    if any(isinstance(n, Comment) and '\n' in n.data for n in doc.prolog + doc.epilog):
+        return True
+    return any('\n' in n.data for n in content_nodes(doc.root))
 
 
 def choose_indent(doc: Document) -> str | None:
@@ -1139,7 +1159,10 @@ class SmlWriter:
         self.out.append('@sml ' + SML_VERSION)
         if d.standalone:
             self.out.append('@standalone ' + d.standalone)
-        if self.unit is not None:
+        if self.unit is None:
+            if default_matters(d):
+                self.out.append('@indent none')
+        elif self.unit != DEFAULT_UNIT:
             self.out.append('@indent ' + ('tab' if self.unit == '\t' else str(len(self.unit))))
         self.items(d.prolog, 0, self.unit is not None, '')
         self.element(d.root, 0, '', self.unit is not None)

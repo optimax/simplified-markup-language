@@ -27,7 +27,7 @@ public sealed class CommandLineTests : IDisposable
         var (code, output, _) = Run(PathOf("drawing.svg"));
         Assert.Equal(CommandLine.Success, code);
         Assert.Contains("drawing.sml", output);
-        Assert.Equal("@sml 1.0-SVG-1\nsvg(xmlns=http://www.w3.org/2000/svg)\n  rect(width=1)/\nend\n", File.ReadAllText(PathOf("drawing.sml")));
+        Assert.Equal("@sml 1.0-SVG-1\n@indent none\nsvg(xmlns=http://www.w3.org/2000/svg)\n  rect(width=1)/\nend\n", File.ReadAllText(PathOf("drawing.sml")));
     }
 
     [Fact]
@@ -36,9 +36,9 @@ public sealed class CommandLineTests : IDisposable
         File.WriteAllText(PathOf("drawing.sml"), "svg(xmlns=http://www.w3.org/2000/svg)\n  rect/\nend\n");
         File.WriteAllText(PathOf("data.sml"), "config\n  item = 1\nend\n");
         Assert.Equal(CommandLine.Success, Run(PathOf("drawing.sml"), PathOf("data.sml")).Code);
-        Assert.Equal("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<svg xmlns=\"http://www.w3.org/2000/svg\"><rect/></svg>\n",
+        Assert.Equal("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<svg xmlns=\"http://www.w3.org/2000/svg\">\n  <rect/>\n</svg>\n",
             File.ReadAllText(PathOf("drawing.svg")));
-        Assert.Equal("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<config><item>1</item></config>\n", File.ReadAllText(PathOf("data.xml")));
+        Assert.Equal("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<config>\n  <item>1</item>\n</config>\n", File.ReadAllText(PathOf("data.xml")));
     }
 
     [Fact]
@@ -310,7 +310,7 @@ public sealed class CommandLineTests : IDisposable
         File.WriteAllText(PathOf("drawing.svg"), PathXml);
         Assert.Equal(CommandLine.Success, Run("--clean", "svg", PathOf("drawing.svg")).Code);
         string cleaned = File.ReadAllText(PathOf("drawing.sml"));
-        Assert.StartsWith("@sml 1.0-SVG-1 tidy\n@indent 2\n", cleaned);
+        Assert.StartsWith("@sml 1.0-SVG-1 tidy\n", cleaned);
         Assert.Contains("  @block path .d data\n", cleaned);
         Assert.Contains("    data \"\"\"\n      M 0 0\n      L 1 1\n      \"\"\"\n", cleaned);
         Assert.Equal(CommandLine.Success, Run("-c", "svg", "-f", PathOf("drawing.svg")).Code);
@@ -351,7 +351,7 @@ public sealed class CommandLineTests : IDisposable
     {
         File.WriteAllText(PathOf("drawing.svg"), SvgXml);
         Assert.Equal(CommandLine.Success, Run("--verbose", PathOf("drawing.svg")).Code);
-        Assert.Equal("@sml 1.0-SVG-1\nsvg\n  @ns http://www.w3.org/2000/svg\n  rect\n    .width 1\n  end\nend\n",
+        Assert.Equal("@sml 1.0-SVG-1\n@indent none\nsvg\n  @ns http://www.w3.org/2000/svg\n  rect\n    .width 1\n  end\nend\n",
             File.ReadAllText(PathOf("drawing.sml")));
         File.WriteAllText(PathOf("path.svg"), PathXml);
         Assert.Equal(CommandLine.Success, Run("--verbose", "-c", "svg", PathOf("path.svg")).Code);

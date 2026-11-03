@@ -24,7 +24,6 @@ The same document in SML, as `smlxml` writes it:
 
 ```text
 @sml 1.0-SVG-1
-@indent 2
 svg(xmlns=http://www.w3.org/2000/svg, viewBox=0 0 120 80)
   @rem " A rounded badge with a label "
   rect(fill=#4477cc, height=70, rx=8, width=110, x=5, y=5)/
@@ -36,7 +35,7 @@ end
 - An element is its name followed by its attributes.
 - `/` ends an element with no content, and `end` closes one that has content.
 - `= text` gives an element's text.
-- `@indent 2` records that the original was indented with two spaces. The SML therefore leaves out the indentation whitespace, and converting back restores it exactly.
+- SML assumes indentation by two spaces, as the original has. The SML therefore leaves out the indentation whitespace, and converting back restores it exactly. Other indentation is declared with `@indent`, such as `@indent 4` or `@indent tab`.
 
 Converting this SML to XML gives the original document again. Only attribute order changes, which XML does not treat as information.
 
