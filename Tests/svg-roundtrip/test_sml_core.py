@@ -195,12 +195,22 @@ class CoreFixtures(Base):
     def test_CP23_canonical_form_is_unique(self):
         variants = [
             'svg(xmlns=http://www.w3.org/2000/svg, width=10, d=x)\n  path(d=M0 0)/\nend\n',
-            'svg\n  @ns http://www.w3.org/2000/svg\n  .d "x"\n  .width 10\n  path\n    .d M0 0\n  end\nend svg\n',
+            'svg\n  @ns http://www.w3.org/2000/svg\n  .width 10\n  .d "x"\n  path\n    .d M0 0\n  end\nend svg\n',
             '# comment\nsvg\n  @ns "http://www.w3.org/2000/svg"\n  @block path .d p\n  .width "1"\n    "0"\n'
             '  .d x\n  path\n    p """\n      M0 0\n      """\n  end\nend\n',
         ]
         outputs = {S.write_sml(read(v)) for v in variants}
         self.assertEqual(len(outputs), 1, outputs)
+
+    def test_CP25_attribute_order(self):
+        # Declarations come first, then attributes, each in document order (rule 4); the order is part of the document.
+        doc = S.read_xml(b'<g b="1" xmlns:x="urn:x" a="2" xmlns="urn:d" c="3"><h z="1" y="2"/></g>')
+        out = S.write_sml(doc)
+        self.assertEqual(out, '@sml 1.0-SVG-1\n@indent none\ng(xmlns:x=urn:x, xmlns=urn:d, b=1, a=2, c=3)\n  h(z=1, y=2)/\nend\n')
+        self.assertEqual(S.signature(read(out)), S.signature(doc))
+        self.assertIn('<g xmlns:x="urn:x" xmlns="urn:d" b="1" a="2" c="3"><h z="1" y="2"/></g>', S.write_xml(doc))
+        self.assertEqual(list(read('g(b=1)\n  .a 2\n  .c 3\nend\n').root.attrs), ['b', 'a', 'c'])
+        self.assertNotEqual(S.signature(read('g(a=1, b=2)/\n')), S.signature(read('g(b=2, a=1)/\n')))
 
     def test_CP24_canonical_writer_is_idempotent(self):
         src = ('@indent 2\nsvg(xmlns=http://www.w3.org/2000/svg)\n  text\n    @noindent\n    tspan = A\n'

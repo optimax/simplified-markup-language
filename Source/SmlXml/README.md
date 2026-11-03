@@ -48,12 +48,13 @@ smlxml -o *.out.svg *.sml
 | `-f`, `--force` | Overwrite an existing output file |
 | `-c`, `--clean <name>`, `--tidy <name>` | Write readable SML with a profile: whitespace and indentation tidied whatever the input's were, one item per line, multi-line text and comments tidied, and aliases; not exact (see [Cleaning with a profile](#cleaning-with-a-profile)) |
 | `--verbose` | Write every attribute and namespace declaration on its own line, never in a `name(...)` list |
+| `--sort-attributes` | Write attributes in alphabetical order (the order of Canonical XML) instead of the XML's order |
 | `-h`, `--help` | Show help |
 | `-v`, `--version` | Show the version (the banner) |
 
 An existing output file is never overwritten without `--force`. Errors appear as `file(line): error: message`. The exit code is 0 on success, 1 if a conversion failed or a pattern matched no file, and 2 for an invalid command line or profile, including no arguments.
 
-SML output is in the canonical form of the specification (§14.2), unless `--clean` or `--verbose` is used. It is exact: text such as a style sheet keeps every space and tab, in a block whose lines are copied verbatim (§7).
+SML output is in the canonical form of the specification (§14.2), unless `--clean`, `--verbose`, or `--sort-attributes` is used. Attributes keep the order they have in the XML, after the element's namespace declarations. It is exact: text such as a style sheet keeps every space and tab, in a block whose lines are copied verbatim (§7).
 
 The canonical form writes short attribute lists inline: `path(d=M0 0 L1 1, fill=#fff)/`. With `--verbose`, every attribute and namespace declaration gets its own line instead:
 

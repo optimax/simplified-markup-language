@@ -358,6 +358,17 @@ public sealed class CommandLineTests : IDisposable
         Assert.Contains("svg\n  @ns http://www.w3.org/2000/svg\n  @block path .d data\n  path\n    data \"\"\"\n", File.ReadAllText(PathOf("path.sml")));
         Assert.Contains("--verbose", Run("--help").Out);
     }
+
+    [Fact]
+    public void AttributesKeepTheirOrderUnlessSorted()
+    {
+        File.WriteAllText(PathOf("order.svg"), "<svg xmlns=\"http://www.w3.org/2000/svg\"><rect y=\"2\" x=\"1\"/></svg>");
+        Assert.Equal(CommandLine.Success, Run(PathOf("order.svg")).Code);
+        Assert.Contains("rect(y=2, x=1)/", File.ReadAllText(PathOf("order.sml")));
+        Assert.Equal(CommandLine.Success, Run("--sort-attributes", "-f", PathOf("order.svg")).Code);
+        Assert.Contains("rect(x=1, y=2)/", File.ReadAllText(PathOf("order.sml")));
+        Assert.Contains("--sort-attributes", Run("--help").Out);
+    }
 }
 
 public class FileExpanderTests

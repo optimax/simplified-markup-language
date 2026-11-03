@@ -19,7 +19,7 @@ These design decisions are in force.
 1. Ordinary elements are closed with an explicit `end`. Two intentionally compact forms (`name/` and `name = value`) close themselves.
 2. Inline text and parenthesized inline attributes are supported.
 3. Indentation does **not** nest elements; literal multiline blocks remove shared structural indentation.
-4. XML **information** is preserved, not original XML quotation, indentation, attribute ordering, or entity spelling.
+4. XML **information** is preserved, not original XML quotation, indentation, or entity spelling. Attribute order, which XML does not treat as information, is kept as well, so converted files read like their sources.
 5. Extensions remain separate, opt-in dialects and cannot redefine Core constructs.
 6. Named multiline attribute blocks (`@block`) are built into **Core**, with no vocabulary-specific or SVG-specific parser knowledge.
 
@@ -102,7 +102,7 @@ Examples, notes, and §16 are informative; all other text is normative. Where an
 A document contains exactly one root **element**, plus an ordered sequence of top-level comments and processing instructions before/after the root, an optional document type declaration (name, optional public ID, optional system ID) positioned among the comments and PIs before the root (§11.1), and whether the XML declaration says `standalone="yes"` (§11). An element has:
 
 - A lexical qualified name (`prefix:local` or `local`), its resolved expanded name `(namespace URI or null, local name)`, and its explicit in-scope namespace declarations (including declarations on that very element).
-- Attributes, each with a lexical qualified name, expanded name, and exact string value. Attribute order is not semantically significant.
+- Attributes, each with a lexical qualified name, expanded name, and exact string value, in document order. XML gives attribute order no meaning, but SML keeps it. Namespace declarations keep their order among themselves too; they come before the attributes, wherever the XML put them.
 - An ordered sequence of element, text, XML comment, and processing-instruction children.
 
 Adjacent text nodes may be coalesced and zero-length text nodes ignored for semantic equality. All attribute and text characters otherwise remain exact, **including whitespace-only text**. A comment's data, by contrast, is normalized from XML and SML alike (§9): it never begins or ends with whitespace, and the lines of a multi-line comment share no indentation. Duplicate attribute expanded names are illegal.
@@ -124,7 +124,7 @@ ParseSML(WriteSML(D))  ≡  D
 ParseXML(WriteXML(D))  ≡  D
 ```
 
-The equality `≡` includes the ordered content, the SVG-safe prefix/declaration contract above, and the document type declaration's name, public ID, system ID, and position among prolog comments/PIs. It excludes merely lexical XML trivia such as indentation outside element text, the whitespace at the ends of a comment and the indentation its lines share, attribute order, self-closing notation, character-reference spelling, CDATA boundaries, and the quotation marks around DOCTYPE literals. SML representation choices are not part of `D`. These include `@block` and `@node` aliases, `@indent`/`@noindent`, raw versus quoted values, continuation lines, block terminators, inline versus vertical attributes and namespace declarations, and `end QName`.
+The equality `≡` includes the ordered content, the order of each element's namespace declarations and of its attributes, the SVG-safe prefix/declaration contract above, and the document type declaration's name, public ID, system ID, and position among prolog comments/PIs. It excludes merely lexical XML trivia such as indentation outside element text, the whitespace at the ends of a comment and the indentation its lines share, where namespace declarations stand among the attributes, self-closing notation, character-reference spelling, CDATA boundaries, and the quotation marks around DOCTYPE literals. SML representation choices are not part of `D`. These include `@block` and `@node` aliases, `@indent`/`@noindent`, raw versus quoted values, continuation lines, block terminators, inline versus vertical attributes and namespace declarations, and `end QName`.
 
 **Do not confuse SVG rendering equivalence with information equivalence:** the XML text `<path d="M0 0 L2 2"/>` and `<path d="M0,0L2,2"/>` may render alike, but are not string-identical and MUST NOT be silently substituted during conversion.
 
@@ -1076,7 +1076,7 @@ The canonical form is a function of the document alone: canonical writers MUST p
 1. **File.** UTF-8 without BOM, LF line endings, and a final LF. No blank lines, `#` comments, `@block` or `@node` aliases, `end QName`, or `@use`.
 2. **Prolog.** `@sml 1.0-SVG-1`, then `@standalone yes` if recorded (never `@standalone no`), then `@indent` if rule 9 calls for it, then the prolog comments, PIs, and `@doctype` in document order. The epilog follows the root in document order.
 3. **Indentation.** Two spaces per element depth. Block payload lines, a block's closing marker, and continuation lines are indented one level deeper than their statement; an empty payload line is written empty.
-4. **Order.** Namespace declarations come first: the default namespace, then prefixes in ascending code-point order. Then attributes: those without a namespace by local name, then namespaced ones by namespace URI and then local name, all in ascending code-point order. This is the attribute order of Canonical XML.
+4. **Order.** Namespace declarations come first, then attributes, each in document order. A converter MAY offer to write them in the order of Canonical XML instead: the default namespace, then prefixes, then attributes without a namespace by local name, then namespaced ones by namespace URI and then local name, all in ascending code-point order. That output is not canonical, and it reads back with the attributes in that order.
 5. **Inline or vertical.** An element's namespace declarations and attributes are written inline, as one list, when every value is representable as a raw inline value (§6.3) under rule 7, and the indentation, element name, and inline list together are at most 100 code points long. Otherwise all are vertical: `@ns` lines, then `.attribute` lines.
 6. **Element form.** For an element with an inline list, or with no declarations or attributes: `name/` if it has no content; `name = value` if its only content is one text node, unless rule 7 says the text needs the normal form. Otherwise the normal form with `end`. An element named `end` is always written `@element end` in the normal form.
 7. **Value form.** Each value is written in the first form that applies:
@@ -1216,8 +1216,9 @@ Reject—not drop—unsupported input. Rendering comparisons are useful suppleme
 | CP-20 | `@sml` after another statement; another draft identifier, `@sml 1.0-SVG-2`; `@sml 1.0-SVG-1`; `@sml 1.0`; no header; `@sml 1.0-SVG-1 tidy`; `@sml 1.0-SVG-1 neat`, `@sml tidy`, `@sml` | Rejected; rejected; accepted; accepted as this revision; accepted as this revision; accepted, read the same; rejected |
 | CP-21 | Unknown required extension; unknown optional extension with directives (including a block value) in the prolog, a declaration section, and content | Rejected; directives skipped and the document is identical to one without them |
 | CP-22 | Extension directive between two `.attribute` lines | Declaration section stays open |
-| CP-23 | Documents equal in information but differing in attribute order, quoting, inline/vertical form, aliases, `end QName`, and comments | Canonical writer output byte-identical |
+| CP-23 | Documents equal in information but differing in quoting, inline/vertical form, aliases, `end QName`, and comments | Canonical writer output byte-identical |
 | CP-24 | Canonical writer applied to its own output | Byte-identical (idempotent) |
+| CP-25 | XML with attributes out of alphabetical order and namespace declarations among them; SML with an inline list and `.attribute` statements; two documents that differ only in attribute order | Declarations first, then attributes, in document order, in SML and in the XML written back; the two documents are not equal |
 
 The prototype in `Tests/svg-roundtrip/sml_prototype.py` implements this revision's Core syntax, the strict profile, and the canonical form, and `results/REPORT.md` records its current results. Two fixtures are not executed because the prototype does not implement the feature: SV-49 (writer-generated aliases) and SV-65 (readable import). The C# converter `smlxml` generates aliases through its writer profiles; `Source/Sml.Tests/ProfileTests.cs` checks SV-49's requirement for it, and also the attribute reflow of §3.2. The prototype was written alongside this revision and has not been validated independently. Its results are therefore evidence for the design, **not** certification. An independent conforming SML parser and XML converter are needed before claiming verified full round-trip conformance.
 

@@ -37,6 +37,9 @@ public static class CommandLine
                                smlxml: smlxml -c svg uses svg.smlprofile.
               --verbose        Write every attribute and namespace declaration on its own line, never in a
                                name(...) list (XML to SML only).
+              --sort-attributes
+                               Write attributes in alphabetical order (the order of Canonical XML) instead
+                               of the order of the XML input (XML to SML only).
           -h, --help           Show this help.
           -v, --version        Show the version.
 
@@ -54,7 +57,7 @@ public static class CommandLine
         }
         var inputs = new List<string>();
         string? output = null, profileName = null;
-        bool force = false, verbose = false;
+        bool force = false, verbose = false, sortAttributes = false;
         for (int i = 0; i < args.Length; i++)
         {
             string arg = args[i];
@@ -80,6 +83,9 @@ public static class CommandLine
                     break;
                 case "--verbose":
                     verbose = true;
+                    break;
+                case "--sort-attributes":
+                    sortAttributes = true;
                     break;
                 case "--":
                     inputs.AddRange(args[(i + 1)..]);
@@ -124,7 +130,7 @@ public static class CommandLine
         // Expand every pattern before converting anything, so files written by this run never become inputs.
         // A name that exists literally is used as is (on Linux, * and ? are legal in file names).
         var files = new List<string>();
-        var writer = new SmlWriterOptions { Clean = profile, VerticalAttributes = verbose };
+        var writer = new SmlWriterOptions { Clean = profile, VerticalAttributes = verbose, SortAttributes = sortAttributes };
         var run = new RunContext(force, writer, new HashSet<string>(FileExpander.PathComparer),
             new Dictionary<string, string>(FileExpander.PathComparer), stdout, stderr);
         int result = Success;

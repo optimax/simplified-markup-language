@@ -269,8 +269,8 @@ public class ProfileTests
             svg(xmlns=http://www.w3.org/2000/svg, viewBox=0 0 200 60)
               defs
                 linearGradient(id=fire)
-                  stop(offset=0%, stop-color=hotpink)/
-                  stop(offset=100%, stop-color=goldenrod)/
+                  stop(stop-color=hotpink, offset=0%)/
+                  stop(stop-color=goldenrod, offset=100%)/
                 end
               end
               text(dy=0.5em, fill=url(#fire), font-size=50) = Wow!
@@ -282,8 +282,8 @@ public class ProfileTests
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 60">
               <defs>
                 <linearGradient id="fire">
-                  <stop offset="0%" stop-color="hotpink"/>
-                  <stop offset="100%" stop-color="goldenrod"/>
+                  <stop stop-color="hotpink" offset="0%"/>
+                  <stop stop-color="goldenrod" offset="100%"/>
                 </linearGradient>
               </defs>
               <text dy="0.5em" fill="url(#fire)" font-size="50">Wow!</text>

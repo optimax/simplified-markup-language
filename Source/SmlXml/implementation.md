@@ -47,6 +47,7 @@
   - Aliases are declared only on the root, only for aliases actually used, and only where the root's namespace declarations name the element and attribute. One declaration serves the whole document, and the output never depends on the profile.
   - Element aliases (`@node`, specification §8.7) are declared before the root, only for aliases actually used. An SML element alias stands for a lexical name, while a profile names an expanded name, so the writer declares the alias for the lexical name of the first element with that expanded name and opens only the elements with both. An alias that an element of the document is named like is not used at all, so the writer never needs `@element` for it. The shipped `svg.smlprofile` declares `@node g group` and `@node p para`.
 - **Verbose.** `--verbose` sets `SmlWriterOptions.VerticalAttributes`. It replaces canonical rule 5 (inline or vertical) with "always vertical" and changes nothing else.
+- **Sorted attributes.** By default, attributes keep the order they have in the XML (canonical rule 4), as the user asked; `--sort-attributes` sets `SmlWriterOptions.SortAttributes`, which writes namespace declarations and attributes in the order of Canonical XML instead and changes nothing else.
   - Value forms and the compact forms of elements without declarations (`g/`, `title = Text`) are as in the canonical form.
   - It combines with `--clean` and applies to XML input only.
   - It has no short form, because `-v` is `--version` and `-V` would be easy to confuse with it.

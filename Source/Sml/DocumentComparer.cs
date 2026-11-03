@@ -41,13 +41,13 @@ public static class DocumentComparer
         path = $"{path}/{a.QualifiedName}";
         if (a.QualifiedName != b.QualifiedName || a.Name != b.Name)
             return $"{path}: element {a.QualifiedName} {a.Name} != {b.QualifiedName} {b.Name}";
+        // Declarations and attributes are compared in document order (§2).
         string Declarations(ElementNode e) =>
-            string.Join(' ', e.NamespaceDeclarations.OrderBy(d => d.Key, StringComparer.Ordinal).Select(d => $"{d.Key}={d.Value}"));
+            string.Join(' ', e.NamespaceDeclarations.Select(d => $"{d.Key}={d.Value}"));
         if (Declarations(a) != Declarations(b))
             return $"{path}: namespace declarations [{Declarations(a)}] != [{Declarations(b)}]";
         string Attributes(ElementNode e) =>
-            string.Join('\u0001', e.Attributes.OrderBy(x => x.Key, StringComparer.Ordinal)
-                .Select(x => $"{x.Key}\u0002{e.AttributeNames[x.Key]}\u0002{x.Value}"));
+            string.Join('\u0001', e.Attributes.Select(x => $"{x.Key}\u0002{e.AttributeNames[x.Key]}\u0002{x.Value}"));
         if (Attributes(a) != Attributes(b))
             return $"{path}: attributes differ";
         return Sequence("content", SmlWriter.ContentNodes(a), SmlWriter.ContentNodes(b), path);

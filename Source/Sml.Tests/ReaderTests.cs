@@ -176,10 +176,27 @@ public class ReaderTests
         string[] variants =
         [
             "svg(xmlns=http://www.w3.org/2000/svg, width=10, d=x)\n  path(d=M0 0)/\nend\n",
-            "svg\n  @ns http://www.w3.org/2000/svg\n  .d \"x\"\n  .width 10\n  path\n    .d M0 0\n  end\nend svg\n",
+            "svg\n  @ns http://www.w3.org/2000/svg\n  .width 10\n  .d \"x\"\n  path\n    .d M0 0\n  end\nend svg\n",
             "# c\nsvg\n  @ns \"http://www.w3.org/2000/svg\"\n  @block path .d p\n  .width \"1\"\n    \"0\"\n  .d x\n  path\n    p \"\"\"\n      M0 0\n      \"\"\"\n  end\nend\n",
         ];
         Assert.Single(variants.Select(v => SmlWriter.Write(SmlReader.Read(v))).Distinct());
+    }
+
+    [Fact]
+    public void CP25_AttributeOrder()
+    {
+        // Declarations come first, then attributes, each in document order (rule 4); the order is part of the document.
+        SmlDocument doc = XmlImporter.Read(Encoding.UTF8.GetBytes("<g b=\"1\" xmlns:x=\"urn:x\" a=\"2\" xmlns=\"urn:d\" c=\"3\"><h z=\"1\" y=\"2\"/></g>"));
+        string sml = SmlWriter.Write(doc);
+        Assert.Equal("@sml 1.0-SVG-1\n@indent none\ng(xmlns:x=urn:x, xmlns=urn:d, b=1, a=2, c=3)\n  h(z=1, y=2)/\nend\n", sml);
+        Assert.Null(DocumentComparer.FirstDifference(doc, SmlReader.Read(sml)));
+        Assert.Contains("<g xmlns:x=\"urn:x\" xmlns=\"urn:d\" b=\"1\" a=\"2\" c=\"3\"><h z=\"1\" y=\"2\"/></g>", XmlExporter.Write(doc));
+        Assert.Equal(["b", "a", "c"], Root("g(b=1)\n  .a 2\n  .c 3\nend\n").Attributes.Keys);
+        Assert.NotNull(DocumentComparer.FirstDifference(SmlReader.Read("g(a=1, b=2)/\n"), SmlReader.Read("g(b=2, a=1)/\n")));
+
+        // Sorted, as smlxml --sort-attributes writes it: the order of Canonical XML.
+        Assert.Equal("@sml 1.0-SVG-1\n@indent none\ng(xmlns=urn:d, xmlns:x=urn:x, a=2, b=1, c=3)\n  h(y=2, z=1)/\nend\n",
+            SmlWriter.Write(doc, new SmlWriterOptions { SortAttributes = true }));
     }
 
     [Fact]
@@ -503,8 +520,12 @@ public class ReaderTests
     [Fact]
     public void SupplementaryCharactersInNamesAndCodePointOrdering()
     {
-        // A name using a character outside the BMP (U+10000) and attribute ordering by code point, not UTF-16 unit.
-        string sml = SmlWriter.Write(SmlReader.Read("g\n  .\U00010000 1\n  .\uFFFD 2\nend\n"));
-        Assert.True(sml.IndexOf('\uFFFD') < sml.IndexOf("\U00010000", StringComparison.Ordinal));
+        // A name using a character outside the BMP (U+10000), and sorted attributes ordered by code point, not UTF-16
+        // unit; by default the document order stays.
+        SmlDocument doc = SmlReader.Read("g\n  .\U00010000 1\n  .\uFFFD 2\nend\n");
+        string sorted = SmlWriter.Write(doc, new SmlWriterOptions { SortAttributes = true });
+        Assert.True(sorted.IndexOf('\uFFFD') < sorted.IndexOf("\U00010000", StringComparison.Ordinal));
+        string sml = SmlWriter.Write(doc);
+        Assert.True(sml.IndexOf('\uFFFD') > sml.IndexOf("\U00010000", StringComparison.Ordinal));
     }
 }

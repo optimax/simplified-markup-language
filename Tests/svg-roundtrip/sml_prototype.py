@@ -1300,12 +1300,8 @@ class SmlWriter:
         laid_out, step, local, noindent = plan(el, nodes, indentation, self.unit)
         if laid_out:
             nodes = [n for n in nodes if not isinstance(n, Text)]
-        decls = sorted(el.ns_decls.items(), key=lambda kv: (kv[0] is not None, kv[0] or ''))
-
-        def attr_key(q):
-            uri, local = el.attr_expanded[q]
-            return (uri is not None, uri or '', local)
-        attrs = [(q, el.attrs[q]) for q in sorted(el.attrs, key=attr_key)]
+        decls = list(el.ns_decls.items())      # rule 4: declarations, then attributes, each in document order
+        attrs = list(el.attrs.items())
         entries = [('xmlns' if p is None else 'xmlns:' + p, u, True) for p, u in decls]
         entries += [(q, v, False) for q, v in attrs]
         inline = el.qname != 'end' and all(
@@ -1589,8 +1585,8 @@ def _misc_sig(item):
 def element_signature(el: Element):
     def name(e):
         return (e[0] or '', e[1])
-    decls = tuple(sorted(((p or ''), u) for p, u in el.ns_decls.items()))
-    attrs = tuple(sorted((name(el.attr_expanded[q]), q, v) for q, v in el.attrs.items()))
+    decls = tuple(((p or ''), u) for p, u in el.ns_decls.items())          # in document order (§2)
+    attrs = tuple((name(el.attr_expanded[q]), q, v) for q, v in el.attrs.items())
     kids = []
     for n in content_nodes(el):
         if isinstance(n, Text):

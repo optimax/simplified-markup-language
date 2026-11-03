@@ -12,4 +12,10 @@ public sealed record SmlWriterOptions
     /// <summary>Writes every attribute and namespace declaration on its own line (<c>.name value</c>,
     /// <c>@ns</c>), never in an inline list (§6.3). Elements without either keep their compact forms.</summary>
     public bool VerticalAttributes { get; init; }
+
+    /// <summary>Writes namespace declarations and attributes in the order of Canonical XML instead of document order:
+    /// the default namespace, then prefixes, then attributes without a namespace by local name, then namespaced ones
+    /// by namespace URI and local name, all in ascending code-point order. XML gives attribute order no meaning, but
+    /// the SML reads back with the attributes in that order.</summary>
+    public bool SortAttributes { get; init; }
 }

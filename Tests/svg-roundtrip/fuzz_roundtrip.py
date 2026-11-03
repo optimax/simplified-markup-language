@@ -542,10 +542,8 @@ class VariantWriter:
         r = self.r
         inner = ind + r.choice(['  ', '    ', '\t', ''])
         nodes = [c for c in el.children if not (isinstance(c, S.Text) and c.data == '')]
-        decls = list(el.ns_decls.items())
+        decls = list(el.ns_decls.items())     # declarations and attributes keep their order (§2)
         attrs = list(el.attrs.items())
-        r.shuffle(decls)
-        r.shuffle(attrs)
 
         def ns_entry(p, u, inline):
             name = 'xmlns' if p is None else 'xmlns:' + p
@@ -558,8 +556,8 @@ class VariantWriter:
         name = self.opener_name(el.qname)
         explicit = el.qname == 'end' or name is None or r.random() < 0.08
         inline = not explicit and r.random() < 0.5
-        inline_attrs = [a for a in attrs if r.random() < 0.6] if inline else []
-        vertical_attrs = [a for a in attrs if a not in inline_attrs]
+        inline_attrs = attrs[:r.randint(0, len(attrs))] if inline else []   # the inline list comes first
+        vertical_attrs = attrs[len(inline_attrs):]
         opener = name or el.qname
         if inline:
             entries = [ns_entry(p, u, True) for p, u in decls] + [attr_entry(q, v) for q, v in inline_attrs]

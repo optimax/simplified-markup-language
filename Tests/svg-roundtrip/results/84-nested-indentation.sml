@@ -4,8 +4,8 @@ svg(xmlns=http://www.w3.org/2000/svg, viewBox=0 0 200 60)
   = "\n    "
   defs
     linearGradient(id=fire)
-      stop(offset=0%, stop-color=hotpink)/
-      stop(offset=100%, stop-color=goldenrod)/
+      stop(stop-color=hotpink, offset=0%)/
+      stop(stop-color=goldenrod, offset=100%)/
     end
   end
   = "\n    "

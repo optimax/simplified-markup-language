@@ -3,10 +3,10 @@
 svg(xmlns=http://www.w3.org/2000/svg)
   text = Zażółć 😀 & <test> café
   metadata
-    .data "\"quote\""
     .note """
       A	B
       C
       """
+    .data "\"quote\""
   end
 end

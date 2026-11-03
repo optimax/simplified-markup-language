@@ -17,6 +17,7 @@ public sealed class SmlWriter
     private readonly string? _unit;
     private readonly SmlProfile? _profile;
     private readonly bool _vertical;
+    private readonly bool _sortAttributes;
 
     /// <summary>The alias declarations written on the root: element QName, alias, and attribute QName.</summary>
     private readonly List<(string Element, string Alias, string Attribute)> _aliasDeclarations = [];
@@ -45,6 +46,7 @@ public sealed class SmlWriter
         _doc = doc;
         _profile = options.Clean;
         _vertical = options.VerticalAttributes;
+        _sortAttributes = options.SortAttributes;
         if (_profile is not null)
         {
             FindNormalized(doc.Root, inText: false, foreign: false, preserve: false);
@@ -735,15 +737,19 @@ public sealed class SmlWriter
         }
         if (laidOut)
             nodes = nodes.Where(n => n is not TextNode).ToList();
-        var declarations = element.NamespaceDeclarations
-            .OrderBy(d => d.Key.Length > 0)
-            .ThenBy(d => d.Key, Comparer<string>.Create(XmlRules.CompareCodePoints))
-            .ToList();
-        var attributes = element.Attributes
-            .OrderBy(a => element.AttributeNames[a.Key].Namespace is not null)
-            .ThenBy(a => element.AttributeNames[a.Key].Namespace ?? "", Comparer<string>.Create(XmlRules.CompareCodePoints))
-            .ThenBy(a => element.AttributeNames[a.Key].Local, Comparer<string>.Create(XmlRules.CompareCodePoints))
-            .ToList();
+        // Rule 4: declarations, then attributes, each in document order; or in the order of Canonical XML.
+        var declarations = element.NamespaceDeclarations.ToList();
+        var attributes = element.Attributes.ToList();
+        if (_sortAttributes)
+        {
+            var codePoints = Comparer<string>.Create(XmlRules.CompareCodePoints);
+            declarations = declarations.OrderBy(d => d.Key.Length > 0).ThenBy(d => d.Key, codePoints).ToList();
+            attributes = attributes
+                .OrderBy(a => element.AttributeNames[a.Key].Namespace is not null)
+                .ThenBy(a => element.AttributeNames[a.Key].Namespace ?? "", codePoints)
+                .ThenBy(a => element.AttributeNames[a.Key].Local, codePoints)
+                .ToList();
+        }
         var attributeEntries = attributes.Select(a =>
         {
             var (value, layout) = Effective(element, a.Key, a.Value);

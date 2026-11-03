@@ -2,9 +2,9 @@
 @indent none
 svg(xmlns=http://www.w3.org/2000/svg)
   image
+    .width 2
     .height 2
     .href data:image/png;base64,iVBORw0KGgo=
-    .width 2
   end
   a(href=https://example.org/?x=1&y=2)
     text = Link

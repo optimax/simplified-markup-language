@@ -26,9 +26,9 @@ The same document in SML, as `smlxml` writes it:
 @sml 1.0-SVG-1
 svg(xmlns=http://www.w3.org/2000/svg, viewBox=0 0 120 80)
   @rem A rounded badge with a label
-  rect(fill=#4477cc, height=70, rx=8, width=110, x=5, y=5)/
+  rect(x=5, y=5, width=110, height=70, rx=8, fill=#4477cc)/
   path(d=M20 60 L60 20 L100 60 Z, fill=white, opacity=0.5)/
-  text(font-size=14, text-anchor=middle, x=60, y=45) = Hello, SML
+  text(x=60, y=45, text-anchor=middle, font-size=14) = Hello, SML
 end
 ```
 
@@ -38,7 +38,7 @@ end
 - `@rem` is an XML comment. Its text is trimmed, and XML output separates it from `<!--` and `-->` by one space. A multi-line comment is a `@rem """` block, written back pretty-printed.
 - SML assumes indentation by two spaces, as the original has. The SML therefore leaves out the indentation whitespace, and converting back restores it exactly. Other indentation is declared with `@indent`, such as `@indent 4` or `@indent tab`.
 
-Converting this SML to XML gives the original document again. Only attribute order changes, which XML does not treat as information.
+Converting this SML to XML gives the original document again. Attributes keep their order; `smlxml --sort-attributes` writes them alphabetically instead.
 
 SML also has vertical attributes, multiline literal blocks for long paths, CSS, and scripts, reusable attribute blocks, and element aliases such as `@node g group`. See the [specification](Documents/SML-Language-Specification.md) for the full language.
 

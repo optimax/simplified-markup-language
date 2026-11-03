@@ -2,8 +2,8 @@
 @indent none
 svg
   @ns http://www.w3.org/2000/svg
-  @ns v urn:vendor:graphics
   @ns xlink http://www.w3.org/1999/xlink
+  @ns v urn:vendor:graphics
   defs
     g(id=g1)
       path(d=M0 0L1 1)/
