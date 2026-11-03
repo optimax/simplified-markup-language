@@ -135,18 +135,18 @@ A converter MAY offer a *readable* XML import that normalizes formatting whitesp
 
 Apart from the cleanup of §3.2, a readable import may change only the whitespace-only text children of an **eligible** element. Whitespace here means U+0020, U+0009, U+000A, and U+000D. An element is eligible only if all of the following hold:
 
-1. it is in the SVG namespace (`http://www.w3.org/2000/svg`);
-2. it is not `text`, `tspan`, `textPath`, `tref`, `altGlyph`, or `foreignObject`, and has no such ancestor;
-3. the nearest `xml:space` attribute on it or an ancestor, if any, is not `preserve`;
-4. it has at least one child element, comment, or PI, and every text child is whitespace-only.
+1. it is not the SVG element `foreignObject` and has no such ancestor;
+2. the nearest `xml:space` attribute on it or an ancestor, if any, is not `preserve`;
+3. it has at least one child element, comment, or PI, and every text child is whitespace-only;
+4. if it is SVG text content (`text`, `tspan`, `textPath`, `tref`, or `altGlyph`), or is inside such an element: a text child containing a space or tab lies between every two of its other children, and, if it is inside a text content element, also before the first and after the last of them.
 
-In an eligible element, the readable import replaces all whitespace-only text children with the §6.4 prediction when its output uses `@indent`, and removes them otherwise. Every other element is converted exactly as in strict import.
+In an eligible element, the readable import replaces all whitespace-only text children with the §6.4 prediction of `@indent 2`, whatever the input's indentation was. Its output therefore declares `@indent 2` and needs no per-element `@indent`, `@noindent`, or whitespace-only text statements for these elements, and the XML written back from it is indented by two spaces. Every other element is converted exactly as in strict import.
 
-These conditions are deliberately conservative. Whitespace between `tspan` elements (as in `<tspan>A</tspan> <tspan>B</tspan>`), inside `xml:space="preserve"` scopes, and in foreign content can change rendering, so a readable import MUST NOT drop or normalize it.
+These conditions are deliberately conservative. In SVG text content, whitespace renders: with the default `xml:space`, a run of spaces and tabs between two children renders as one space, and at the edges of a `text` element as nothing, so the prediction, which puts a line break and spaces there, renders the same. SVG 1.1 removes line breaks without adding a space, though, so a gap of line breaks only (as in `<tspan>A</tspan>` LF `<tspan>B</tspan>`, which renders `AB`), and the edges of an element nested in text, keep their whitespace. Inside `xml:space="preserve"` scopes and in `foreignObject` content, whitespace can change rendering in other ways, so a readable import MUST NOT normalize it.
 
-### 3.2 Readable cleanup: reflow and code
+### 3.2 Readable cleanup: reflow and tidy text
 
-A readable import MAY also *clean* the SML: *reflow* structured attribute values, rewriting each value so that every item is on its own line, and *tidy* the text of code elements. A writer can then show such a value as a block (§7), an attribute value usually through an alias (§8). Cleaning changes attribute strings and text, so its result is a different document (§3). It MUST be selected explicitly, and its output SHOULD begin with a `#` source comment naming the attributes reflowed and the elements whose code was tidied. A converter reflows only the attributes it has been given a *layout* for, and tidies only the elements it has been told hold code, such as by a writer profile. Core SML has no knowledge of layouts, and an SML reader needs none: the output contains only the cleaned values and ordinary alias declarations.
+A readable import MAY also *clean* the SML: *reflow* structured attribute values, rewriting each value so that every item is on its own line, and *tidy* multi-line text and comments. A writer can then show such a value as a block (§7), an attribute value usually through an alias (§8). Cleaning changes attribute strings and text, so its result is a different document (§3). It MUST be selected explicitly, and its output SHOULD begin with a `#` source comment naming what changed: formatting whitespace (§3.1), the attributes reflowed, the elements whose text was tidied, and whether comments were. A converter reflows only the attributes it has been given a *layout* for, such as by a writer profile. Core SML has no knowledge of layouts, and an SML reader needs none: the output contains only the cleaned values and ordinary alias declarations.
 
 A layout names how a value divides into items. Whitespace here means U+0020, U+0009, U+000A, and U+000D.
 
@@ -162,7 +162,7 @@ An item never begins or ends with whitespace. Between items there is only whites
 
 A writer MAY still use a layout to show a value one item per line exactly, such as one that cannot be reflowed: as a quoted value split into continuation lines (§6.5) at item boundaries, with the separators kept inside the quotes. That value is unchanged.
 
-**Code.** Tidying applies to an element whose content is a single text node without CR, such as CSS in `style` or a script in `script`. It removes the spaces and tabs at the end of every line, the empty lines at the start and the end, and the indentation that all non-empty lines share; a text of whitespace only is left alone. The tidied text is written as a block. For a compact element in a laid-out position under `@indent`, that is a laid-out text block (§6.4), which puts the line breaks and indentation of pretty-printed text back around it. In CSS such whitespace never matters, and in most scripts it does not; it does inside a script's multi-line strings, such as JavaScript template literals, so a writer tidies only the elements it is told to.
+**Text and comments.** Tidying applies to multi-line text: the text of an element whose content is a single text node outside SVG text content, `foreignObject`, and `xml:space="preserve"`, such as a `style` sheet, a `script`, a `desc`, or metadata, and the data of a comment anywhere. It removes the spaces and tabs at the end of every line, the empty lines at the start and the end, runs of empty lines down to one, and the indentation that all non-empty lines share. Text without a line break, with a CR, or of whitespace only is left alone. Tidied text with more than one line is written as a block: as a laid-out text or comment block (§6.4) in a laid-out position, which puts the line breaks and indentation of pretty-printed text back around it, and otherwise as a literal block. Tidying is not applied to SVG text content, because SVG 1.1 removes line breaks without adding a space, so removing the indentation after one could join two words. In CSS such whitespace never matters, and in scripts only inside multi-line strings such as JavaScript template literals.
 
 ## 4. Encoding, lines, names, and structural model
 
@@ -423,7 +423,7 @@ is the XML:
 - **Different, and the first node is text:** write all nodes explicitly. The element is exact because its first statement is text.
 - **Different otherwise:** emit `@noindent` and write all nodes explicitly.
 
-Each case reproduces the element's content exactly, so the round trip of §3 holds. Elements without non-text children are written explicitly, as without `@indent`. The indentation of an element's children follows from the step written for it, so a writer compares each element after deciding its parent's step.
+Each case reproduces the element's content exactly, so the round trip of §3 holds. Elements without non-text children are written explicitly, as without `@indent`. An element that is not laid out may still state a step with `@indent`, so that its children's indentation, and so their own layout, follows it (§14.2 rule 9). The indentation of an element's children follows from the step written for it, so a writer compares each element after deciding its parent's step.
 
 **Laid-out positions.** A node is in a *laid-out position* when it is a child of a laid-out element, or when it comes before, after, or is the root element in a document with `@indent`. Its *indentation* `W` is the whitespace predicted before it, without the LF: empty at the top level, and otherwise its parent's indentation followed by its parent's step. For an element, this is the indentation defined above.
 
@@ -1079,10 +1079,12 @@ The canonical form is a function of the document alone: canonical writers MUST p
 
    The only text of an element in a laid-out position, under `@indent`, is written in the compact form the same way, as a laid-out text block when it has that layout, with one exception: text that 7.2 would write as a block, but that does not have the layout, makes the element use the normal form, where its `=` statement follows 7.1–7.3.
 8. **Quoted values.** Escapes are used only where required (`\\`, `\"`) and for CR, LF, TAB, and the characters listed in §4. They are written `\r`, `\n`, `\t`, and `\u{…}` with uppercase hexadecimal digits and no leading zeros. When a quoted value's statement line would exceed 100 code points, the value is split into continuation lines (§6.5). Each segment takes as many source characters as fit in 80 code points, ends after the last space within that span if there is one, and never splits an escape.
-9. **Whitespace model.** `@indent` uses the unit that makes the most elements laid out (§6.4) when every step is the unit. Ties are broken in this order: two spaces, four spaces, tab, then the other widths ascending from 0. `@indent` is omitted if no element would be laid out. Each element with a non-text child is then compared with the prediction for its indentation (§6.4), from the root down:
-   1. With the unit as its step: if equal, it is laid out.
+9. **Whitespace model.** For a unit `I`, each element with a non-text child is compared with the prediction for its indentation (§6.4), from the root down:
+   1. With `I` as its step: if equal, it is laid out.
    2. Otherwise, with the step its first node suggests: if that node is text that begins with LF and the element's indentation, and the rest of it is one of the `@indent` widths (0 to 16 spaces, or one tab), and the content equals the prediction with that step, the element is laid out with it. `@indent` with that step is the last statement of its declaration section.
-   3. Otherwise `@noindent` and explicit text follow §6.4's writer rule, and the element's step is the unit.
+   3. Otherwise the element is exact: `@noindent` and explicit text follow §6.4's writer rule. Its step is `I`, unless its first node suggests a step as in 9.2 and, with that step as its children's indentation, 9.1–9.2 lay out more of its child elements than with `I`. Then that step is written as in 9.2. Pretty-printed XML nested deeper than its root, as SVG copied out of HTML is, has a root like this.
+
+   `@indent` uses the unit with which 9.1–9.3 lay out the most elements; among those, the one with the fewest per-element `@indent` statements; then, in this order: two spaces, four spaces, tab, then the other widths ascending from 0. `@indent` is omitted if no element would be laid out.
 10. **Text.** Adjacent text nodes are coalesced and empty ones dropped. Each remaining text node is one `=` statement.
 11. **Comment runs.** Each maximal run of two or more consecutive comments that can be `@comments` lines is one `@comments` block. Consecutive means adjacent in the written statements: prolog or epilog items next to each other, or children with nothing between them but predicted whitespace (§6.4). A comment can be such a line when its data is not empty, contains no LF or CR, does not begin or end with a space or tab, and contains none of the characters §4 says to escape. The marker is chosen as in rule 7.2, and each comment is a payload line.
 
@@ -1153,7 +1155,7 @@ The following fixtures are mandatory in addition to the baseline corpus:
 | SV-62 | Minified children (no whitespace) inside an otherwise indented document | Writer emits `@noindent`; exact round trip |
 | SV-63 | Irregular indentation, blank lines between elements, missing final newline before a closing tag | Affected elements written exactly; exact round trip |
 | SV-64 | Text statement in a laid-out element; `@noindent` after content; repeated `@indent`; `@indent 17`; `@indent 01` | Rejected |
-| SV-65 | Readable import of whitespace between `tspan`s, inside `xml:space="preserve"`, and in `foreignObject` | Whitespace preserved in ineligible elements; output marked lossy |
+| SV-65 | Readable import (§3.1) of pretty-printed XML nested deeper than its root and of minified XML; whitespace between `tspan`s with spaces, with a line break only, and at a nested element's edges; inside `xml:space="preserve"` and `foreignObject` | `@indent 2` and no whitespace statements in eligible elements, the XML written back indented by two spaces; the `tspan` gap with spaces laid out, the others and the ineligible elements preserved; output marked lossy |
 | SV-66 | SVG 1.1 `PUBLIC` DOCTYPE | `@doctype` preserved; DTD never fetched (verified with network access disabled) |
 | SV-67 | `SYSTEM`-only DOCTYPE and bare `<!DOCTYPE svg>` | Preserved exactly |
 | SV-68 | DOCTYPE between prolog comments/PIs | Position preserved |
@@ -1172,6 +1174,7 @@ The following fixtures are mandatory in addition to the baseline corpus:
 | SV-81 | Under `@indent 2`, a subtree whose children are indented by four more spaces, one indented by a tab, and the grandchildren of a four-space element; a per-element `@indent` without the header, twice in one element, after content, or after the root | `@indent 4` and `@indent tab` steps in the declaration sections; the grandchildren follow the unit again; exact round trip; the four invalid forms rejected |
 | SV-82 | Under `@indent`, pretty-printed multi-line text in `desc`, `style`, and `title`, including an empty line and a child of a four-space element; text without whitespace at its edges; text not indented one unit deeper; a compact block under `@noindent`, in mixed content, and without `@indent` | Laid-out text blocks (`desc = """`), read back with the same text; the edgeless text in the normal form with a literal `= """`; the unindented text quoted; the last three literal |
 | SV-83 | `@node` before the root and in a declaration section, used in every opener form, shadowed in a nested scope, and naming a prefixed element whose prefix is bound where it is used; `@element` and `end QName` with aliases; an alias that is `end` or prefixed, an alias declared twice in one scope, and `@node` after the root or after content | The document of the real names; aliases never chain; the invalid forms rejected; canonical output has no `@node` |
+| SV-84 | Pretty-printed XML whose root's children are indented one level deeper than its closing tag, as SVG copied out of HTML; an exact element whose own step is zero spaces; uniformly indented XML with 4 spaces and with tabs | `@indent 2`, the root exact with `@indent 4`, everything below laid out; the zero step written `@indent 0`; one `@indent` line and no per-element steps; exact round trips |
 
 **Mandatory round-trip acceptance:**
 

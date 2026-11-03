@@ -438,6 +438,32 @@ public class ReaderTests
     }
 
     [Fact]
+    public void SV84_NestedIndentation()
+    {
+        // Pretty-printed XML nested one level deeper than its root, as SVG copied out of HTML: the root is exact with
+        // its own step, and everything below it is laid out.
+        SmlDocument doc = XmlImporter.Read(Encoding.UTF8.GetBytes("<svg xmlns=\"urn:s\">\n    <g>\n      <rect/>\n    </g>\n    <rect/>\n  </svg>"));
+        string sml = SmlWriter.Write(doc);
+        Assert.Equal("@sml 1.0-SVG-1\n@indent 2\nsvg(xmlns=urn:s)\n  @indent 4\n  = \"\\n    \"\n  g\n    rect/\n  end\n"
+            + "  = \"\\n    \"\n  rect/\n  = \"\\n  \"\nend\n", sml);
+        Assert.Null(DocumentComparer.FirstDifference(doc, SmlReader.Read(sml)));
+        // An exact element takes its own step only if that lays out more of its child elements.
+        Assert.DoesNotContain("@indent 4", SmlWriter.Write(XmlImporter.Read(Encoding.UTF8.GetBytes("<g>\n  <h>\n      <rect/>\n    <rect/></h>\n</g>"))));
+        // An exact element's own step may be zero spaces.
+        SmlDocument zero = XmlImporter.Read(Encoding.UTF8.GetBytes("<g>\n  <a>\n    <b/>\n  </a>\n  <c>\n    <d/>\n  </c>\n  <h>\n  <i>\n  <j/>\n  </i>\n    </h>\n</g>"));
+        string zeroSml = SmlWriter.Write(zero);
+        Assert.Contains("  h\n    @indent 0\n    = \"\\n  \"\n    i\n      @indent 0\n      j/\n    end\n", zeroSml);
+        Assert.Null(DocumentComparer.FirstDifference(zero, SmlReader.Read(zeroSml)));
+        // A uniformly indented document needs no per-element steps.
+        foreach (var (xml, unit) in new[] { ("<g>\n    <h>\n        <i/>\n    </h>\n</g>", "@indent 4"), ("<g>\n\t<h>\n\t\t<i/>\n\t</h>\n</g>", "@indent tab") })
+        {
+            string output = SmlWriter.Write(XmlImporter.Read(Encoding.UTF8.GetBytes(xml)));
+            Assert.Contains(unit + "\n", output);
+            Assert.Single(output.Split('\n'), line => line.Contains("@indent"));
+        }
+    }
+
+    [Fact]
     public void SupplementaryCharactersInNamesAndCodePointOrdering()
     {
         // A name using a character outside the BMP (U+10000) and attribute ordering by code point, not UTF-16 unit.

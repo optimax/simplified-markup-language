@@ -310,10 +310,12 @@ public sealed class CommandLineTests : IDisposable
         File.WriteAllText(PathOf("drawing.svg"), PathXml);
         Assert.Equal(CommandLine.Success, Run("--clean", "svg", PathOf("drawing.svg")).Code);
         string cleaned = File.ReadAllText(PathOf("drawing.sml"));
-        Assert.StartsWith("# Cleaned (SML §3.2), not exact: one item per line in d\n", cleaned);
+        Assert.StartsWith("# Cleaned (SML §3.2), not exact: formatting whitespace normalized; one item per line in d\n", cleaned);
         Assert.Contains("  @block path .d data\n", cleaned);
         Assert.Contains("    data \"\"\"\n      M 0 0\n      L 1 1\n      \"\"\"\n", cleaned);
         Assert.Equal(CommandLine.Success, Run("-c", "svg", "-f", PathOf("drawing.svg")).Code);
+        Assert.Equal(cleaned, File.ReadAllText(PathOf("drawing.sml")));
+        Assert.Equal(CommandLine.Success, Run("--tidy", "svg", "-f", PathOf("drawing.svg")).Code);
         Assert.Equal(cleaned, File.ReadAllText(PathOf("drawing.sml")));
     }
 

@@ -50,8 +50,9 @@ public class WriterOptionsTests
         SmlProfile profile = SmlProfile.Parse("@layout * .transform functions\n@block g .transform t\n");
         SmlDocument doc = Xml("<g transform='scale(2)'><g transform='translate(1,2) rotate(3)'/></g>");
         Assert.Equal(""""
-            # Cleaned (SML §3.2), not exact: one item per line in transform
+            # Cleaned (SML §3.2), not exact: formatting whitespace normalized; one item per line in transform
             @sml 1.0-SVG-1
+            @indent 2
             g
               @block g .transform t
               .transform scale(2)

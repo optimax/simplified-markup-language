@@ -29,11 +29,12 @@ public static class CommandLine
                                input: * stands for the input's name without its extension, and without a
                                folder each output goes beside its input. Example: smlxml -o *.out.svg *.sml
           -f, --force          Overwrite an existing output file.
-          -c, --clean <name>   Write readable SML with a profile (XML to SML only): one item per line, such
-                               as one path command per line, tidy CSS and scripts, and the profile's aliases.
-                               The whitespace in those values changes, so the XML written back differs. A
-                               name without folder or extension is a profile beside smlxml: smlxml -c svg
-                               uses svg.smlprofile.
+          -c, --clean <name>   Write readable SML with a profile (XML to SML only): indentation and line
+              --tidy <name>    breaks tidied whatever the input's were, one item per line (such as one path
+                               command per line), multi-line text and comments tidied, and the profile's
+                               aliases. Whitespace changes, so the XML written back differs, pretty-printed
+                               with two spaces. A name without folder or extension is a profile beside
+                               smlxml: smlxml -c svg uses svg.smlprofile.
               --verbose        Write every attribute and namespace declaration on its own line, never in a
                                name(...) list (XML to SML only).
           -h, --help           Show this help.
@@ -72,7 +73,7 @@ public static class CommandLine
                         return Fail(stderr, $"{arg} needs a path");
                     output = args[++i];
                     break;
-                case "-c" or "--clean":
+                case "-c" or "--clean" or "--tidy":
                     if (i + 1 >= args.Length)
                         return Fail(stderr, $"{arg} needs a profile name or file");
                     profileName = args[++i];

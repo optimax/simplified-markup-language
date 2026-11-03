@@ -494,6 +494,28 @@ class SmlSideFixtures(Base):
         self.rejects('svg\n  a/\n  @node g x\nend\n', 'after the element')
         self.rejects('@node g group\ngroup\nend p\n', 'does not match')
 
+    def test_SV84_nested_indentation(self):
+        # Pretty-printed XML nested one level deeper than its root, as SVG copied out of HTML: the root is exact with its
+        # own step, and everything below it is laid out.
+        doc = S.read_xml(b'<svg xmlns="urn:s">\n    <g>\n      <rect/>\n    </g>\n    <rect/>\n  </svg>')
+        out = S.write_sml(doc)
+        self.assertEqual(out, '@sml 1.0-SVG-1\n@indent 2\nsvg(xmlns=urn:s)\n  @indent 4\n  = "\\n    "\n  g\n    rect/\n  end\n'
+                              '  = "\\n    "\n  rect/\n  = "\\n  "\nend\n')
+        self.assertEqual(S.signature(read(out)), S.signature(doc))
+        # An exact element takes its own step only if that lays out more of its child elements.
+        self.assertNotIn('@indent 4', S.write_sml(S.read_xml(b'<g>\n  <h>\n      <rect/>\n    <rect/></h>\n</g>')))
+        # An exact element's own step may be zero spaces.
+        doc = S.read_xml(b'<g>\n  <a>\n    <b/>\n  </a>\n  <c>\n    <d/>\n  </c>\n  <h>\n  <i>\n  <j/>\n  </i>\n    </h>\n</g>')
+        out = S.write_sml(doc)
+        self.assertIn('  h\n    @indent 0\n    = "\\n  "\n    i\n      @indent 0\n      j/\n    end\n', out)
+        self.assertEqual(S.signature(read(out)), S.signature(doc))
+        # A uniformly indented document needs no per-element steps.
+        for xml, unit in ((b'<g>\n    <h>\n        <i/>\n    </h>\n</g>', '@indent 4'),
+                          (b'<g>\n\t<h>\n\t\t<i/>\n\t</h>\n</g>', '@indent tab')):
+            out = S.write_sml(S.read_xml(xml))
+            self.assertIn(unit + '\n', out)
+            self.assertEqual(out.count('@indent'), 1)
+
     def test_SV76_reverse_round_trip(self):
         src = ('@sml 1.0-SVG-1\n@indent 2\n@comment " authored in SML "\n'
                '@doctype svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd"\n'

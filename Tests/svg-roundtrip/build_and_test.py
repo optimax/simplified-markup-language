@@ -125,6 +125,15 @@ comment
 	<rect/>
   </h>
 </svg>''',
+'84-nested-indentation.svg':'''<svg viewBox="0 0 200 60"  xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <linearGradient id="fire">
+        <stop stop-color="hotpink" offset="0%"/>
+        <stop stop-color="goldenrod" offset="100%"/>
+      </linearGradient>
+    </defs>
+    <text dy="0.5em" fill="url(#fire)" font-size="50">Wow!</text>
+  </svg>''',
 '82-laid-out-text.svg':'''<svg xmlns="http://www.w3.org/2000/svg">
   <desc>
     Pretty-printed text,

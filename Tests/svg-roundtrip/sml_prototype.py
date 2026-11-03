@@ -919,11 +919,6 @@ def matches_layout(nodes: list, indentation: str, step: str) -> bool:
     return True
 
 
-def matches_prediction(el: Element, depth: int, unit: str) -> bool:
-    """Whether an element is laid out with every step equal to unit (used to choose @indent, rule 9)."""
-    return matches_layout(content_nodes(el), unit * depth, unit)
-
-
 def step_from(nodes: list, indentation: str) -> str | None:
     """The step that an element's first whitespace suggests, if it is a possible @indent value (§6.4)."""
     if nodes and isinstance(nodes[0], Text) and nodes[0].data.startswith('\n' + indentation):
@@ -933,18 +928,60 @@ def step_from(nodes: list, indentation: str) -> str | None:
     return None
 
 
-def choose_indent(doc: Document) -> str | None:
-    best, best_count = None, 0
-    for unit in INDENT_CANDIDATES:
-        count = 0
-        stack = [(doc.root, 0)]
-        while stack:
-            el, depth = stack.pop()
-            if matches_prediction(el, depth, unit):
+def layout_step(nodes: list, indentation: str, unit: str) -> str | None:
+    """The step with which content nodes are laid out at an indentation (rule 9.1–9.2): the unit, or the step their
+    first whitespace suggests; None if neither lays them out."""
+    if matches_layout(nodes, indentation, unit):
+        return unit
+    candidate = step_from(nodes, indentation)
+    if candidate is not None and candidate != unit and matches_layout(nodes, indentation, candidate):
+        return candidate
+    return None
+
+
+def laid_out_children(el: Element, indentation: str, unit: str) -> int:
+    """How many child elements of el rule 9.1–9.2 lay out when they have this indentation."""
+    count = 0
+    for child in el.children:
+        if isinstance(child, Element):
+            nodes = content_nodes(child)
+            if any(not isinstance(n, Text) for n in nodes) and layout_step(nodes, indentation, unit) is not None:
                 count += 1
-            stack.extend((c, depth + 1) for c in el.children if isinstance(c, Element))
-        if count > best_count:
-            best, best_count = unit, count
+    return count
+
+
+def plan(el: Element, nodes: list, indentation: str, unit: str | None):
+    """The writer's whitespace decisions for an element (rule 9): (laid_out, step, local, noindent). step is the
+    whitespace its children are indented by beyond its indentation, local the step written as @indent, if any."""
+    if unit is None or all(isinstance(n, Text) for n in nodes):
+        return False, unit, None, False
+    step = layout_step(nodes, indentation, unit)
+    if step is not None:
+        return True, step, (step if step != unit else None), False
+    # Exact (rule 9.3). Its children's indentation still follows its first whitespace if that lays out more of them.
+    local = step_from(nodes, indentation)
+    if local == unit or (local is not None and laid_out_children(el, indentation + local, unit)
+                         <= laid_out_children(el, indentation + unit, unit)):
+        local = None
+    return False, unit if local is None else local, local, not isinstance(nodes[0], Text)
+
+
+def choose_indent(doc: Document) -> str | None:
+    """The @indent unit (rule 9): the one with which the writer lays out the most elements, and then writes the fewest
+    per-element @indent statements; ties go to the earlier candidate. None if no element would be laid out."""
+    best, best_score = None, None
+    for unit in INDENT_CANDIDATES:
+        laid_out = locals_ = 0
+        stack = [(doc.root, '')]
+        while stack:
+            el, indentation = stack.pop()
+            lo, step, local, _ = plan(el, content_nodes(el), indentation, unit)
+            laid_out += lo
+            locals_ += local is not None
+            stack.extend((c, indentation + step) for c in el.children if isinstance(c, Element))
+        score = (laid_out, -locals_)
+        if laid_out and (best_score is None or score > best_score):
+            best, best_score = unit, score
     return best
 
 
@@ -1206,18 +1243,9 @@ class SmlWriter:
         whether whitespace before it is predicted."""
         ind, inner = '  ' * depth, '  ' * (depth + 1)
         nodes = content_nodes(el)
-        k = sum(1 for n in nodes if not isinstance(n, Text))
-        noindent, laid_out, step, local = False, False, self.unit, None
-        if self.unit is not None and k:
-            laid_out = matches_layout(nodes, indentation, self.unit)
-            if not laid_out:
-                candidate = step_from(nodes, indentation)
-                if candidate is not None and candidate != self.unit and matches_layout(nodes, indentation, candidate):
-                    laid_out, step, local = True, candidate, candidate
-            if laid_out:
-                nodes = [n for n in nodes if not isinstance(n, Text)]
-            elif not isinstance(nodes[0], Text):
-                noindent = True
+        laid_out, step, local, noindent = plan(el, nodes, indentation, self.unit)
+        if laid_out:
+            nodes = [n for n in nodes if not isinstance(n, Text)]
         decls = sorted(el.ns_decls.items(), key=lambda kv: (kv[0] is not None, kv[0] or ''))
 
         def attr_key(q):

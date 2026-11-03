@@ -176,9 +176,6 @@ public class ProfileTests
     [InlineData("@layout path .d curves\n", 1, "unknown layout 'curves'")]
     [InlineData("# comment\n\n.d x\n", 3, "unknown profile statement")]
     [InlineData("@block path .xmlns d\n", 1, "cannot name a namespace declaration")]
-    [InlineData("@layout style = css\n", 1, "unknown text layout 'css'; expected code")]
-    [InlineData("@layout * = code\n", 1, "a code layout names an element, not *")]
-    [InlineData("@layout style = code\n@layout style = code\n", 2, "the text of element 'style' already has a layout")]
     [InlineData("@node g\n", 1, "@node takes")]
     [InlineData("@node g end\n", 1, "invalid element alias 'end'")]
     [InlineData("@node g a:b\n", 1, "invalid element alias 'a:b'")]
@@ -200,10 +197,11 @@ public class ProfileTests
     [Fact]
     public void KeepsAValueThatCannotBeDividedCleanlyWithAContinuationLinePerItem()
     {
-        SmlDocument doc = Xml("<svg xmlns='http://www.w3.org/2000/svg'><path d='M 0&#9;0 L 1 1 Z' fill='red'/></svg>");
+        SmlDocument doc = Xml("<svg xmlns='http://www.w3.org/2000/svg'>\n  <path d='M 0&#9;0 L 1 1 Z' fill='red'/>\n</svg>");
         string sml = SmlWriter.Write(doc, Svg);
         Assert.Equal("""
             @sml 1.0-SVG-1
+            @indent 2
             svg(xmlns=http://www.w3.org/2000/svg)
               path
                 .d "M 0\t0 "
@@ -220,10 +218,11 @@ public class ProfileTests
     [Fact]
     public void CleansIntoAliasBlocksDeclaredOnTheRoot()
     {
-        SmlDocument doc = Xml("<svg xmlns='http://www.w3.org/2000/svg'><path d='M 0 0 L 1 1 Z' fill='red'/></svg>");
+        SmlDocument doc = Xml("<svg xmlns='http://www.w3.org/2000/svg'>\n  <path d='M 0 0 L 1 1 Z' fill='red'/>\n</svg>");
         Assert.Equal(""""
             # Cleaned (SML §3.2), not exact: one item per line in d
             @sml 1.0-SVG-1
+            @indent 2
             svg(xmlns=http://www.w3.org/2000/svg)
               @block path .d data
               path
@@ -259,13 +258,102 @@ public class ProfileTests
     }
 
     [Fact]
-    public void TidiesCode()
+    public void CleaningIgnoresTheInputsIndentationAndPrettyPrintsTheXml()
     {
-        Assert.Equal(":root {\n\t--x: 1;\n}", SmlWriter.TidyCode("\n\t\t:root {\t \n\t\t\t--x: 1;\n\t\t}\n    "));
-        Assert.Equal("a\n\n  b", SmlWriter.TidyCode("  a  \n \n    b\t"));
-        Assert.Equal("a", SmlWriter.TidyCode("a"));
-        Assert.Null(SmlWriter.TidyCode("\n \t\n"));
-        Assert.Null(SmlWriter.TidyCode("a\r\nb"));
+        // Indented as if nested in HTML: the cleaned SML needs no per-element @indent, and the XML written back from
+        // it is indented by two spaces.
+        SmlDocument doc = Xml("<svg viewBox=\"0 0 200 60\"  xmlns=\"http://www.w3.org/2000/svg\">\n    <defs>\n"
+            + "      <linearGradient id=\"fire\">\n        <stop stop-color=\"hotpink\" offset=\"0%\"/>\n"
+            + "        <stop stop-color=\"goldenrod\" offset=\"100%\"/>\n      </linearGradient>\n    </defs>\n"
+            + "    <text dy=\"0.5em\" fill=\"url(#fire)\" font-size=\"50\">Wow!</text>\n  </svg>");
+        string sml = SmlWriter.Write(doc, Svg);
+        Assert.Equal("""
+            # Cleaned (SML §3.2), not exact: formatting whitespace normalized
+            @sml 1.0-SVG-1
+            @indent 2
+            svg(xmlns=http://www.w3.org/2000/svg, viewBox=0 0 200 60)
+              defs
+                linearGradient(id=fire)
+                  stop(offset=0%, stop-color=hotpink)/
+                  stop(offset=100%, stop-color=goldenrod)/
+                end
+              end
+              text(dy=0.5em, fill=url(#fire), font-size=50) = Wow!
+            end
+
+            """.ReplaceLineEndings("\n"), sml);
+        Assert.Equal("""
+            <?xml version="1.0" encoding="UTF-8"?>
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 60">
+              <defs>
+                <linearGradient id="fire">
+                  <stop offset="0%" stop-color="hotpink"/>
+                  <stop offset="100%" stop-color="goldenrod"/>
+                </linearGradient>
+              </defs>
+              <text dy="0.5em" fill="url(#fire)" font-size="50">Wow!</text>
+            </svg>
+
+            """.ReplaceLineEndings("\n"), XmlExporter.Write(SmlReader.Read(sml)));
+
+        // Whitespace that can change rendering stays: mixed text, xml:space="preserve", and foreignObject content.
+        SmlDocument kept = Xml("<svg xmlns='http://www.w3.org/2000/svg'><g><text>A <tspan>B</tspan> </text>"
+            + "<g xml:space='preserve'> <rect/> </g><foreignObject><p xmlns='http://www.w3.org/1999/xhtml'><b>a</b> <i>b</i></p>"
+            + "</foreignObject></g></svg>");
+        SmlDocument back = SmlReader.Read(SmlWriter.Write(kept, Svg));
+        ElementNode g = back.Root.Children.OfType<ElementNode>().Single();
+        List<ElementNode> kids = g.Children.OfType<ElementNode>().ToList();
+        Assert.Equal(["A ", " "], kids[0].Children.OfType<TextNode>().Select(t => t.Data));
+        Assert.Equal([" ", " "], kids[1].Children.OfType<TextNode>().Select(t => t.Data));
+        Assert.Equal([" "], kids[2].Children.OfType<ElementNode>().Single().Children.OfType<TextNode>().Select(t => t.Data));
+        Assert.Equal(["\n    ", "\n    ", "\n    ", "\n  "], g.Children.OfType<TextNode>().Select(t => t.Data));
+    }
+
+    [Fact]
+    public void CleaningTidiesTextCommentsAndTheWhitespaceInText()
+    {
+        SmlDocument doc = Xml("<svg xmlns='http://www.w3.org/2000/svg'>\n"
+            + "        <desc>\n            Two lines\n\n\n            of text\n        </desc>\n"
+            + "        <!--\n            A comment\n        -->\n"
+            + "        <text x='1'>\n            <tspan>A</tspan>\n            <tspan>B</tspan>\n        </text>\n"
+            + "        <text x='2'><tspan>A</tspan>\n<tspan>B</tspan></text>\n</svg>");
+        // The line break alone between the last two tspans renders as nothing in SVG 1.1, so it stays.
+        Assert.Equal(""""
+            # Cleaned (SML §3.2), not exact: formatting whitespace normalized; text tidied in desc; comments tidied
+            @sml 1.0-SVG-1
+            @indent 2
+            svg(xmlns=http://www.w3.org/2000/svg)
+              desc = """
+                Two lines
+
+                of text
+                """
+              @comment A comment
+              text(x=1)
+                tspan = A
+                tspan = B
+              end
+              text(x=2)
+                @noindent
+                tspan = A
+                = "\n"
+                tspan = B
+              end
+            end
+
+            """".ReplaceLineEndings("\n"), SmlWriter.Write(doc, Svg));
+    }
+
+    [Fact]
+    public void TidiesText()
+    {
+        Assert.Equal(":root {\n\t--x: 1;\n}", SmlWriter.TidyText("\n\t\t:root {\t \n\t\t\t--x: 1;\n\t\t}\n    "));
+        Assert.Equal("a\n\n  b", SmlWriter.TidyText("  a  \n \n    b\t"));
+        Assert.Equal("a\n\nb\n\nc", SmlWriter.TidyText("\n\n  a\n\n\n  b\n \n\t\n  c\n\n"));
+        Assert.Equal("a", SmlWriter.TidyText("\n    a\n  "));
+        Assert.Null(SmlWriter.TidyText(" a "));
+        Assert.Null(SmlWriter.TidyText("\n \t\n"));
+        Assert.Null(SmlWriter.TidyText("a\r\nb"));
     }
 
     [Fact]
@@ -275,7 +363,7 @@ public class ProfileTests
             + "\t\t\t--blue: #303b5f;\n\t\t}\n\t\t.text1 {\t     \n\t\t\tfont-weight:bold;\t\t \n\t\t}\n    ]]></style>\n</svg>");
         string sml = SmlWriter.Write(doc, Svg);
         Assert.Equal(""""
-            # Cleaned (SML §3.2), not exact: code tidied in style
+            # Cleaned (SML §3.2), not exact: text tidied in style
             @sml 1.0-SVG-1
             @indent 2
             svg(xmlns=http://www.w3.org/2000/svg)
@@ -303,11 +391,12 @@ public class ProfileTests
     [Fact]
     public void WritesElementAliasesBeforeTheRoot()
     {
-        SmlDocument doc = Xml("<svg xmlns='http://www.w3.org/2000/svg'><g id='a'><path d='M 0 0'/></g><g/><rect/></svg>");
+        SmlDocument doc = Xml("<svg xmlns='http://www.w3.org/2000/svg'>\n  <g id='a'>\n    <path d='M 0 0'/>\n  </g>\n  <g/>\n  <rect/>\n</svg>");
         SmlProfile profile = SmlProfile.Parse("@ns http://www.w3.org/2000/svg\n@node g group\n@node circle round\n@node svg drawing\n");
         string sml = SmlWriter.Write(doc, profile);
         Assert.Equal("""
             @sml 1.0-SVG-1
+            @indent 2
             @node g group
             @node svg drawing
             drawing(xmlns=http://www.w3.org/2000/svg)
@@ -331,10 +420,11 @@ public class ProfileTests
         SmlDocument doc = Xml("<s:svg xmlns:s='http://www.w3.org/2000/svg'><s:g/><g xmlns='http://www.w3.org/2000/svg'/>"
             + "<g xmlns='urn:x'/><s:rect/><box/></s:svg>");
         string sml = SmlWriter.Write(doc, profile);
-        Assert.StartsWith("@sml 1.0-SVG-1\n@node s:g group\ns:svg", sml);
+        Assert.StartsWith("# Cleaned (SML §3.2), not exact: formatting whitespace normalized\n@sml 1.0-SVG-1\n@indent 2\n@node s:g group\ns:svg", sml);
         Assert.Contains("  group/\n  g(xmlns=http://www.w3.org/2000/svg)/\n  g(xmlns=urn:x)/\n  s:rect/\n  box/\n", sml);
         Assert.DoesNotContain("@node s:rect", sml);
-        Assert.Null(DocumentComparer.FirstDifference(doc, SmlReader.Read(sml)));
+        Assert.Equal(doc.Root.Children.OfType<ElementNode>().Select(e => (e.QualifiedName, e.Name)),
+            SmlReader.Read(sml).Root.Children.OfType<ElementNode>().Select(e => (e.QualifiedName, e.Name)));
     }
 
     [Fact]
@@ -342,8 +432,9 @@ public class ProfileTests
     {
         SmlDocument doc = Xml("<doc><end/><end>x</end></doc>");
         string sml = SmlWriter.Write(doc, SmlProfile.Parse("@node end finish\n"));
-        Assert.Equal("@sml 1.0-SVG-1\n@node end finish\ndoc\n  finish/\n  finish = x\nend\n", sml);
-        Assert.Null(DocumentComparer.FirstDifference(doc, SmlReader.Read(sml)));
+        Assert.Equal("# Cleaned (SML §3.2), not exact: formatting whitespace normalized\n@sml 1.0-SVG-1\n@indent 2\n@node end finish\ndoc\n"
+            + "  finish/\n  finish = x\nend\n", sml);
+        Assert.Equal(["end", "end"], SmlReader.Read(sml).Root.Children.OfType<ElementNode>().Select(e => e.QualifiedName));
     }
 
     public static TheoryData<string> SvgFiles()
@@ -384,7 +475,12 @@ public class ProfileTests
     {
         if (Load(file) is not { } doc)
             return;
-        Assert.Equal(SmlWriter.Write(doc), SmlWriter.Write(doc, SmlProfile.Parse("")));
+        // With an empty profile, cleaning changes only formatting whitespace.
+        SmlDocument plain = SmlReader.Read(SmlWriter.Write(doc, SmlProfile.Parse("")));
+        SmlDocument original = Load(file)!;
+        Normalize(plain);
+        Normalize(original);
+        Assert.Null(DocumentComparer.FirstDifference(original, plain));
         string sml = SmlWriter.Write(doc, Svg);
         SmlDocument back = SmlReader.Read(sml);
 
@@ -406,11 +502,14 @@ public class ProfileTests
                 }
             }
         }
-        TidyAllCode(expected);
-        TidyAllCode(back);
+        Normalize(expected);
+        Normalize(back);
         Assert.Null(DocumentComparer.FirstDifference(expected, back));
         if (reflowed)
-            Assert.StartsWith("# Cleaned (SML §3.2), not exact: one item per line in ", sml);
+        {
+            Assert.StartsWith("# Cleaned (SML §3.2), not exact: ", sml);
+            Assert.Contains("one item per line in ", sml[..sml.IndexOf('\n')]);
+        }
 
         // Cleaned again, the cleaned document gives the same SML without the comment, and survives XML.
         SmlDocument cleaned = SmlReader.Read(sml);
@@ -423,17 +522,70 @@ public class ProfileTests
     private static IEnumerable<ElementNode> Elements(ElementNode root) =>
         root.Children.OfType<ElementNode>().SelectMany(Elements).Prepend(root);
 
-    /// <summary>Replaces the text of each code element whose content is text only with its tidied form.</summary>
-    private static void TidyAllCode(SmlDocument doc)
+    /// <summary>Puts a document in a form that cleaning cannot change (§§3.1–3.2), for comparing documents; an
+    /// independent statement of the rules. Outside foreignObject and xml:space="preserve", whitespace between
+    /// elements is removed; in SVG text content, where it renders, it becomes one space, and nothing at a text
+    /// element's edges. Multi-line text outside text content, and multi-line comments anywhere, are tidied.</summary>
+    private static void Normalize(SmlDocument doc)
     {
-        foreach (ElementNode element in Elements(doc.Root).Where(e => Svg.IsCode(e.Name)))
+        foreach (CommentNode comment in doc.Prolog.Concat(doc.Epilog).OfType<CommentNode>())
+            comment.Data = SmlWriter.TidyText(comment.Data) ?? comment.Data;
+        Normalize(doc.Root, inText: false, foreign: false, preserve: false);
+    }
+
+    private static void Normalize(ElementNode element, bool inText, bool foreign, bool preserve)
+    {
+        bool svg = element.Name.Namespace == "http://www.w3.org/2000/svg";
+        foreign |= svg && element.Name.Local == "foreignObject";
+        bool textContent = svg && element.Name.Local is "text" or "tspan" or "textPath" or "tref" or "altGlyph";
+        foreach (var (name, value) in element.Attributes)
         {
-            if (element.Children.Count == 0 || !element.Children.All(c => c is TextNode))
-                continue;
-            string text = string.Concat(element.Children.Cast<TextNode>().Select(t => t.Data));
-            element.Children.Clear();
-            element.Children.Add(new TextNode(SmlWriter.TidyCode(text) ?? text));
+            if (element.AttributeNames[name] is { Namespace: "http://www.w3.org/XML/1998/namespace", Local: "space" })
+                preserve = value == "preserve";
         }
+        // Coalesce adjacent text.
+        var children = new List<SmlNode>();
+        foreach (SmlNode child in element.Children)
+        {
+            if (child is TextNode t && children.Count > 0 && children[^1] is TextNode previous)
+                children[^1] = new TextNode(previous.Data + t.Data);
+            else
+                children.Add(child);
+        }
+        element.Children.Clear();
+        element.Children.AddRange(children);
+        if (!foreign && !preserve)
+        {
+            bool elementOnly = children.Any(c => c is not TextNode)
+                && children.OfType<TextNode>().All(t => t.Data.All(c => c is ' ' or '\t' or '\n' or '\r'));
+            if (elementOnly && !inText && !textContent)
+            {
+                element.Children.RemoveAll(c => c is TextNode);
+            }
+            else if (elementOnly)
+            {
+                for (int i = 0; i < element.Children.Count; i++)
+                {
+                    if (element.Children[i] is TextNode)
+                        element.Children[i] = new TextNode(" ");
+                }
+                if (!inText)
+                {
+                    if (element.Children[0] is TextNode)
+                        element.Children.RemoveAt(0);
+                    if (element.Children[^1] is TextNode)
+                        element.Children.RemoveAt(element.Children.Count - 1);
+                }
+            }
+            else if (!inText && !textContent && children is [TextNode only])
+            {
+                only.Data = SmlWriter.TidyText(only.Data) ?? only.Data;
+            }
+        }
+        foreach (CommentNode comment in element.Children.OfType<CommentNode>())
+            comment.Data = SmlWriter.TidyText(comment.Data) ?? comment.Data;
+        foreach (ElementNode child in element.Children.OfType<ElementNode>())
+            Normalize(child, inText || textContent, foreign, preserve);
     }
 
     private static string StripSeparators(string value) =>

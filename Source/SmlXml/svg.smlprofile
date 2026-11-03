@@ -1,6 +1,6 @@
-# smlxml profile "svg": readable layouts for SVG's structured attribute values, styles, and scripts.
+# smlxml profile "svg": readable layouts for SVG's structured attribute values.
 #
-#   smlxml --clean svg drawing.svg   one item per line and tidy code, so whitespace in values changes (SML §3.2)
+#   smlxml --clean svg drawing.svg   one item per line, tidy text and whitespace; values change (SML §3.1-3.2)
 #
 # Statements:
 #   @ns [prefix] URI                    a namespace for the names below; all @ns lines come first
@@ -8,8 +8,6 @@
 #   @node element alias                 an element alias (SML §8.7): alias opens the element
 #   @layout element .attribute kind     how the attribute's values divide into items: path, numbers N,
 #                                       declarations, functions, or list; the element * is any element
-#   @layout element = code              the element's text is code: trailing whitespace, blank first and
-#                                       last lines, and the indentation all lines share are removed
 
 @ns http://www.w3.org/2000/svg
 
@@ -51,7 +49,3 @@
 @layout * .transform functions
 @layout * .gradientTransform functions
 @layout * .patternTransform functions
-
-# Style sheets and scripts: tidy text, written as a block.
-@layout style = code
-@layout script = code

@@ -33,20 +33,88 @@ public sealed class SmlWriter
     /// <summary>The lexical names of the attributes whose values were reflowed.</summary>
     private readonly SortedSet<string> _reflowed = new(Comparer<string>.Create(XmlRules.CompareCodePoints));
 
-    /// <summary>The lexical names of the elements whose code text was tidied.</summary>
+    /// <summary>The lexical names of the elements whose text was tidied.</summary>
     private readonly SortedSet<string> _tidied = new(Comparer<string>.Create(XmlRules.CompareCodePoints));
+
+    /// <summary>The elements whose formatting whitespace cleaning replaces (§3.1).</summary>
+    private readonly HashSet<ElementNode> _normalized = [];
+
+    /// <summary>The elements whose multi-line text cleaning may tidy (§3.2): outside SVG text content,
+    /// foreignObject, and xml:space="preserve".</summary>
+    private readonly HashSet<ElementNode> _tidyable = [];
+
+    /// <summary>Whether cleaning tidied a comment.</summary>
+    private bool _commentsTidied;
+
+    /// <summary>Whether cleaning changed any formatting whitespace.</summary>
+    private bool _whitespaceChanged;
+
+    /// <summary>The indentation unit of cleaned SML, whatever the input's indentation (§3.1).</summary>
+    private const string CleanUnit = "  ";
 
     private SmlWriter(SmlDocument doc, SmlWriterOptions options)
     {
         _doc = doc;
-        _unit = ChooseIndent(doc);
         _profile = options.Clean;
         _vertical = options.VerticalAttributes;
         if (_profile is not null)
         {
+            FindNormalized(doc.Root, inText: false, foreign: false, preserve: false);
             PlanAliases(_profile);
             PlanNodeAliases(_profile);
         }
+        _unit = _normalized.Count > 0 ? CleanUnit : ChooseIndent(doc);
+    }
+
+    private const string SvgNamespace = "http://www.w3.org/2000/svg";
+
+    /// <summary>Finds the elements whose formatting whitespace cleaning replaces with the prediction of @indent 2,
+    /// and those whose text it may tidy (§3.1). Whitespace is replaced in content of elements, comments, or PIs
+    /// separated only by whitespace, outside foreignObject and xml:space="preserve". In SVG text content it is replaced
+    /// only where that cannot change the rendered text: where every gap between the children, and for an element
+    /// nested in text also each edge, already has a space or tab.</summary>
+    private void FindNormalized(ElementNode element, bool inText, bool foreign, bool preserve)
+    {
+        bool svg = element.Name.Namespace == SvgNamespace;
+        foreign |= svg && element.Name.Local == "foreignObject";
+        bool textContent = svg && element.Name.Local is "text" or "tspan" or "textPath" or "tref" or "altGlyph";
+        foreach (var (name, value) in element.Attributes)
+        {
+            if (element.AttributeNames[name] == new ExpandedName(XmlRules.XmlNamespace, "space"))
+                preserve = value == "preserve";
+        }
+        if (!foreign && !preserve)
+        {
+            if (!inText && !textContent)
+                _tidyable.Add(element);
+            List<SmlNode> nodes = ContentNodes(element);
+            if (nodes.Any(n => n is not TextNode) && nodes.OfType<TextNode>().All(t => IsWhitespace(t.Data))
+                && (!inText && !textContent || SpacedBetween(nodes, edges: inText)))
+            {
+                _normalized.Add(element);
+            }
+        }
+        foreach (ElementNode child in element.Children.OfType<ElementNode>())
+            FindNormalized(child, inText || textContent, foreign, preserve);
+    }
+
+    private static bool IsWhitespace(string text) => text.All(c => c is ' ' or '\t' or '\n' or '\r');
+
+    /// <summary>Whether a text node holding a space or tab lies between every two non-text nodes, and, with edges,
+    /// also before the first and after the last.</summary>
+    private static bool SpacedBetween(List<SmlNode> nodes, bool edges)
+    {
+        static bool Spaced(SmlNode? node) => node is TextNode t && t.Data.AsSpan().ContainsAny(' ', '\t');
+        for (int i = 0; i < nodes.Count; i++)
+        {
+            if (nodes[i] is TextNode)
+                continue;
+            if ((i > 0 || edges) && !Spaced(i > 0 ? nodes[i - 1] : null))
+                return false;
+            if (edges && i == nodes.Count - 1)
+                return false;
+        }
+        return !edges || Spaced(nodes[^1]);
     }
 
     /// <summary>Writes the canonical form of the document.</summary>
@@ -79,10 +147,14 @@ public sealed class SmlWriter
         Element(_doc.Root, 0, "", _unit is not null);
         Items(_doc.Epilog, 0, _unit is not null, "");
         var changes = new List<string>();
+        if (_whitespaceChanged)
+            changes.Add("formatting whitespace normalized");
         if (_reflowed.Count > 0)
             changes.Add("one item per line in " + string.Join(", ", _reflowed));
         if (_tidied.Count > 0)
-            changes.Add("code tidied in " + string.Join(", ", _tidied));
+            changes.Add("text tidied in " + string.Join(", ", _tidied));
+        if (_commentsTidied)
+            changes.Add("comments tidied");
         if (changes.Count > 0)
             _out.Insert(0, "# Cleaned (SML §3.2), not exact: " + string.Join("; ", changes));
         return string.Join('\n', _out) + "\n";
@@ -102,18 +174,19 @@ public sealed class SmlWriter
         return (value, layout);
     }
 
-    /// <summary>Code text tidied (§3.2): trailing spaces and tabs removed from each line, blank first and last lines
-    /// dropped, and the indentation that all other lines share removed. Null for text with a CR or nothing
-    /// visible.</summary>
-    public static string? TidyCode(string text)
+    /// <summary>Multi-line text tidied (§3.2): trailing spaces and tabs removed from each line, blank first and last
+    /// lines dropped, runs of empty lines reduced to one, and the indentation that all other lines share removed.
+    /// Null for text without LF, with a CR, or with nothing visible.</summary>
+    public static string? TidyText(string text)
     {
-        if (text.Contains('\r') || !Visible(text))
+        if (!text.Contains('\n') || text.Contains('\r') || !Visible(text))
             return null;
         var lines = text.Split('\n').Select(l => l.TrimEnd(' ', '\t')).ToList();
         while (lines[0].Length == 0)
             lines.RemoveAt(0);
         while (lines[^1].Length == 0)
             lines.RemoveAt(lines.Count - 1);
+        lines = lines.Where((l, i) => l.Length > 0 || lines[i - 1].Length > 0).ToList();
         string? prefix = null;
         foreach (string line in lines.Where(l => l.Length > 0))
         {
@@ -303,10 +376,6 @@ public sealed class SmlWriter
         return true;
     }
 
-    /// <summary>Whether an element is laid out with every step equal to unit (used to choose @indent, rule 9).</summary>
-    private static bool MatchesPrediction(ElementNode element, int depth, string unit) =>
-        MatchesLayout(ContentNodes(element), string.Concat(Enumerable.Repeat(unit, depth)), unit);
-
     /// <summary>The step that an element's first whitespace suggests, if it is a possible @indent value (§6.4).</summary>
     private static string? StepFrom(List<SmlNode> nodes, string indentation)
     {
@@ -319,25 +388,66 @@ public sealed class SmlWriter
         return null;
     }
 
+    /// <summary>The step with which content nodes are laid out at an indentation (rule 9.1–9.2): the unit, or the step
+    /// their first whitespace suggests; null if neither lays them out.</summary>
+    private static string? LayoutStep(List<SmlNode> nodes, string indentation, string unit)
+    {
+        if (MatchesLayout(nodes, indentation, unit))
+            return unit;
+        string? candidate = StepFrom(nodes, indentation);
+        return candidate is not null && candidate != unit && MatchesLayout(nodes, indentation, candidate) ? candidate : null;
+    }
+
+    /// <summary>How many child elements rule 9.1–9.2 lay out when they have this indentation.</summary>
+    private static int LaidOutChildren(ElementNode element, string indentation, string unit) =>
+        element.Children.OfType<ElementNode>().Count(child =>
+        {
+            List<SmlNode> nodes = ContentNodes(child);
+            return nodes.Any(n => n is not TextNode) && LayoutStep(nodes, indentation, unit) is not null;
+        });
+
+    /// <summary>The writer's whitespace decisions for an element (rule 9). Step is the whitespace its children are
+    /// indented by beyond its own indentation; Local is the step written as @indent, if any.</summary>
+    private static (bool LaidOut, string? Step, string? Local, bool NoIndent) Plan(
+        ElementNode element, List<SmlNode> nodes, string indentation, string? unit)
+    {
+        if (unit is null || nodes.All(n => n is TextNode))
+            return (false, unit, null, false);
+        if (LayoutStep(nodes, indentation, unit) is { } step)
+            return (true, step, step != unit ? step : null, false);
+        // Exact (rule 9.3). Its children's indentation still follows its first whitespace if that lays out more of them.
+        string? local = StepFrom(nodes, indentation);
+        if (local == unit || (local is not null
+            && LaidOutChildren(element, indentation + local, unit) <= LaidOutChildren(element, indentation + unit, unit)))
+        {
+            local = null;
+        }
+        return (false, local ?? unit, local, nodes[0] is not TextNode);
+    }
+
+    /// <summary>The @indent unit (rule 9): the one with which the writer lays out the most elements, and then writes
+    /// the fewest per-element @indent statements; ties go to the earlier candidate. Null if no element would be laid
+    /// out.</summary>
     private static string? ChooseIndent(SmlDocument doc)
     {
         string? best = null;
-        int bestCount = 0;
+        (int LaidOut, int Locals) bestScore = (0, 0);
         foreach (string unit in IndentCandidates)
         {
-            int count = 0;
-            var stack = new Stack<(ElementNode, int)>();
-            stack.Push((doc.Root, 0));
+            int laidOut = 0, locals = 0;
+            var stack = new Stack<(ElementNode, string)>();
+            stack.Push((doc.Root, ""));
             while (stack.Count > 0)
             {
-                var (element, depth) = stack.Pop();
-                if (MatchesPrediction(element, depth, unit))
-                    count++;
+                var (element, indentation) = stack.Pop();
+                var plan = Plan(element, ContentNodes(element), indentation, unit);
+                laidOut += plan.LaidOut ? 1 : 0;
+                locals += plan.Local is null ? 0 : 1;
                 foreach (ElementNode child in element.Children.OfType<ElementNode>())
-                    stack.Push((child, depth + 1));
+                    stack.Push((child, indentation + plan.Step));
             }
-            if (count > bestCount)
-                (best, bestCount) = (unit, count);
+            if (laidOut > 0 && (best is null || laidOut > bestScore.LaidOut || (laidOut == bestScore.LaidOut && locals < bestScore.Locals)))
+                (best, bestScore) = (unit, (laidOut, locals));
         }
         return best;
     }
@@ -558,6 +668,12 @@ public sealed class SmlWriter
                 case ElementNode child:
                     Element(child, depth, indentation, laidOut);
                     break;
+                case CommentNode comment when _profile is not null && TidyText(comment.Data) is { } tidy:
+                    // Cleaning: a multi-line comment is tidied, and laid out where its position is (§3.2, §6.4).
+                    string data = laidOut && _unit is not null && tidy.Contains('\n') ? SmlReader.LayOutBlock(tidy, indentation, _unit) : tidy;
+                    _commentsTidied |= data != comment.Data;
+                    Comment(data, depth, laidOut, indentation);
+                    break;
                 default:
                     Misc(nodes[i], depth, laidOut, indentation);
                     break;
@@ -637,22 +753,16 @@ public sealed class SmlWriter
     {
         string ind = Indentation(depth), inner = Indentation(depth + 1);
         List<SmlNode> nodes = ContentNodes(element);
-        string? code = _profile is not null && nodes is [TextNode text] && _profile.IsCode(element.Name) ? TidyCode(text.Data) : null;
-        bool noIndent = false, laidOut = false;
-        string? step = _unit, local = null;
-        if (_unit is not null && nodes.Any(n => n is not TextNode))
+        string? code = _profile is not null && nodes is [TextNode text] && _tidyable.Contains(element) ? TidyText(text.Data) : null;
+        var (laidOut, step, local, noIndent) = Plan(element, nodes, indentation, _unit);
+        if (_normalized.Contains(element))
         {
-            laidOut = MatchesLayout(nodes, indentation, _unit);
-            if (!laidOut && StepFrom(nodes, indentation) is { } candidate && candidate != _unit
-                && MatchesLayout(nodes, indentation, candidate))
-            {
-                (laidOut, step, local) = (true, candidate, candidate);
-            }
-            if (laidOut)
-                nodes = nodes.Where(n => n is not TextNode).ToList();
-            else if (nodes[0] is not TextNode)
-                noIndent = true;
+            // Cleaning: the formatting whitespace becomes the prediction of @indent 2, whatever it was (§3.1).
+            _whitespaceChanged |= !MatchesLayout(nodes, indentation, CleanUnit);
+            (laidOut, step, local, noIndent) = (true, CleanUnit, null, false);
         }
+        if (laidOut)
+            nodes = nodes.Where(n => n is not TextNode).ToList();
         var declarations = element.NamespaceDeclarations
             .OrderBy(d => d.Key.Length > 0)
             .ThenBy(d => d.Key, Comparer<string>.Create(XmlRules.CompareCodePoints))
@@ -691,7 +801,7 @@ public sealed class SmlWriter
             }
             if (nodes is [TextNode only])
             {
-                // Tidied code is written with the edges of a laid-out block (§6.4) where the compact block gets them.
+                // Tidied text is written with the edges of a laid-out block (§6.4) where the compact block gets them.
                 string data = code is null ? only.Data
                     : code.Contains('\n') && laidOutPosition && _unit is not null ? SmlReader.LayOutBlock(code, indentation, _unit) : code;
                 if (CompactText(ind + opener + " =", data, depth, indentation, laidOutPosition))

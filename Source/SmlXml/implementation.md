@@ -10,7 +10,7 @@
   `smlxml 1.0.0 (SML 1.0-SVG-1)`, `Copyright (c) 2026 Optimax Technologies, Inc.`, `Freely distributed under MIT license.`
   The SML version in it is `SmlReader.Version`, the revision the reader implements.
 - `--output` accepts a `*` pattern, so that `smlxml *.svg` followed by `smlxml -o *.out.svg *.sml` leaves `name.sml` and `name.out.svg` beside each `name.svg`.
-- `--clean <profile>` converts XML to readable SML with an SML profile, which defines blocks for path `d`, polyline `points`, and other SVG values that are more readable one item per line, tidies CSS and scripts, and supplies aliases. The `svg` profile ships with `smlxml`. A profile applies only with `--clean`: there is no exact profile mode and no separate `--profile` option.
+- `--clean <profile>` (alias `--tidy`) converts XML to readable SML with an SML profile, which defines blocks for path `d`, polyline `points`, and other SVG values that are more readable one item per line, and supplies aliases. Cleaning is immune to the input's indentation: the SML always uses `@indent 2` with no other indentation statements, and the XML written back from it is indented by two spaces. It tidies multi-line text and comments, so no whitespace-only lines or redundant blank lines remain except where whitespace can change rendering. The `svg` profile ships with `smlxml`. A profile applies only with `--clean`: there is no exact profile mode and no separate `--profile` option.
 - `--verbose` writes every attribute and namespace declaration on its own line, never in a `name(...)` list.
 
 ## Behavior
@@ -41,8 +41,9 @@
   - The profile is parsed once, before any conversion. A missing or invalid profile is a usage error (exit 2), reported as `file(line): error: message`.
   - It applies to XML input only; SML input converts as usual.
   - `SmlWriter.Write(doc, SmlWriterOptions)` does the work; the format and the writer rules are in `SmlProfile` and the README.
-  - `SmlWriterOptions.Clean` holds the profile. Values with a layout become one item per line (specification §3.2), the text of code elements (`@layout element = code`) is tidied, and the first line is a `#` comment naming what changed. A value with a layout that cannot be divided cleanly is quoted with a continuation line per item; values written as blocks use the profile's alias.
-  - Tidied code in a compact element in a laid-out position is written as a laid-out text block (§6.4), so pretty-printed `<style>` content becomes a plain block; in the normal form (with `--verbose`) it is a literal block without edges.
+  - `SmlWriterOptions.Clean` holds the profile. The writer finds the elements whose formatting whitespace it replaces with the prediction of `@indent 2` (`FindNormalized`, specification §3.1), reflows values with a layout one item per line (§3.2), tidies multi-line text outside SVG text content and multi-line comments (`TidyText`), and writes a first `#` comment naming what changed. A value with a layout that cannot be divided cleanly is quoted with a continuation line per item; values written as blocks use the profile's alias.
+  - Tidied text in a compact element in a laid-out position, and a tidied comment there, is written as a laid-out block (§6.4), so pretty-printed `<style>` content becomes a plain block; in the normal form (with `--verbose`) it is a literal block without edges.
+  - In SVG text content, whitespace between children is normalized only where every gap already holds a space or tab (and, inside text, the edges too), because SVG 1.1 renders a bare line break as nothing; text there is never tidied.
   - Aliases are declared only on the root, only for aliases actually used, and only where the root's namespace declarations name the element and attribute. One declaration serves the whole document, and the output never depends on the profile.
   - Element aliases (`@node`, specification §8.7) are declared before the root, only for aliases actually used. An SML element alias stands for a lexical name, while a profile names an expanded name, so the writer declares the alias for the lexical name of the first element with that expanded name and opens only the elements with both. An alias that an element of the document is named like is not used at all, so the writer never needs `@element` for it. The shipped `svg.smlprofile` declares `@node g group` and `@node p para`.
 - **Verbose.** `--verbose` sets `SmlWriterOptions.VerticalAttributes`. It replaces canonical rule 5 (inline or vertical) with "always vertical" and changes nothing else.
@@ -59,7 +60,7 @@
 - `FileExpander` (wildcards) is public for the same reason; `FileExpanderTests` covers its matcher.
 - All format logic is in `Source/Sml` (`SmlReader`, `SmlWriter` with `SmlWriterOptions`, `XmlImporter`, `XmlExporter`, `SmlProfile`, `ValueLayout`).
 - `svg.smlprofile` is the built-in profile. `SmlXml.csproj` copies every `*.smlprofile` to the build and publish output; `ExcludeFromSingleFile` keeps the profile beside the executable rather than inside the single-file bundle.
-- `Source/Sml.Tests/ProfileTests.cs` covers the layouts, the profile format, and the writer. It cleans every fixture in `Tests/svg-roundtrip/corpus` and every file in `Tests/svg-corpus`, and checks that only the whitespace of values with a layout and of code changes, and that cleaning twice gives the same SML. `WriterOptionsTests.cs` does the same for vertical attributes.
+- `Source/Sml.Tests/ProfileTests.cs` covers the layouts, the profile format, and the writer. It cleans every fixture in `Tests/svg-roundtrip/corpus` and every file in `Tests/svg-corpus`, and checks, against an independent statement of the rules, that only formatting whitespace, values with a layout, and multi-line text and comments change, and that cleaning twice gives the same SML. `WriterOptionsTests.cs` does the same for vertical attributes.
 
 ## Build
 

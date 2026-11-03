@@ -49,7 +49,7 @@ SML also has vertical attributes, multiline literal blocks for long paths, CSS, 
 - **Values are opaque.** Path data, transforms, styles, and scripts are kept exactly as written; the converter never reformats numbers or geometry.
 - **Canonical form.** XML → SML output is deterministic, so converted files diff cleanly.
 - **Verbatim blocks.** A multiline block keeps its text exactly, trailing whitespace and indentation included; only the closing `"""`'s indentation comes off each line. CSS and scripts copied from an editor stay readable text.
-- **Readable on request.** `--clean` with a profile puts path data, point lists, styles, and transforms one item per line in blocks, and tidies the whitespace of CSS and scripts (§3.2). It is explicit and lossy.
+- **Readable on request.** `--clean` (or `--tidy`) with a profile ignores the input's indentation, puts path data, point lists, styles, and transforms one item per line in blocks, and tidies multi-line text and comments (§§3.1–3.2). It is explicit and lossy; the XML written back is indented by two spaces.
 - **Safe.** External DTDs and entities are never loaded.
 
 ## Repository contents
@@ -74,7 +74,7 @@ SML also has vertical attributes, multiline literal blocks for long paths, CSS, 
 | `smlxml drawing.sml` | Writes `drawing.svg` |
 | `smlxml art\**\*.svg` | Converts every SVG below `art`; `smlxml` expands wildcards itself, so this works in Windows shells too |
 | `smlxml -o *.out.svg *.sml` | Writes `name.out.svg` for each `name.sml` |
-| `smlxml --clean svg drawing.svg` | Writes path data, point lists, styles, and transforms one item per line in blocks, and tidies CSS and scripts: more readable, but no longer lossless |
+| `smlxml --clean svg drawing.svg` | Writes readable SML: indentation tidied whatever the input's was, path data, point lists, styles, and transforms one item per line, and multi-line text and comments tidied. More readable, but no longer lossless; `--tidy` is the same option |
 | `smlxml --verbose drawing.svg` | Writes every attribute on its own line instead of in `name(...)` lists |
 
 An existing file is never overwritten without `-f`. Errors are reported as `file(line): error: message`. See [`Source/SmlXml/README.md`](Source/SmlXml/README.md) for all options.

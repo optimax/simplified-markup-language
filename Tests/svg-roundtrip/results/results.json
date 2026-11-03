@@ -522,6 +522,16 @@
       "notes": []
     },
     {
+      "id": "84-nested-indentation",
+      "xml_baseline": "PASS",
+      "lxml_crosscheck": "PASS",
+      "sml_round_trip": "PASS",
+      "xml_reimport": "PASS",
+      "stable": "PASS",
+      "kdl_2_0": "NOT_RUN",
+      "notes": []
+    },
+    {
       "id": "X1-long-values",
       "xml_baseline": "PASS",
       "lxml_crosscheck": "PASS",
@@ -617,14 +627,14 @@
     }
   ],
   "unit_tests": {
-    "run": 61,
+    "run": 62,
     "failed": []
   },
   "fuzz": {
     "seed": 1,
     "documents": 300,
     "sml_mutants": 1200,
-    "sml_mutants_accepted": 288,
+    "sml_mutants_accepted": 283,
     "xml_mutants": 1200,
     "xml_mutants_both_accepted": 337,
     "known_divergences": {
