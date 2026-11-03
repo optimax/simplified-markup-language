@@ -1,6 +1,6 @@
 using System.Text;
 
-namespace Sml;
+namespace OptimaxTools.SMLReadWrite;
 
 /// <summary>Lays out a CSS style sheet for reading (specification §3.2): each statement on its own line, a rule as
 /// its selector and <c>{</c>, its declarations one per line and one level deeper, and <c>}</c>; nested blocks such as

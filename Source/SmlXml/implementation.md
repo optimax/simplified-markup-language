@@ -60,7 +60,7 @@
 
 - `Program.cs` calls `CommandLine.Run`, which is public so that `Source/Sml.Tests/CommandLineTests.cs` can test the command line without starting a process.
 - `FileExpander` (wildcards) is public for the same reason; `FileExpanderTests` covers its matcher.
-- All format logic is in `Source/Sml` (`SmlReader`, `SmlWriter` with `SmlWriterOptions`, `XmlImporter`, `XmlExporter`, `SmlProfile`, `ValueLayout`).
+- All format logic is in the library `OptimaxTools.SMLReadWrite` (`Source/OptimaxTools.SMLReadWrite`): `CommandLine.Convert` reads the file, calls `SmlConverter.SmlToXml` or `SmlConverter.XmlToSml`, and writes the result with `SmlConverter.Encoding`. The single-file publish bundles the library's DLL into `smlxml.exe`.
 - `svg.smlprofile` is the built-in profile. `SmlXml.csproj` copies every `*.smlprofile` to the build and publish output; `ExcludeFromSingleFile` keeps the profile beside the executable rather than inside the single-file bundle.
 - `Source/Sml.Tests/ProfileTests.cs` covers the layouts, the profile format, and the writer. It cleans every fixture in `Tests/svg-roundtrip/corpus` and every file in `Tests/svg-corpus`, and checks, against an independent statement of the rules, that only formatting whitespace, values with a layout, and multi-line text and comments change, and that cleaning twice gives the same SML. `WriterOptionsTests.cs` does the same for vertical attributes.
 

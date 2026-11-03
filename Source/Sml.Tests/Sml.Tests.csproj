@@ -15,12 +15,13 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Sml\Sml.csproj" />
+    <ProjectReference Include="..\OptimaxTools.SMLReadWrite\OptimaxTools.SMLReadWrite.csproj" />
     <ProjectReference Include="..\SmlXml\SmlXml.csproj" />
   </ItemGroup>
 
   <ItemGroup>
     <Using Include="Xunit" />
+    <Using Include="OptimaxTools.SMLReadWrite" />
   </ItemGroup>
 
 </Project>

@@ -1,6 +1,6 @@
 using System.Text;
 
-namespace Sml;
+namespace OptimaxTools.SMLReadWrite;
 
 /// <summary>Writes SML: the canonical form (specification §14.2), a function of the document alone, or with an
 /// <see cref="SmlProfile"/>, the canonical form adjusted by the profile's aliases and layouts.</summary>

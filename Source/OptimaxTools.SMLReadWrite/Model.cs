@@ -1,4 +1,4 @@
-namespace Sml;
+namespace OptimaxTools.SMLReadWrite;
 
 /// <summary>A node of the SML information model (specification §2).</summary>
 public abstract class SmlNode

@@ -58,7 +58,7 @@ SML also has vertical attributes, multiline literal blocks for long paths, CSS, 
 |---|---|
 | [`Documents/SML-Language-Specification.md`](Documents/SML-Language-Specification.md) | The specification, revision 1.0-SVG-1 |
 | [`Documents/sml-vs-kdl-vs-ndl.md`](Documents/sml-vs-kdl-vs-ndl.md) | Design study comparing SML with KDL and NDL for hand-editable SVG |
-| [`Source/Sml/`](Source/Sml/) | C# library: SML reader, canonical writer, XML importer and exporter |
+| [`Source/OptimaxTools.SMLReadWrite/`](Source/OptimaxTools.SMLReadWrite/) | C# library `OptimaxTools.SMLReadWrite`: SML reader and writer, XML importer and exporter, cleaning with profiles; usable by any .NET application |
 | [`Source/SmlXml/`](Source/SmlXml/) | `smlxml`, the command-line converter |
 | [`Source/Sml.Tests/`](Source/Sml.Tests/) | xUnit tests for the library and the command line |
 | [`Tests/svg-roundtrip/`](Tests/svg-roundtrip/) | Python prototype, conformance fixtures, and fuzz and differential tests |

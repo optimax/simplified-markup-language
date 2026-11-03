@@ -21,7 +21,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Sml\Sml.csproj" />
+    <ProjectReference Include="..\OptimaxTools.SMLReadWrite\OptimaxTools.SMLReadWrite.csproj" />
   </ItemGroup>
 
   <!-- The MIT license ships beside smlxml.exe. ExcludeFromSingleFile keeps it a separate file when publishing

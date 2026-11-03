@@ -1,4 +1,4 @@
-namespace Sml;
+namespace OptimaxTools.SMLReadWrite;
 
 /// <summary>A document is malformed or cannot be represented.</summary>
 public class SmlException(string reason, int? line = null)

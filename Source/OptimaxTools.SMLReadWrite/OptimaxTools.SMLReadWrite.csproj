@@ -4,11 +4,13 @@
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    <RootNamespace>Sml</RootNamespace>
-    <AssemblyName>Sml</AssemblyName>
+    <RootNamespace>OptimaxTools.SMLReadWrite</RootNamespace>
+    <AssemblyName>OptimaxTools.SMLReadWrite</AssemblyName>
     <Version>1.0.0</Version>
     <Company>Optimax Technologies, Inc.</Company>
     <Copyright>Copyright (c) 2026 Optimax Technologies, Inc.</Copyright>
+    <Product>OptimaxTools.SMLReadWrite</Product>
+    <Description>Reads and writes SML 1.0-SVG-1 and XML/SVG: the SML reader and writer, the XML importer and exporter, and cleaning with profiles.</Description>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
   </PropertyGroup>
 

@@ -1,7 +1,7 @@
 <Solution>
   <Folder Name="/Source/">
+    <Project Path="Source/OptimaxTools.SMLReadWrite/OptimaxTools.SMLReadWrite.csproj" />
     <Project Path="Source/Sml.Tests/Sml.Tests.csproj" />
-    <Project Path="Source/Sml/Sml.csproj" />
     <Project Path="Source/SmlXml/SmlXml.csproj" />
   </Folder>
 </Solution>

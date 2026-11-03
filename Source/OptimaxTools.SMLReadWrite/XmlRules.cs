@@ -1,7 +1,7 @@
 using System.Globalization;
 using System.Text;
 
-namespace Sml;
+namespace OptimaxTools.SMLReadWrite;
 
 /// <summary>XML 1.0 (Fifth Edition) name and character rules, and the validation shared by the SML reader
 /// and the XML importer. Names are scanned by code point (Rune) so that characters outside the BMP work.</summary>

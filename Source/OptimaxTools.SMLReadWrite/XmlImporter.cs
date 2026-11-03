@@ -1,7 +1,7 @@
 using System.Text;
 using System.Xml;
 
-namespace Sml;
+namespace OptimaxTools.SMLReadWrite;
 
 /// <summary>Reads XML into the information model under the strict profile (specification §§2–3, 11.1).</summary>
 public static class XmlImporter

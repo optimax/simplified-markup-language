@@ -1,7 +1,7 @@
 using System.Text;
 using System.Text.RegularExpressions;
 
-namespace Sml;
+namespace OptimaxTools.SMLReadWrite;
 
 /// <summary>Reads SML 1.0-SVG-1 (specification §§4–13) into the information model.</summary>
 public sealed partial class SmlReader

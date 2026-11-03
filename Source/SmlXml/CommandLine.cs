@@ -1,18 +1,16 @@
 using System.Reflection;
 using System.Text;
-using Sml;
+using OptimaxTools.SMLReadWrite;
 
 namespace SmlXml;
 
-/// <summary>The smlxml command line: converts .sml files to XML and any other file (XML, SVG) to SML.</summary>
+/// <summary>The smlxml command line: converts .sml files to XML and any other file (XML, SVG) to SML. It handles
+/// arguments, wildcards, files, and messages; the conversion itself is OptimaxTools.SMLReadWrite's.</summary>
 public static class CommandLine
 {
     public const int Success = 0;
     public const int ConversionFailed = 1;
     public const int UsageError = 2;
-
-    private const string SvgNamespace = "http://www.w3.org/2000/svg";
-    private static readonly UTF8Encoding Utf8NoBom = new(encoderShouldEmitUTF8Identifier: false);
 
     private const string Usage = """
         Usage: smlxml [options] <file>...
@@ -207,8 +205,6 @@ public static class CommandLine
         typeof(CommandLine).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion
             .Split('+')[0] ?? "1.0.0";
 
-    private static bool IsSml(string path) => Path.GetExtension(path).Equals(".sml", StringComparison.OrdinalIgnoreCase);
-
     /// <summary>Converts one file to output, or to its default name when output is null. Errors are reported as
     /// "file(line): error: message". An output that is also an input of the run is refused, so that a pattern
     /// such as * cannot convert a.svg to a.sml and a.sml back to a.svg; so is an output already written by the
@@ -224,17 +220,15 @@ public static class CommandLine
             }
             byte[] data = File.ReadAllBytes(input);
             string text;
-            if (IsSml(input))
+            if (SmlConverter.IsSmlFileName(input))
             {
-                SmlDocument doc = SmlReader.Read(data);
-                output ??= Path.ChangeExtension(input, IsSvg(doc) ? ".svg" : ".xml");
-                text = XmlExporter.Write(doc);
+                (text, string extension) = SmlConverter.SmlToXml(data);
+                output ??= Path.ChangeExtension(input, extension);
             }
             else
             {
+                text = SmlConverter.XmlToSml(data, run.Writer);
                 output ??= Path.ChangeExtension(input, ".sml");
-                SmlDocument doc = XmlImporter.Read(data);
-                text = SmlWriter.Write(doc, run.Writer);
             }
             string fullOutput = Path.GetFullPath(output);
             if (fullOutput == Path.GetFullPath(input))
@@ -274,8 +268,6 @@ public static class CommandLine
         }
     }
 
-    private static bool IsSvg(SmlDocument doc) => doc.Root.Name == new ExpandedName(SvgNamespace, "svg");
-
     /// <summary>Writes to a temporary file beside the target, then renames it, so a failure never leaves a
     /// partial output file. A missing output folder (from --output) is created.</summary>
     private static void WriteAtomically(string path, string text)
@@ -285,7 +277,7 @@ public static class CommandLine
         string temp = Path.Combine(directory, $".{Path.GetFileName(path)}.{Guid.NewGuid():N}.tmp");
         try
         {
-            File.WriteAllText(temp, text, Utf8NoBom);
+            File.WriteAllText(temp, text, SmlConverter.Encoding);
             File.Move(temp, path, overwrite: true);
         }
         finally

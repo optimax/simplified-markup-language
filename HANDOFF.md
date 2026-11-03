@@ -6,15 +6,15 @@ Provide `smlxml`, a two-way SML ↔ XML/SVG command-line converter in C# on .NET
 
 ## Current state
 
-- **`Source/Sml`** (library) implements:
+- **`Source/OptimaxTools.SMLReadWrite`** (library, assembly and namespace `OptimaxTools.SMLReadWrite`; the user named it, for reuse by a GUI application) implements:
   - the SML reader;
   - the §14.2 canonical writer;
   - an XML importer on System.Xml, with namespace processing off and validation done by `XmlRules`;
   - the XML exporter and document comparison;
   - cleaning with a profile (`SmlProfile`, `ValueLayout`), which only C# has.
 
-  Apart from cleaning, it is a port of `Tests/svg-roundtrip/sml_prototype.py`.
-- **`Source/SmlXml`** (`smlxml`) is the command line.
+  Apart from cleaning, it is a port of `Tests/svg-roundtrip/sml_prototype.py`. `SmlConverter` is its one-call entry point (`XmlToSml`, `SmlToXml`, `XmlExtension`, `Encoding`); its `README.md` shows the API.
+- **`Source/SmlXml`** (`smlxml`) is the command line, a shell around the library: arguments, wildcards, files, and messages.
   - It expands wildcards in input names itself (`*`, `?`, `**`; `FileExpander`).
   - It accepts `*` patterns in `--output` (one output per input, `ApplyOutputPattern`).
   - It shows the usage when run without arguments.
@@ -22,7 +22,7 @@ Provide `smlxml`, a two-way SML ↔ XML/SVG command-line converter in C# on .NET
   - With `--verbose`, it writes every attribute and namespace declaration on its own line.
 
   Behavior and requirements are in `Source/SmlXml/implementation.md`, usage and the profile format in `Source/SmlXml/README.md`.
-- **`Source/Sml.Tests`** has 3,417 xUnit tests:
+- **`Source/Sml.Tests`** has 3,420 xUnit tests:
   - the corpus, compared byte for byte with the Python reference output;
   - both round trips;
   - the negative corpus;
@@ -53,6 +53,7 @@ The user's fire SVG (copied out of HTML, so its root's children sit at 4 spaces 
 - **Follow-ups (same session).**
   - Cleaned output no longer starts with a `# Cleaned … not exact` comment. Instead its header is `@sml 1.0-SVG-1 tidy`: `@sml VERSION [tidy]` (§11, grammar, CP-20). Both readers accept `tidy` and ignore it; only cleaning writes it, always.
   - **Two-space indentation is the default** (§6.4): without an `@indent` header the reader predicts two spaces, so both writers omit `@indent 2`. `@indent none` (header only) turns the model off; the writer writes it only when the default would change the document (`default_matters`/`DefaultMatters`: an element with a child element, a multi-line prolog or epilog comment, or multi-line root text). §14.2 rules 2 and 9, SV-60, the grammar, and the examples changed; test inputs that need exact reading start with `@indent none`. Over the corpus, 634 of the 972 accepted files have no `@indent` line in their canonical SML, and 207 have `@indent none`.
+  - **Library extracted as `OptimaxTools.SMLReadWrite`** (the user's request). `Source/Sml` was renamed (folder, project, assembly, namespace) with `git mv`; the conversion dispatch moved from `CommandLine.Convert` into `SmlConverter`; `ConverterTests` cover it. The test project keeps its name `Sml.Tests` and has a global `using OptimaxTools.SMLReadWrite`. The Windows publish still gives one `smlxml.exe` per bitness, with the library inside.
   - **Alias declarations at the top** (§§8.1, 8.2, 8.5, grammar; SV-85 in both suites; the user's request). `@block` may now appear before the root, applying to the whole document, with its names resolved where the alias is invoked; declaration sections still win (nearest scope). Tidy output declares every `@node` and `@block` right after the `@sml` line instead of on the root, each `@block` with the names of its first use. The fuzzer writes `@block` before the root in some variants.
   - **Style sheets laid out as CSS under `--clean`** (§3.2; the user's request). `CssFormatter` puts each statement on its own line, a rule as `selector {`, one declaration per line two spaces deeper, and `}`, with nested blocks indented; strings, comments, and parentheses are kept, and a sheet that does not parse is tidied as text. It applies to SVG `style` with no type or `text/css`, also under `xml:space="preserve"`. Exact conversion is unchanged. `ProfileTests.LaysOutStyleSheets`; the corpus theory compares style sheets without whitespace.
   - **CDATA for style sheets and scripts** (§9; SV-73b in both suites; the user's request). XML output writes the text of `style` and `script` as `<![CDATA[…]]>` when it contains `<`, `&`, or `>` (`_text_xml` / `XmlExporter.Text`), splitting `]]>`; text with a CR stays escaped.
@@ -64,7 +65,7 @@ The user's fire SVG (copied out of HTML, so its root's children sit at 4 spaces 
 ## Build and test results
 
 - `dotnet build SimplifiedMarkupLanguage.slnx -c Release`: 0 warnings, 0 errors.
-- `dotnet test`: 3,417/3,417 passed (with the 985 corpus files), including the byte-for-byte comparison with the regenerated Python reference SML.
+- `dotnet test`: 3,420/3,420 passed (with the 985 corpus files), including the byte-for-byte comparison with the regenerated Python reference SML.
 - `fuzz_roundtrip.py --docs 2000 --seed 7`: 0 findings (only the known parser divergences).
 - With normalized and pretty-printed comments: `crosscheck_csharp.py --seed 8` (1,000 documents, 4,000 mutants) and `fuzz_roundtrip.py --docs 1500 --seed 39`: 0 findings; the fuzzer also writes comments with blank lines around them and extra indentation on every line, which readers must remove. Earlier, with trimming only: seed 6 and seed 37, 0 findings. Python and C# byte-identical over the corpus; `--clean svg` output read back by Python for all 972 accepted files.
 - With the default indentation: `crosscheck_csharp.py --seed 5` (1,000 documents, 4,000 mutants) and `fuzz_roundtrip.py --docs 1500 --seed 35`: 0 findings; Python and C# byte-identical over the corpus (972 accepted, the same 4 rejected); `--clean svg` output read back by Python for all 972.

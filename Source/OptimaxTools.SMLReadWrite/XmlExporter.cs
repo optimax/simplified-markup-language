@@ -1,6 +1,6 @@
 using System.Text;
 
-namespace Sml;
+namespace OptimaxTools.SMLReadWrite;
 
 /// <summary>Writes the information model as XML 1.0 in UTF-8 (specification §11, §14.3).</summary>
 public static class XmlExporter

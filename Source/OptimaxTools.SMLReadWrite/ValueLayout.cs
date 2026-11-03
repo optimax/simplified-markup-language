@@ -1,4 +1,4 @@
-namespace Sml;
+namespace OptimaxTools.SMLReadWrite;
 
 /// <summary>The kinds of structured attribute value that a layout divides into items (specification §3.2).</summary>
 public enum LayoutKind

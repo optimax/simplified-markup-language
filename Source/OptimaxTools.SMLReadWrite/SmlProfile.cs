@@ -1,4 +1,4 @@
-namespace Sml;
+namespace OptimaxTools.SMLReadWrite;
 
 /// <summary>An SML profile: the aliases and layouts with which an SML writer cleans the SML it writes from XML (see
 /// <see cref="SmlWriter.Write(SmlDocument, SmlProfile)"/> and §3.2). A profile is writer configuration, not part of

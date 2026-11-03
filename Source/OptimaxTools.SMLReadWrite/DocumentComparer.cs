@@ -1,4 +1,4 @@
-namespace Sml;
+namespace OptimaxTools.SMLReadWrite;
 
 /// <summary>The strict profile's document equality (§3), including prefixes and declaration locations.</summary>
 public static class DocumentComparer

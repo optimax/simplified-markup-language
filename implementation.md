@@ -5,7 +5,8 @@
 | Product | Location | Purpose |
 |---|---|---|
 | SML specification | `Documents/SML-Language-Specification.md` | The language: SML 1.0-SVG-1 |
-| `smlxml` | `Source/SmlXml/` (command line), `Source/Sml/` (library) | Two-way SML ↔ XML/SVG converter in C# |
+| `smlxml` | `Source/SmlXml/` (command line) | Two-way SML ↔ XML/SVG converter in C# |
+| `OptimaxTools.SMLReadWrite` | `Source/OptimaxTools.SMLReadWrite/` (library) | Reads and writes SML and XML; used by `smlxml` and meant for other applications, such as an editor |
 | Python prototype and test harness | `Tests/svg-roundtrip/` | Reference implementation, fixture corpus, fuzz and differential tests |
 | SVG corpus | `Tests/svg-corpus/` | 985 third-party real-world SVG files from around the world, kept as examples |
 
@@ -33,11 +34,11 @@ The publish profile writes two framework-dependent single-file executables, each
 - **Two implementations, one behavior.** The Python prototype and the C# library implement the same specification. Their canonical SML must be byte-identical: `CorpusTests` compares C# output with `Tests/svg-roundtrip/results/*.sml`, and `crosscheck_csharp.py` compares both on random documents and mutants. A change to the specification's syntax or canonical form must be made in both, followed by both test suites and the cross-check. Writer options (`SmlWriterOptions`: cleaning with a profile, `SmlProfile` and `ValueLayout`, as in §3.2, and vertical attributes) exist only in C#. They change neither syntax nor the canonical form, and their output is ordinary SML that the Python reader must read the same way.
 - **Code points, not UTF-16 units.** The canonical form measures lines in code points and orders names by code point. In C#, use `XmlRules.CodePointLength` and `XmlRules.CompareCodePoints`, never `string.Length` or ordinal comparison, for those rules.
 - **Warnings are errors** in all C# projects.
-- **Calculation separate from presentation.** `Source/Sml` has no console or file-system code; `Source/SmlXml/CommandLine.cs` owns arguments, files, and messages.
+- **Calculation separate from presentation.** `OptimaxTools.SMLReadWrite` has no console or file-system code: it converts bytes and strings. `Source/SmlXml/CommandLine.cs` owns arguments, wildcards, files, and messages, and calls `SmlConverter` for each file.
 
 ## Decisions
 
-- **The library is split from the command line** so that the format logic can be tested directly and reused by future tools such as an editor.
+- **The library is split from the command line** so that the format logic can be tested directly and reused by other applications such as a GUI editor. The user named it `OptimaxTools.SMLReadWrite` (assembly, namespace, and project folder). `SmlConverter` is its one-call entry point; the lower-level types stay public for applications that work with the document model.
 - **The XML importer turns off System.Xml namespace processing.** It uses `XmlTextReader` with `Namespaces = false`, wrapped with character checking, and validates names and namespaces itself with `XmlRules`, as the SML reader does. With namespace processing on, System.Xml rejects `xml:space` values other than `default` and `preserve`, which are well-formed opaque values without a DTD.
 - **Blocks are delimited by `"""`**, with a longer run of quotation marks when a payload line is `"""`, and `end` closes only elements.
   - Braces were rejected: CSS and scripts, the usual block payloads, put `}` alone on a line, so a brace-delimited block would close early and the rest of the CSS would parse as SML.

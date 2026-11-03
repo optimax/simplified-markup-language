@@ -1,4 +1,4 @@
-namespace Sml;
+namespace OptimaxTools.SMLReadWrite;
 
 /// <summary>How <see cref="SmlWriter"/> departs from the canonical form (§14.2). The default options give the
 /// canonical form.</summary>
