@@ -310,7 +310,7 @@ public sealed class CommandLineTests : IDisposable
         File.WriteAllText(PathOf("drawing.svg"), PathXml);
         Assert.Equal(CommandLine.Success, Run("--clean", "svg", PathOf("drawing.svg")).Code);
         string cleaned = File.ReadAllText(PathOf("drawing.sml"));
-        Assert.StartsWith("# Cleaned (SML §3.2), not exact: formatting whitespace normalized; one item per line in d\n", cleaned);
+        Assert.StartsWith("@sml 1.0-SVG-1 tidy\n@indent 2\n", cleaned);
         Assert.Contains("  @block path .d data\n", cleaned);
         Assert.Contains("    data \"\"\"\n      M 0 0\n      L 1 1\n      \"\"\"\n", cleaned);
         Assert.Equal(CommandLine.Success, Run("-c", "svg", "-f", PathOf("drawing.svg")).Code);
@@ -326,7 +326,7 @@ public sealed class CommandLineTests : IDisposable
         File.WriteAllText(PathOf("data.xml"), "<r v=\"1 2\"/>");
         File.WriteAllText(PathOf("other.sml"), "r(v=3)/\n");
         Assert.Equal(CommandLine.Success, Run("-c", PathOf("mine.smlprofile"), PathOf("data.xml"), PathOf("other.sml")).Code);
-        Assert.Equal("# Cleaned (SML §3.2), not exact: one item per line in v\n@sml 1.0-SVG-1\nr\n  .v \"\"\"\n    1\n    2\n    \"\"\"\nend\n",
+        Assert.Equal("@sml 1.0-SVG-1 tidy\nr\n  .v \"\"\"\n    1\n    2\n    \"\"\"\nend\n",
             File.ReadAllText(PathOf("data.sml")));
         Assert.Equal("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<r v=\"3\"/>\n", File.ReadAllText(PathOf("other.xml")));
     }

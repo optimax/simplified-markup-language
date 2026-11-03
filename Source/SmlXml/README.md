@@ -86,8 +86,7 @@ Elements without attributes keep their compact forms (`g/`, `title = Text`), and
 becomes
 
 ```text
-# Cleaned (SML §3.2), not exact: one item per line in d; text tidied in style
-@sml 1.0-SVG-1
+@sml 1.0-SVG-1 tidy
 @indent 2
 @node g group
 svg(xmlns=http://www.w3.org/2000/svg)
@@ -109,7 +108,7 @@ svg(xmlns=http://www.w3.org/2000/svg)
 end
 ```
 
-This is a readable conversion, not a strict one (§§3.1–3.2 of the specification). Values and text now differ in whitespace, so converting the SML back gives SVG that renders the same but is not identical, and the first line says so.
+This is a readable conversion, not a strict one (§§3.1–3.2 of the specification). Values and text now differ in whitespace, so converting the SML back gives SVG that renders the same but is not identical. The first line, `@sml 1.0-SVG-1 tidy`, says so.
 
 - In path data, each command letter and each comma is followed by a space, so `M10,20L30,40` becomes the lines `M 10, 20` and `L 30, 40`. Parameters written together are separated too, so `a.75.75 0 01-.69-.35` becomes `a .75 .75 0 0 1 -.69 -.35`. Parameters are read as path data reads them: numbers each as long as possible, and an arc's two flags as single characters `0` or `1`.
 - Point lists and other number lists are spaced the same way: `10,20` becomes `10, 20`, and `1-2` becomes `1 -2`.

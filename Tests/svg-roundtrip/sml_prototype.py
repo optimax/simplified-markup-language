@@ -682,7 +682,12 @@ class SmlReader:
         if self.seen_statement:
             raise SmlError('@sml must be the first statement', ln)
         self.header('sml', ln)
-        version = strip_ht(rest)
+        operands = [t for t in re.split(r'[ \t]+', rest) if t]
+        if len(operands) == 2 and operands[1] == 'tidy':   # written by a readable import (§3.1); no effect here
+            operands.pop()
+        if len(operands) != 1:
+            raise SmlError('@sml takes a version, optionally followed by tidy', ln)
+        version = operands[0]
         if version in (SML_VERSION, '1.0'):
             return
         if version.startswith('1.0-SVG-'):
@@ -830,6 +835,10 @@ class SmlReader:
             return ''
         f = self.stack[-1]
         return f.indentation + f.step if f.layout else None
+
+    def d_rem(self, rest: str, ln: int) -> None:
+        """@rem, or its synonym @comment: an XML comment (§9)."""
+        self.d_comment(rest, ln)
 
     def d_comment(self, rest: str, ln: int) -> None:
         kind, value = self.parse_value_tail(rest, ln)
@@ -1199,14 +1208,14 @@ class SmlWriter:
         """Writes a comment; in a laid-out position a block has predicted edges (§6.4), so a block is used only
         for data in that layout, and other multi-line data is quoted."""
         ind = '  ' * depth
-        if not laid_out or not data or (raw_ok(data) and len(ind) + 9 + len(data) <= LINE_LIMIT):
-            self.value(ind + '@comment', data, depth, allow_block=not laid_out)
+        if not laid_out or not data or (raw_ok(data) and len(ind) + 5 + len(data) <= LINE_LIMIT):
+            self.value(ind + '@rem', data, depth, allow_block=not laid_out)
             return
         value = laid_out_value(data, indentation, self.unit)
         if value is None or not visible(value):
-            self.value(ind + '@comment', data, depth, allow_block=False)
+            self.value(ind + '@rem', data, depth, allow_block=False)
             return
-        self.block(ind + '@comment', value, depth)
+        self.block(ind + '@rem', value, depth)
 
     def compact_text(self, prefix: str, data: str, depth: int, indentation: str, laid_out: bool) -> bool:
         """Writes prefix and an element's only text in the compact form, and returns True; or returns False when

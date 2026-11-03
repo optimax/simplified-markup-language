@@ -46,9 +46,12 @@ The user's fire SVG (copied out of HTML, so its root's children sit at 4 spaces 
   - formatting whitespace in eligible elements is replaced by the prediction of `@indent 2` (`FindNormalized`); in SVG text content only where every gap already has a space or tab (and, nested in text, the edges), since SVG 1.1 renders a bare line break as nothing; never under `xml:space="preserve"` or in `foreignObject`. §3.1's eligibility now covers every namespace, not only SVG's;
   - multi-line text outside SVG text content and multi-line comments are tidied (`TidyText`: line-end whitespace, empty first and last lines, runs of empty lines, shared indentation) and written as laid-out blocks; this replaces the `@layout element = code` profile statement, which is removed;
   - `--tidy` is an alias for `--clean`;
-  - the first-line comment names what changed: `formatting whitespace normalized`, `one item per line in …`, `text tidied in …`, `comments tidied`.
   - Over the corpus, the only whitespace-only text statements left under `--clean` are 9 inside resvg's text-layout tests, where they can change rendering.
 - Files: `Documents/SML-Language-Specification.md` (§§3.1, 3.2, 6.4, 14.2 rule 9; SV-65, SV-84), `sml_prototype.py` (`layout_step`, `laid_out_children`, `plan`, `choose_indent`), `build_and_test.py` (fixture 84), `test_sml_core.py`, `SmlWriter.cs` (`Plan`, `ChooseIndent`, `FindNormalized`, `TidyText`, comment tidying, header), `SmlProfile.cs` (code layout removed), `CommandLine.cs` (`--tidy`, usage), `svg.smlprofile`, `ReaderTests.cs`, `ProfileTests.cs` (cleaning tests, corpus theory with an independent `Normalize`), `CommandLineTests.cs`, `WriterOptionsTests.cs`, both READMEs, both `implementation.md`.
+
+- **Follow-ups (same session).**
+  - Cleaned output no longer starts with a `# Cleaned … not exact` comment. Instead its header is `@sml 1.0-SVG-1 tidy`: `@sml VERSION [tidy]` (§11, grammar, CP-20). Both readers accept `tidy` and ignore it; only cleaning writes it, always.
+  - `@rem` is the comment directive; `@comment` is a synonym that both readers accept (§9). Both writers write only `@rem`, so every reference output with a comment changed. The run form stays `@comments """` (the user's choice). The fuzzer writes both spellings; `Tools/NodepadPlusPlus-SML-Syntax.xml` colors `@rem` too.
 
 ## Build and test results
 

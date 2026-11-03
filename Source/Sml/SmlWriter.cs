@@ -30,24 +30,12 @@ public sealed class SmlWriter
     /// <summary>The elements opened with an alias: expanded name and lexical name.</summary>
     private readonly Dictionary<(ExpandedName Name, string QName), string> _nodeAliasOf = [];
 
-    /// <summary>The lexical names of the attributes whose values were reflowed.</summary>
-    private readonly SortedSet<string> _reflowed = new(Comparer<string>.Create(XmlRules.CompareCodePoints));
-
-    /// <summary>The lexical names of the elements whose text was tidied.</summary>
-    private readonly SortedSet<string> _tidied = new(Comparer<string>.Create(XmlRules.CompareCodePoints));
-
     /// <summary>The elements whose formatting whitespace cleaning replaces (§3.1).</summary>
     private readonly HashSet<ElementNode> _normalized = [];
 
     /// <summary>The elements whose multi-line text cleaning may tidy (§3.2): outside SVG text content,
     /// foreignObject, and xml:space="preserve".</summary>
     private readonly HashSet<ElementNode> _tidyable = [];
-
-    /// <summary>Whether cleaning tidied a comment.</summary>
-    private bool _commentsTidied;
-
-    /// <summary>Whether cleaning changed any formatting whitespace.</summary>
-    private bool _whitespaceChanged;
 
     /// <summary>The indentation unit of cleaned SML, whatever the input's indentation (§3.1).</summary>
     private const string CleanUnit = "  ";
@@ -122,12 +110,12 @@ public sealed class SmlWriter
 
     /// <summary>Writes the document with options; anything but the default options gives output that is not
     /// canonical.
-    /// <para>Cleaned with a profile, the readable conversion of §3.2: each value with a layout is written with one
-    /// item per line, and the text of each code element is tidied, so the output reads back as a document that
-    /// differs in whitespace. A value written as a block uses the profile's alias for its attribute, declared on the
-    /// root element, and elements with an element alias are opened with it. A value with a layout that cannot be
-    /// divided cleanly keeps its whitespace and is quoted with a continuation line per item (§6.5). The output starts
-    /// with a <c>#</c> comment that names what changed.</para>
+    /// <para>Cleaned with a profile, the readable conversion of §§3.1–3.2: formatting whitespace follows
+    /// <c>@indent 2</c>, each value with a layout is written with one item per line, and multi-line text and comments
+    /// are tidied, so the output reads back as a document that differs in whitespace. A value written as a block uses
+    /// the profile's alias for its attribute, declared on the root element, and elements with an element alias are
+    /// opened with it. A value with a layout that cannot be divided cleanly keeps its whitespace and is quoted with a
+    /// continuation line per item (§6.5).</para>
     /// <para>With vertical attributes, every attribute and namespace declaration is on its own line; the output
     /// reads back as the same document.</para></summary>
     public static string Write(SmlDocument doc, SmlWriterOptions options) => new SmlWriter(doc, options).Write();
@@ -137,7 +125,7 @@ public sealed class SmlWriter
 
     private string Write()
     {
-        _out.Add("@sml " + SmlReader.Version);
+        _out.Add("@sml " + SmlReader.Version + (_profile is not null ? " tidy" : ""));
         if (_doc.Standalone is not null)
             _out.Add("@standalone " + _doc.Standalone);
         if (_unit is not null)
@@ -146,17 +134,6 @@ public sealed class SmlWriter
         Items(_doc.Prolog, 0, _unit is not null, "");
         Element(_doc.Root, 0, "", _unit is not null);
         Items(_doc.Epilog, 0, _unit is not null, "");
-        var changes = new List<string>();
-        if (_whitespaceChanged)
-            changes.Add("formatting whitespace normalized");
-        if (_reflowed.Count > 0)
-            changes.Add("one item per line in " + string.Join(", ", _reflowed));
-        if (_tidied.Count > 0)
-            changes.Add("text tidied in " + string.Join(", ", _tidied));
-        if (_commentsTidied)
-            changes.Add("comments tidied");
-        if (changes.Count > 0)
-            _out.Insert(0, "# Cleaned (SML §3.2), not exact: " + string.Join("; ", changes));
         return string.Join('\n', _out) + "\n";
     }
 
@@ -302,8 +279,6 @@ public sealed class SmlWriter
     {
         string ind = Indentation(depth);
         var (written, layout) = Effective(element, name, value);
-        if (written != value)
-            _reflowed.Add(name);
         if (_profile is not null && BlockTag(written) is { } tag)
         {
             string head = _aliasOf.TryGetValue((element.Name, name), out string? alias) ? alias : "." + name;
@@ -671,7 +646,6 @@ public sealed class SmlWriter
                 case CommentNode comment when _profile is not null && TidyText(comment.Data) is { } tidy:
                     // Cleaning: a multi-line comment is tidied, and laid out where its position is (§3.2, §6.4).
                     string data = laidOut && _unit is not null && tidy.Contains('\n') ? SmlReader.LayOutBlock(tidy, indentation, _unit) : tidy;
-                    _commentsTidied |= data != comment.Data;
                     Comment(data, depth, laidOut, indentation);
                     break;
                 default:
@@ -688,18 +662,18 @@ public sealed class SmlWriter
     {
         string ind = Indentation(depth);
         if (!laidOut || data.Length == 0
-            || (RawOk(data) && XmlRules.CodePointLength(ind) + 9 + XmlRules.CodePointLength(data) <= LineLimit))
+            || (RawOk(data) && XmlRules.CodePointLength(ind) + 5 + XmlRules.CodePointLength(data) <= LineLimit))
         {
-            Value(ind + "@comment", data, depth, allowBlock: !laidOut);
+            Value(ind + "@rem", data, depth, allowBlock: !laidOut);
             return;
         }
         string? value = LaidOutValue(data, indentation, _unit!);
         if (value is null || !Visible(value))
         {
-            Value(ind + "@comment", data, depth, allowBlock: false);
+            Value(ind + "@rem", data, depth, allowBlock: false);
             return;
         }
-        Block(ind + "@comment", value, BlockMarker(value)!, depth);
+        Block(ind + "@rem", value, BlockMarker(value)!, depth);
     }
 
     /// <summary>Writes prefix and an element's only text in the compact form, and returns true; or returns false
@@ -758,7 +732,6 @@ public sealed class SmlWriter
         if (_normalized.Contains(element))
         {
             // Cleaning: the formatting whitespace becomes the prediction of @indent 2, whatever it was (§3.1).
-            _whitespaceChanged |= !MatchesLayout(nodes, indentation, CleanUnit);
             (laidOut, step, local, noIndent) = (true, CleanUnit, null, false);
         }
         if (laidOut)
@@ -805,11 +778,7 @@ public sealed class SmlWriter
                 string data = code is null ? only.Data
                     : code.Contains('\n') && laidOutPosition && _unit is not null ? SmlReader.LayOutBlock(code, indentation, _unit) : code;
                 if (CompactText(ind + opener + " =", data, depth, indentation, laidOutPosition))
-                {
-                    if (data != only.Data)
-                        _tidied.Add(element.QualifiedName);
                     return;
-                }
             }
         }
         if (isEnd)
@@ -836,11 +805,8 @@ public sealed class SmlWriter
             _out.Add(inner + "@indent " + (local == "\t" ? "tab" : local.Length.ToString()));
         if (noIndent)
             _out.Add(inner + "@noindent");
-        if (code is not null && nodes is [TextNode original] && code != original.Data)
-        {
+        if (code is not null && nodes is [TextNode])
             nodes = [new TextNode(code)];
-            _tidied.Add(element.QualifiedName);
-        }
         Items(nodes, depth + 1, laidOut, indentation + (step ?? ""));
         _out.Add(ind + "end");
     }

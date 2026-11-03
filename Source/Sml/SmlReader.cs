@@ -627,7 +627,7 @@ public sealed partial class SmlReader
             case "block": BlockDeclaration(rest, ln); break;
             case "node": NodeDeclaration(rest, ln); break;
             case "noindent": NoIndent(rest, ln); break;
-            case "comment": Comment(rest, ln); break;
+            case "rem" or "comment": Comment(rest, ln); break;
             case "comments": Comments(rest, ln); break;
             case "pi": ProcessingInstruction(rest, ln); break;
             case "element": ExplicitElement(rest, ln); break;
@@ -648,7 +648,12 @@ public sealed partial class SmlReader
         if (_seenStatement)
             throw new SmlException("@sml must be the first statement", ln);
         Header("sml", ln);
-        string version = XmlRules.StripSpacesAndTabs(rest);
+        string[] operands = XmlRules.StripSpacesAndTabs(rest).Split([' ', '\t'], StringSplitOptions.RemoveEmptyEntries);
+        if (operands is [_, "tidy"])
+            operands = operands[..1];     // written by a readable import (§3.1); no effect on reading
+        if (operands.Length != 1)
+            throw new SmlException("@sml takes a version, optionally followed by tidy", ln);
+        string version = operands[0];
         if (version is Version or "1.0")
             return;
         if (version.StartsWith("1.0-SVG-", StringComparison.Ordinal))

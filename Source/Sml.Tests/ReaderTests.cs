@@ -113,7 +113,7 @@ public class ReaderTests
     [Fact]
     public void CP13_ContinuationLines()
     {
-        ElementNode g = Root("g\n  .a \"one \"\n    \"two\"\n  = \"t1\"\n    \"t2\"\n  @comment \"c1\"\n    \"c2\"\nend\n");
+        ElementNode g = Root("g\n  .a \"one \"\n    \"two\"\n  = \"t1\"\n    \"t2\"\n  @rem \"c1\"\n    \"c2\"\nend\n");
         Assert.Equal("one two", g.Attributes["a"]);
         Assert.Equal("t1t2", ((TextNode)g.Children[0]).Data);
         Assert.Equal("c1c2", ((CommentNode)g.Children[1]).Data);
@@ -150,10 +150,16 @@ public class ReaderTests
     [Fact]
     public void CP20_VersionHeader()
     {
-        Rejects("@comment x\n@sml 1.0-SVG-1\ng/\n", "first statement");
+        Rejects("@rem x\n@sml 1.0-SVG-1\ng/\n", "first statement");
         Rejects("@sml 1.0-SVG-2\ng/\n", "unsupported draft");
         Root("# note\n@sml 1.0-SVG-1\ng/\n");
         Root("@sml 1.0\ng/\n");
+        Root("@sml\t1.0  tidy\ng/\n");
+        Same("@sml 1.0-SVG-1 tidy\ng(a=1)/\n", "g(a=1)/\n");
+        foreach (string header in new[] { "@sml 1.0-SVG-1 neat", "@sml 1.0-SVG-1 tidy tidy", "@sml" })
+            Rejects(header + "\ng/\n", "@sml takes a version");
+        Rejects("@sml tidy\ng/\n", "unsupported SML version");
+        Rejects("@sml 1.0-SVG-2 tidy\ng/\n", "unsupported draft");
     }
 
     [Fact]
@@ -236,7 +242,7 @@ public class ReaderTests
     public void SV58_SV31_ProcessingInstructionAndCommentConstraints()
     {
         Rejects("@pi t \" x\"\ng/\n", "PI data");
-        Rejects("g\n  @comment \"a\\rb\"\nend\n", "CR");
+        Rejects("g\n  @rem \"a\\rb\"\nend\n", "CR");
         Rejects("@pi a:b x\ng/\n", "NCName");
     }
 
@@ -264,7 +270,7 @@ public class ReaderTests
     {
         Same("g\n  .d\"\"\"\n    v\n    \"\"\"\nend\n", "g\n  .d \"\"\"\n    v\n    \"\"\"\nend\n");
         Same("g\n  @block g .y x\n  x\"\"\"\n    v\n    \"\"\"\nend\n", "g\n  .y \"\"\"\n    v\n    \"\"\"\nend\n");
-        ElementNode bars = Root("g(a=|x, b=|)\n  .c |x y\n  @comment |c\n  @pi t |p\n  = |\nend\n");
+        ElementNode bars = Root("g(a=|x, b=|)\n  .c |x y\n  @rem |c\n  @pi t |p\n  = |\nend\n");
         Assert.Equal(("|x", "|", "|x y"), (bars.Attributes["a"], bars.Attributes["b"], bars.Attributes["c"]));
         Assert.Equal("|c", ((CommentNode)bars.Children[0]).Data);
         Assert.Equal("|p", ((ProcessingInstructionNode)bars.Children[1]).Data);
@@ -280,6 +286,8 @@ public class ReaderTests
     [Fact]
     public void SV77_CommentRuns()
     {
+        // @comment is a synonym of @rem.
+        Same("g\n  @comment \" a\"\n  @comment\"\"\"\n    b\n    c\n    \"\"\"\nend\n", "g\n  @rem \" a\"\n  @rem\"\"\"\n    b\n    c\n    \"\"\"\nend\n");
         Assert.Equal(["a", "# b", "end"], Comments(Root("g\n  @comments \"\"\"\n    a\n    # b\n    end\n    \"\"\"\n  h/\nend\n")));
         ElementNode laid = Root("@indent 2\ng\n  @comments \"\"\"\n    a\n    b\n    \"\"\"\nend\n");
         Assert.Equal(["\n  ", "a", "\n  ", "b", "\n"],
@@ -290,18 +298,18 @@ public class ReaderTests
         Rejects("g\n  @comments a\nend\n", "takes a block");
         Rejects("g\n  @comments \"\"\"\n    a--b\n    \"\"\"\nend\n", "'--'");
         Rejects("g\n  @comments \"\"\"\n    x\n    \"\"\"\n  .a 1\nend\n", "after the element");
-        SmlDocument doc = SmlReader.Read("g\n  @comment a\n  @comment \" b\"\n  @comment c\n  @comment d\n  @comment \"\\\"\\\"\\\"\"\nend\n");
+        SmlDocument doc = SmlReader.Read("g\n  @rem a\n  @rem \" b\"\n  @rem c\n  @rem d\n  @rem \"\\\"\\\"\\\"\"\nend\n");
         Assert.Equal(["a", " b", "c", "d", "\"\"\""], Comments(doc.Root));
         string sml = SmlWriter.Write(doc);
-        Assert.Contains("  @comment a\n  @comment \" b\"\n  @comments \"\"\"\"\n    c\n    d\n    \"\"\"\n    \"\"\"\"\n", sml);
+        Assert.Contains("  @rem a\n  @rem \" b\"\n  @comments \"\"\"\"\n    c\n    d\n    \"\"\"\n    \"\"\"\"\n", sml);
         Assert.Null(DocumentComparer.FirstDifference(doc, SmlReader.Read(sml)));
     }
 
     [Fact]
     public void SV78_LaidOutCommentBlocks()
     {
-        const string source = "@indent 2\n@comment \"\"\"\n  top\n  \"\"\"\ng\n  @comment \"\"\"\n    a\n\n    b\n    \"\"\"\n"
-            + "  h\n    @comment \"\"\"\n      deep\n      \"\"\"\n  end\nend\n";
+        const string source = "@indent 2\n@rem \"\"\"\n  top\n  \"\"\"\ng\n  @rem \"\"\"\n    a\n\n    b\n    \"\"\"\n"
+            + "  h\n    @rem \"\"\"\n      deep\n      \"\"\"\n  end\nend\n";
         SmlDocument doc = SmlReader.Read(source);
         Assert.Equal("\n  top\n", ((CommentNode)doc.Prolog[0]).Data);
         Assert.Equal("\n    a\n\n    b\n  ", Comments(doc.Root)[0]);
@@ -309,15 +317,15 @@ public class ReaderTests
         Assert.Equal("@sml 1.0-SVG-1\n" + source, SmlWriter.Write(doc));
 
         // Without @indent, in @noindent elements, and in mixed content, blocks are literal.
-        Assert.Equal("a", Comments(Root("g\n  @comment \"\"\"\n    a\n    \"\"\"\nend\n"))[0]);
-        Assert.Equal("a", Comments(Root("@indent 2\ng\n  @noindent\n  @comment \"\"\"\n    a\n    \"\"\"\nend\n"))[0]);
-        Assert.Equal("a", Comments(Root("@indent 2\ng\n  = x\n  @comment \"\"\"\n    a\n    \"\"\"\nend\n"))[0]);
-        Assert.Equal("\n  ", Comments(Root("@indent 2\ng\n  @comment \"\"\"\n  \"\"\"\nend\n"))[0]);
+        Assert.Equal("a", Comments(Root("g\n  @rem \"\"\"\n    a\n    \"\"\"\nend\n"))[0]);
+        Assert.Equal("a", Comments(Root("@indent 2\ng\n  @noindent\n  @rem \"\"\"\n    a\n    \"\"\"\nend\n"))[0]);
+        Assert.Equal("a", Comments(Root("@indent 2\ng\n  = x\n  @rem \"\"\"\n    a\n    \"\"\"\nend\n"))[0]);
+        Assert.Equal("\n  ", Comments(Root("@indent 2\ng\n  @rem \"\"\"\n  \"\"\"\nend\n"))[0]);
 
         // Data without that layout is quoted, never a literal block, in a laid-out position.
         // Data with that layout is a laid-out block even when its lines have trailing whitespace or more indentation.
-        foreach (var (data, form) in new[] { ("\n  flush\n  ", "@comment \"\\n"), ("a\nb", "@comment \"a"),
-                     ("\n    a  \n  ", "@comment \"\"\""), ("\n      a\n      b\n  ", "@comment \"\"\"") })
+        foreach (var (data, form) in new[] { ("\n  flush\n  ", "@rem \"\\n"), ("a\nb", "@rem \"a"),
+                     ("\n    a  \n  ", "@rem \"\"\""), ("\n      a\n      b\n  ", "@rem \"\"\"") })
         {
             SmlDocument xml = XmlImporter.Read(Encoding.UTF8.GetBytes($"<g>\n  <!--{data}-->\n</g>"));
             string sml = SmlWriter.Write(xml);
@@ -334,7 +342,7 @@ public class ReaderTests
         Assert.Equal(["\n", "\n"], g.Children.OfType<ElementNode>().ElementAt(1).Children.OfType<TextNode>().Select(t => t.Data).ToList());
         SmlDocument doc = XmlImporter.Read(Encoding.UTF8.GetBytes("<g>\n<h/>\n<k>\n<m/>\n</k>\n<!--\nline\n-->\n</g>"));
         string sml = SmlWriter.Write(doc);
-        Assert.Equal("@sml 1.0-SVG-1\n@indent 0\ng\n  h/\n  k\n    m/\n  end\n  @comment \"\"\"\n    line\n    \"\"\"\nend\n", sml);
+        Assert.Equal("@sml 1.0-SVG-1\n@indent 0\ng\n  h/\n  k\n    m/\n  end\n  @rem \"\"\"\n    line\n    \"\"\"\nend\n", sml);
         Assert.Null(DocumentComparer.FirstDifference(doc, SmlReader.Read(sml)));
     }
 
@@ -346,13 +354,13 @@ public class ReaderTests
         Assert.Equal("\"\"\"", SmlWriter.BlockTag("a\n"));
         SmlDocument doc = XmlImporter.Read(Encoding.UTF8.GetBytes("<g a=\"&#10;\"><t>\n</t><h/>\n\n<h/><!--\n--></g>"));
         string sml = SmlWriter.Write(doc);
-        foreach (string fragment in new[] { ".a \"\\n\"", "t = \"\\n\"", "= \"\\n\\n\"", "@comment \"\\n\"" })
+        foreach (string fragment in new[] { ".a \"\\n\"", "t = \"\\n\"", "= \"\\n\\n\"", "@rem \"\\n\"" })
             Assert.Contains(fragment, sml);
         Assert.DoesNotContain("\"\"\"", sml);
         Assert.Null(DocumentComparer.FirstDifference(doc, SmlReader.Read(sml)));
         Assert.Equal("\n", Root("g\n  = \"\"\"\n\n\n  \"\"\"\nend\n").Children.OfType<TextNode>().First().Data);
         SmlDocument laid = XmlImporter.Read(Encoding.UTF8.GetBytes("<g>\n  <!--\n  -->\n</g>"));
-        Assert.Contains("@comment \"\\n  \"", SmlWriter.Write(laid));
+        Assert.Contains("@rem \"\\n  \"", SmlWriter.Write(laid));
     }
 
     private static List<string> Texts(ElementNode element) =>

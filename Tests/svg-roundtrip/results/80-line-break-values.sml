@@ -6,7 +6,7 @@ svg(xmlns=http://www.w3.org/2000/svg)
   end
   g
     = "\n"
-    @comment "\n"
+    @rem "\n"
     = "\n"
     rect/
     = "\n\n"

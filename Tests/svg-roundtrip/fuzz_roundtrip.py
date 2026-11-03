@@ -412,7 +412,7 @@ class VariantWriter:
     def write(self) -> str:
         d, r = self.doc, self.r
         if r.random() < 0.5:
-            self.emit(r.choice(['@sml 1.0-SVG-1', '@sml 1.0']))
+            self.emit(r.choice(['@sml 1.0-SVG-1', '@sml 1.0', '@sml 1.0-SVG-1 tidy', '@sml\t1.0  tidy']))
         if d.standalone:
             self.emit('@standalone ' + d.standalone)
         if r.random() < 0.3:
@@ -492,7 +492,7 @@ class VariantWriter:
 
     def misc(self, item, ind: str) -> None:
         if isinstance(item, S.Comment):
-            self.value(ind + '@comment', item.data, ind)
+            self.value(ind + self.r.choice(['@rem', '@comment']), item.data, ind)
         elif isinstance(item, S.PI):
             self.value(ind + '@pi ' + item.target, item.data, ind, block=False)
         else:

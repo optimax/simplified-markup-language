@@ -200,7 +200,7 @@ public class ProfileTests
         SmlDocument doc = Xml("<svg xmlns='http://www.w3.org/2000/svg'>\n  <path d='M 0&#9;0 L 1 1 Z' fill='red'/>\n</svg>");
         string sml = SmlWriter.Write(doc, Svg);
         Assert.Equal("""
-            @sml 1.0-SVG-1
+            @sml 1.0-SVG-1 tidy
             @indent 2
             svg(xmlns=http://www.w3.org/2000/svg)
               path
@@ -220,8 +220,7 @@ public class ProfileTests
     {
         SmlDocument doc = Xml("<svg xmlns='http://www.w3.org/2000/svg'>\n  <path d='M 0 0 L 1 1 Z' fill='red'/>\n</svg>");
         Assert.Equal(""""
-            # Cleaned (SML §3.2), not exact: one item per line in d
-            @sml 1.0-SVG-1
+            @sml 1.0-SVG-1 tidy
             @indent 2
             svg(xmlns=http://www.w3.org/2000/svg)
               @block path .d data
@@ -268,8 +267,7 @@ public class ProfileTests
             + "    <text dy=\"0.5em\" fill=\"url(#fire)\" font-size=\"50\">Wow!</text>\n  </svg>");
         string sml = SmlWriter.Write(doc, Svg);
         Assert.Equal("""
-            # Cleaned (SML §3.2), not exact: formatting whitespace normalized
-            @sml 1.0-SVG-1
+            @sml 1.0-SVG-1 tidy
             @indent 2
             svg(xmlns=http://www.w3.org/2000/svg, viewBox=0 0 200 60)
               defs
@@ -319,8 +317,7 @@ public class ProfileTests
             + "        <text x='2'><tspan>A</tspan>\n<tspan>B</tspan></text>\n</svg>");
         // The line break alone between the last two tspans renders as nothing in SVG 1.1, so it stays.
         Assert.Equal(""""
-            # Cleaned (SML §3.2), not exact: formatting whitespace normalized; text tidied in desc; comments tidied
-            @sml 1.0-SVG-1
+            @sml 1.0-SVG-1 tidy
             @indent 2
             svg(xmlns=http://www.w3.org/2000/svg)
               desc = """
@@ -328,7 +325,7 @@ public class ProfileTests
 
                 of text
                 """
-              @comment A comment
+              @rem A comment
               text(x=1)
                 tspan = A
                 tspan = B
@@ -363,8 +360,7 @@ public class ProfileTests
             + "\t\t\t--blue: #303b5f;\n\t\t}\n\t\t.text1 {\t     \n\t\t\tfont-weight:bold;\t\t \n\t\t}\n    ]]></style>\n</svg>");
         string sml = SmlWriter.Write(doc, Svg);
         Assert.Equal(""""
-            # Cleaned (SML §3.2), not exact: text tidied in style
-            @sml 1.0-SVG-1
+            @sml 1.0-SVG-1 tidy
             @indent 2
             svg(xmlns=http://www.w3.org/2000/svg)
               style(id=style1) = """
@@ -380,7 +376,7 @@ public class ProfileTests
             """".ReplaceLineEndings("\n"), sml);
         string style = SmlReader.Read(sml).Root.Children.OfType<ElementNode>().First().Children.OfType<TextNode>().Single().Data;
         Assert.Equal("\n    :root {\n    \t--blue: #303b5f;\n    }\n    .text1 {\n    \tfont-weight:bold;\n    }\n  ", style);
-        Assert.Equal(sml[(sml.IndexOf('\n') + 1)..], SmlWriter.Write(SmlReader.Read(sml), Svg));
+        Assert.Equal(sml, SmlWriter.Write(SmlReader.Read(sml), Svg));
 
         // In the normal form, the tidied code is a literal block without edges.
         string vertical = SmlWriter.Write(doc, new SmlWriterOptions { Clean = Svg, VerticalAttributes = true });
@@ -395,7 +391,7 @@ public class ProfileTests
         SmlProfile profile = SmlProfile.Parse("@ns http://www.w3.org/2000/svg\n@node g group\n@node circle round\n@node svg drawing\n");
         string sml = SmlWriter.Write(doc, profile);
         Assert.Equal("""
-            @sml 1.0-SVG-1
+            @sml 1.0-SVG-1 tidy
             @indent 2
             @node g group
             @node svg drawing
@@ -420,7 +416,7 @@ public class ProfileTests
         SmlDocument doc = Xml("<s:svg xmlns:s='http://www.w3.org/2000/svg'><s:g/><g xmlns='http://www.w3.org/2000/svg'/>"
             + "<g xmlns='urn:x'/><s:rect/><box/></s:svg>");
         string sml = SmlWriter.Write(doc, profile);
-        Assert.StartsWith("# Cleaned (SML §3.2), not exact: formatting whitespace normalized\n@sml 1.0-SVG-1\n@indent 2\n@node s:g group\ns:svg", sml);
+        Assert.StartsWith("@sml 1.0-SVG-1 tidy\n@indent 2\n@node s:g group\ns:svg", sml);
         Assert.Contains("  group/\n  g(xmlns=http://www.w3.org/2000/svg)/\n  g(xmlns=urn:x)/\n  s:rect/\n  box/\n", sml);
         Assert.DoesNotContain("@node s:rect", sml);
         Assert.Equal(doc.Root.Children.OfType<ElementNode>().Select(e => (e.QualifiedName, e.Name)),
@@ -432,7 +428,7 @@ public class ProfileTests
     {
         SmlDocument doc = Xml("<doc><end/><end>x</end></doc>");
         string sml = SmlWriter.Write(doc, SmlProfile.Parse("@node end finish\n"));
-        Assert.Equal("# Cleaned (SML §3.2), not exact: formatting whitespace normalized\n@sml 1.0-SVG-1\n@indent 2\n@node end finish\ndoc\n"
+        Assert.Equal("@sml 1.0-SVG-1 tidy\n@indent 2\n@node end finish\ndoc\n"
             + "  finish/\n  finish = x\nend\n", sml);
         Assert.Equal(["end", "end"], SmlReader.Read(sml).Root.Children.OfType<ElementNode>().Select(e => e.QualifiedName));
     }
@@ -487,7 +483,6 @@ public class ProfileTests
         // The expected document: each value with a layout reflowed, which changes only separators. Code is compared
         // tidied on both sides, since tidying changes only whitespace.
         SmlDocument expected = Load(file)!;
-        bool reflowed = false;
         foreach (ElementNode element in Elements(expected.Root))
         {
             foreach (string name in element.Attributes.Keys.ToList())
@@ -498,23 +493,17 @@ public class ProfileTests
                 {
                     Assert.Equal(StripSeparators(value), StripSeparators(items));
                     element.Attributes[name] = items;
-                    reflowed = true;
                 }
             }
         }
         Normalize(expected);
         Normalize(back);
         Assert.Null(DocumentComparer.FirstDifference(expected, back));
-        if (reflowed)
-        {
-            Assert.StartsWith("# Cleaned (SML §3.2), not exact: ", sml);
-            Assert.Contains("one item per line in ", sml[..sml.IndexOf('\n')]);
-        }
+        Assert.StartsWith("@sml 1.0-SVG-1 tidy\n", sml);
 
-        // Cleaned again, the cleaned document gives the same SML without the comment, and survives XML.
+        // Cleaned again, the cleaned document gives the same SML, and survives XML.
         SmlDocument cleaned = SmlReader.Read(sml);
-        string body = sml.StartsWith('#') ? sml[(sml.IndexOf('\n') + 1)..] : sml;
-        Assert.Equal(body, SmlWriter.Write(cleaned, Svg));
+        Assert.Equal(sml, SmlWriter.Write(cleaned, Svg));
         SmlDocument fromXml = XmlImporter.Read(Encoding.UTF8.GetBytes(XmlExporter.Write(cleaned)));
         Assert.Null(DocumentComparer.FirstDifference(cleaned, fromXml));
     }

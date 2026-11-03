@@ -26,7 +26,7 @@ The same document in SML, as `smlxml` writes it:
 @sml 1.0-SVG-1
 @indent 2
 svg(xmlns=http://www.w3.org/2000/svg, viewBox=0 0 120 80)
-  @comment " A rounded badge with a label "
+  @rem " A rounded badge with a label "
   rect(fill=#4477cc, height=70, rx=8, width=110, x=5, y=5)/
   path(d=M20 60 L60 20 L100 60 Z, fill=white, opacity=0.5)/
   text(font-size=14, text-anchor=middle, x=60, y=45) = Hello, SML

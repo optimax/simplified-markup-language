@@ -11,7 +11,7 @@ svg(xmlns=http://www.w3.org/2000/svg)
     # looks like a source comment
     ==========================================
     """
-  @comment " spaced "
+  @rem " spaced "
   g
     @noindent
     @comments """"
