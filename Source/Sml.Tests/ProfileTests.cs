@@ -199,7 +199,7 @@ public class ProfileTests
     {
         SmlDocument doc = Xml("<svg xmlns='http://www.w3.org/2000/svg'><path d='M 0 0 L 1 1 Z' fill='red'/></svg>");
         Assert.Equal("""
-            @sml 1.0-SVG-4
+            @sml 1.0-SVG-1
             svg(xmlns=http://www.w3.org/2000/svg)
               path
                 .d "M 0 0 "
@@ -218,7 +218,7 @@ public class ProfileTests
         SmlDocument doc = Xml("<svg xmlns='http://www.w3.org/2000/svg'><path d='M 0 0 L 1 1 Z' fill='red'/></svg>");
         Assert.Equal(""""
             # Readable conversion (SML §3.2), not strict: one item per line in d
-            @sml 1.0-SVG-4
+            @sml 1.0-SVG-1
             svg(xmlns=http://www.w3.org/2000/svg)
               @block path .d data
               path
@@ -261,7 +261,7 @@ public class ProfileTests
         SmlProfile profile = SmlProfile.Parse("@ns http://www.w3.org/2000/svg\n@node g group\n@node circle round\n@node svg drawing\n");
         string sml = SmlWriter.Write(doc, profile);
         Assert.Equal("""
-            @sml 1.0-SVG-4
+            @sml 1.0-SVG-1
             @node g group
             @node svg drawing
             drawing(xmlns=http://www.w3.org/2000/svg)
@@ -285,7 +285,7 @@ public class ProfileTests
         SmlDocument doc = Xml("<s:svg xmlns:s='http://www.w3.org/2000/svg'><s:g/><g xmlns='http://www.w3.org/2000/svg'/>"
             + "<g xmlns='urn:x'/><s:rect/><box/></s:svg>");
         string sml = SmlWriter.Write(doc, profile);
-        Assert.StartsWith("@sml 1.0-SVG-4\n@node s:g group\ns:svg", sml);
+        Assert.StartsWith("@sml 1.0-SVG-1\n@node s:g group\ns:svg", sml);
         Assert.Contains("  group/\n  g(xmlns=http://www.w3.org/2000/svg)/\n  g(xmlns=urn:x)/\n  s:rect/\n  box/\n", sml);
         Assert.DoesNotContain("@node s:rect", sml);
         Assert.Null(DocumentComparer.FirstDifference(doc, SmlReader.Read(sml)));
@@ -296,7 +296,7 @@ public class ProfileTests
     {
         SmlDocument doc = Xml("<doc><end/><end>x</end></doc>");
         string sml = SmlWriter.Write(doc, SmlProfile.Parse("@node end finish\n"));
-        Assert.Equal("@sml 1.0-SVG-4\n@node end finish\ndoc\n  finish/\n  finish = x\nend\n", sml);
+        Assert.Equal("@sml 1.0-SVG-1\n@node end finish\ndoc\n  finish/\n  finish = x\nend\n", sml);
         Assert.Null(DocumentComparer.FirstDifference(doc, SmlReader.Read(sml)));
     }
 

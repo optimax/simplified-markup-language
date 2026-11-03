@@ -1,4 +1,4 @@
-@sml 1.0-SVG-4
+@sml 1.0-SVG-1
 @comment " first "
 @doctype svg
 @pi between yes

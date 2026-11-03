@@ -1,6 +1,6 @@
 # smlxml
 
-Converts between SML 1.0-SVG-4 and XML/SVG, in both directions, without losing information.
+Converts between SML 1.0-SVG-1 and XML/SVG, in both directions, without losing information.
 
 ```text
 smlxml [options] <file>...
@@ -85,7 +85,7 @@ end
 
 ```text
 # Readable conversion (SML §3.2), not strict: one item per line in d
-@sml 1.0-SVG-4
+@sml 1.0-SVG-1
 svg(xmlns=http://www.w3.org/2000/svg)
   @block path .d data
   path

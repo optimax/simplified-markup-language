@@ -4,7 +4,7 @@
 
 | Product | Location | Purpose |
 |---|---|---|
-| SML specification | `Documents/SML-Language-Specification.md` | The language: SML 1.0-SVG-4 |
+| SML specification | `Documents/SML-Language-Specification.md` | The language: SML 1.0-SVG-1 |
 | `smlxml` | `Source/SmlXml/` (command line), `Source/Sml/` (library) | Two-way SML ↔ XML/SVG converter in C# |
 | Python prototype and test harness | `Tests/svg-roundtrip/` | Reference implementation, fixture corpus, fuzz and differential tests |
 | SVG corpus | `Tests/svg-corpus/` | 897 third-party real-world SVG files, kept as examples |
@@ -39,7 +39,7 @@ The publish profile writes two framework-dependent single-file executables, each
 
 - **The library is split from the command line** so that the format logic can be tested directly and reused by future tools such as an editor.
 - **The XML importer turns off System.Xml namespace processing.** It uses `XmlTextReader` with `Namespaces = false`, wrapped with character checking, and validates names and namespaces itself with `XmlRules`, as the SML reader does. With namespace processing on, System.Xml rejects `xml:space` values other than `default` and `preserve`, which are well-formed opaque values without a DTD.
-- **Blocks are delimited by `"""`** (1.0-SVG-4), with a longer run of quotation marks when a payload line is `"""`, and `end` closes only elements.
+- **Blocks are delimited by `"""`**, with a longer run of quotation marks when a payload line is `"""`, and `end` closes only elements.
   - Braces were rejected: CSS and scripts, the usual block payloads, put `}` alone on a line, so a brace-delimited block would close early and the rest of the CSS would parse as SML.
   - A backtick was rejected: it is hard to see, a dead key on many keyboard layouts, and PowerShell's escape character.
 - **Writer profiles are exact unless reflow is asked for.**

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""SVG round-trip harness for the SML 1.0-SVG-4 prototype (sml_prototype.py).
+"""SVG round-trip harness for the SML 1.0-SVG-1 prototype (sml_prototype.py).
 
 Writes the fixture corpus, runs every positive fixture through
 XML -> model -> canonical SML -> model -> XML -> model, checks that every negative fixture is
@@ -338,7 +338,7 @@ def main() -> int:
     report = {
         'profile': 'SVG-RTCP 1.0 draft, RT-2 with prefix preservation (strict profile of SML ' + S.SML_VERSION + ')',
         'date': datetime.date.today().isoformat(),
-        'method': ('expat-based importer and SML 1.0-SVG-4 prototype reader/canonical writer; lxml used as an '
+        'method': ('expat-based importer and SML 1.0-SVG-1 prototype reader/canonical writer; lxml used as an '
                    'independent element-tree cross-check; no KDL parser'),
         'caveats': [
             'The SML reader and writer are a prototype, not an independently validated conforming implementation.',

@@ -2,7 +2,7 @@
 
 ## Current objective
 
-Provide `smlxml`, a two-way SML ↔ XML/SVG command-line converter in C# on .NET 10, alongside the SML 1.0-SVG-4 specification and its Python prototype and tests.
+Provide `smlxml`, a two-way SML ↔ XML/SVG command-line converter in C# on .NET 10, alongside the SML 1.0-SVG-1 specification and its Python prototype and tests.
 
 ## Current state
 
@@ -38,16 +38,14 @@ Provide `smlxml`, a two-way SML ↔ XML/SVG command-line converter in C# on .NET
 - **`README.md`** at the root introduces the project on GitHub. It assumes a public repository under the MIT license.
 - Solution-wide environment, conventions, decisions, and traps are in `implementation.md`.
 
-## Files changed in the last task (every flag in the corpus)
+## Files changed in the last task (revision reset to 1.0-SVG-1)
 
-The user asked for all of flag-icons instead of a sample.
+The user reset the specification's revision to 1.0-SVG-1. The content is unchanged; only the identifier is. The syntax is defined as it goes, with no compatibility with earlier forms, and nothing refers to earlier revisions.
 
-- `Tests/svg-corpus/gather_corpus.py` selects every file of `flag-icons` 7.6.0: 271 flags in each of `4x3` and `1x1`, 542 in all, including regions (`gb-eng`, `es-ct`, …), organizations (`eu`, `un`, `asean`, …), and the `xx` placeholder. None is over the 200 KB limit or carries an "All Rights Reserved" notice.
-- `Tests/svg-corpus/flag-icons/` now holds those 542 files (was 30), and `THIRD-PARTY-NOTICES.md` their count. The corpus has 897 files (was 385).
-- `Tests/svg-corpus/README.md`, `README.md`, and `implementation.md` give the new counts.
-- The C# test count grew to 4,084, because `ProfileTests` and `WriterOptionsTests` run once per corpus file.
-
-Earlier in this series: `|` became an ordinary character, the 1.0-SVG-2 review was deleted, nothing refers to earlier syntax, and both alias declarations put the alias last (`@node g group`, `@block path .d data`). The user added `@node g group` and `@node p para` to `svg.smlprofile`; the latter names an SVG-namespace `p`, which the user chose to leave as is.
+- Readers accept `@sml 1.0-SVG-1` (and `@sml 1.0` or no header) and reject every other draft identifier; writers emit `@sml 1.0-SVG-1`. CP-20 uses `1.0-SVG-2` as the other identifier.
+- `smlxml --version` prints `smlxml 1.0.0 (SML 1.0-SVG-1)`.
+- Changed: the specification (header, dated 2026-11-03; §11; §14.2 rule 2; CP-20; the closing status), `SmlReader.Version`, `SML_VERSION` in `sml_prototype.py`, the docstrings of the Python scripts, every test that writes or checks the header, the 53 reference outputs in `Tests/svg-roundtrip/results/` (their first line only), `SmlXml.csproj` (`Description`), and the READMEs, `implementation.md` files, and this file.
+- Also current: the corpus holds every flag of flag-icons (897 files), `|` is an ordinary character, both alias declarations put the alias last (`@node g group`, `@block path .d data`), and `svg.smlprofile` declares `@node g group` and `@node p para` (the latter names an SVG-namespace `p`, which the user chose to leave as is).
 
 ## Build and test results
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Core parser and writer tests for the SML 1.0-SVG-4 prototype.
+"""Core parser and writer tests for the SML 1.0-SVG-1 prototype.
 
 CoreFixtures covers CP-1 to CP-24 (§15.1). SmlSideFixtures covers the SV fixtures of §15 that
 need only SML: SV-31, SV-33 to SV-56, SV-58, SV-64, SV-70 to SV-72, and SV-76.
@@ -168,9 +168,9 @@ class CoreFixtures(Base):
         self.rejects('g\n  @ns xmlns urn:x\nend\n')
 
     def test_CP20_version_header(self):
-        self.rejects('@comment x\n@sml 1.0-SVG-4\ng/\n', 'first statement')
-        self.rejects('@sml 1.0-SVG-5\ng/\n', 'unsupported draft')
-        for header in ('@sml 1.0-SVG-4\n', '@sml 1.0\n', '', '# note\n@sml 1.0-SVG-4\n'):
+        self.rejects('@comment x\n@sml 1.0-SVG-1\ng/\n', 'first statement')
+        self.rejects('@sml 1.0-SVG-2\ng/\n', 'unsupported draft')
+        for header in ('@sml 1.0-SVG-1\n', '@sml 1.0\n', '', '# note\n@sml 1.0-SVG-1\n'):
             read(header + 'g/\n')
 
     def test_CP21_extensions(self):
@@ -349,7 +349,7 @@ class SmlSideFixtures(Base):
         self.assertEqual((el.attrs['a'], el.attrs['b'], el.attrs['c']), ('|x', '|', '|x y'))
         self.assertEqual([(type(n).__name__, getattr(n, 'data', None)) for n in el.children],
                          [('Comment', '|c'), ('PI', '|p'), ('Text', '|')])
-        self.assertEqual(S.write_sml(read('g(a=|x)\n  = |\nend\n')), '@sml 1.0-SVG-4\ng(a=|x) = |\n')
+        self.assertEqual(S.write_sml(read('g(a=|x)\n  = |\nend\n')), '@sml 1.0-SVG-1\ng(a=|x) = |\n')
         self.rejects('g\n  .d|x\nend\n', 'expected a space')
         self.rejects('g\n  x |\nend\n', "unexpected ' |' after element name")
 
@@ -377,7 +377,7 @@ class SmlSideFixtures(Base):
         g = doc.root
         self.assertEqual(kids(g, S.Comment)[0].data, '\n    a\n\n    b\n  ')
         self.assertEqual(kids(kids(g)[0], S.Comment)[0].data, '\n      deep\n    ')
-        self.assertEqual(S.write_sml(doc), src.replace('@indent 2\n', '@sml 1.0-SVG-4\n@indent 2\n'))
+        self.assertEqual(S.write_sml(doc), src.replace('@indent 2\n', '@sml 1.0-SVG-1\n@indent 2\n'))
         # Without @indent, in @noindent elements, and in mixed content, blocks are literal.
         self.assertEqual(kids(root('g\n  @comment """\n    a\n  """\nend\n'), S.Comment)[0].data, 'a')
         el = root('@indent 2\ng\n  @noindent\n  @comment """\n    a\n  """\nend\n')
@@ -398,7 +398,7 @@ class SmlSideFixtures(Base):
         self.assertEqual([c.data for c in kids(el)[1].children if isinstance(c, S.Text)], ['\n', '\n'])
         doc = S.read_xml(b'<g>\n<h/>\n<k>\n<m/>\n</k>\n<!--\nline\n-->\n</g>')
         out = S.write_sml(doc)
-        self.assertEqual(out, '@sml 1.0-SVG-4\n@indent 0\ng\n  h/\n  k\n    m/\n  end\n  @comment """\n    line\n  """\nend\n')
+        self.assertEqual(out, '@sml 1.0-SVG-1\n@indent 0\ng\n  h/\n  k\n    m/\n  end\n  @comment """\n    line\n  """\nend\n')
         self.assertEqual(S.signature(read(out)), S.signature(doc))
 
     def test_SV80_line_breaks_are_quoted(self):
@@ -424,7 +424,7 @@ class SmlSideFixtures(Base):
         self.assertEqual([t.data for t in b.children if isinstance(t, S.Text)], ['\n        ', '\n      '])
         k = kids(doc.root)[1]
         self.assertEqual([t.data for t in k.children if isinstance(t, S.Text)], ['\n  \t', '\n  '])
-        self.assertEqual(S.write_sml(doc), '@sml 1.0-SVG-4\n' + src)
+        self.assertEqual(S.write_sml(doc), '@sml 1.0-SVG-1\n' + src)
         self.rejects('g\n  @indent 4\n  h/\nend\n', 'needs the @indent header')
         self.rejects('@indent 2\ng\n  @indent 4\n  @indent 2\nend\n', 'only once')
         self.rejects('@indent 2\ng\n  h/\n  @indent 4\nend\n', 'after the element')
@@ -437,7 +437,7 @@ class SmlSideFixtures(Base):
         p, q = kids(doc.root)
         self.assertEqual(p.children[0].data, '\n    one\n\n    two\n  ')
         self.assertEqual(kids(q)[0].children[0].data, '\n        deep\n      ')
-        self.assertEqual(S.write_sml(doc), '@sml 1.0-SVG-4\n' + src)
+        self.assertEqual(S.write_sml(doc), '@sml 1.0-SVG-1\n' + src)
         # The normal form, @noindent parents, mixed content, and documents without @indent stay literal.
         literal = ('@indent 2\ng\n  p\n    = """\n      a\n      b\n    """\n  end\nend\n',
                    '@indent 2\ng\n  @noindent\n  p = """\n    a\n    b\n  """\nend\n',
@@ -480,7 +480,7 @@ class SmlSideFixtures(Base):
         self.rejects('@node g group\ngroup\nend p\n', 'does not match')
 
     def test_SV76_reverse_round_trip(self):
-        src = ('@sml 1.0-SVG-4\n@indent 2\n@comment " authored in SML "\n'
+        src = ('@sml 1.0-SVG-1\n@indent 2\n@comment " authored in SML "\n'
                '@doctype svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd"\n'
                f'svg(xmlns={SVG}, xmlns:xlink=http://www.w3.org/1999/xlink)\n'
                '  @block path .d data\n'

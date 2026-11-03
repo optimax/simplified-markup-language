@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Fuzz and differential tests for the SML 1.0-SVG-4 prototype (sml_prototype.py).
+"""Fuzz and differential tests for the SML 1.0-SVG-1 prototype (sml_prototype.py).
 
 Three campaigns, all seeded and reproducible:
 
@@ -412,7 +412,7 @@ class VariantWriter:
     def write(self) -> str:
         d, r = self.doc, self.r
         if r.random() < 0.5:
-            self.emit(r.choice(['@sml 1.0-SVG-4', '@sml 1.0']))
+            self.emit(r.choice(['@sml 1.0-SVG-1', '@sml 1.0']))
         if d.standalone:
             self.emit('@standalone ' + d.standalone)
         if r.random() < 0.3:

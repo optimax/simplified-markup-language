@@ -1,7 +1,7 @@
 # Simplified Markup Language (SML) 1.0 — SVG-first revised specification
 
 **Status:** Proposed normative revision (design baseline, not yet reference-parser certified)  
-**Revision:** 1.0-SVG-4 · 2026-11-02  
+**Revision:** 1.0-SVG-1 · 2026-11-03  
 **Goal:** Human-editable representation of SVG/XML with deterministic, information-preserving two-way translation  
 **Extension:** `.sml` (provisional; naming and extension choice are independent of syntax)  
 **Naming note:** Both the name and the extension collide with existing uses: `.sml` is the standard extension for Standard ML source files, and "SML" is also W3C's XML-based Service Modeling Language. A distinct name and extension SHOULD be chosen before 1.0 is final.
@@ -839,10 +839,10 @@ Every namespace used by a prefixed element or attribute must be bound in scope. 
 
 **Version header.** `@sml VERSION` MAY appear once. If present, it MUST precede every other statement except blank lines and `#` source comments.
 
-- `VERSION` is `1.0-SVG-4` for documents written to this draft revision, or `1.0` for the final 1.0 specification.
-- A reader implementing this revision MUST accept `1.0-SVG-4`. It MUST reject any other draft identifier.
+- `VERSION` is `1.0-SVG-1` for documents written to this draft revision, or `1.0` for the final 1.0 specification.
+- A reader implementing this revision MUST accept `1.0-SVG-1`. It MUST reject any other draft identifier.
 - Until 1.0 is final, a reader treats `@sml 1.0` or a missing header as this revision.
-- Writers SHOULD emit `@sml 1.0-SVG-4` while the specification is a draft.
+- Writers SHOULD emit `@sml 1.0-SVG-1` while the specification is a draft.
 
 **Other headers.** `@standalone yes|no` MAY appear once before the root to preserve an explicitly present XML standalone declaration; if it is absent, the standalone state is unspecified. `@indent` (§6.4) and `@doctype` (§11.1) MAY each appear once before the root (`@indent` also in declaration sections, as a per-element step), and `@node` (§8.7) and `@use` (§13) MAY appear before the root.
 
@@ -1042,7 +1042,7 @@ SML formatters MUST be idempotent. Under the strict profile they MUST NOT modify
 The canonical form is a function of the document alone: canonical writers MUST produce byte-identical output for equal documents. It is intended for diffing, hashing, and conformance testing. Canonical output follows these rules:
 
 1. **File.** UTF-8 without BOM, LF line endings, and a final LF. No blank lines, `#` comments, `@block` or `@node` aliases, `end QName`, or `@use`.
-2. **Prolog.** `@sml 1.0-SVG-4`, then `@standalone` if recorded, then `@indent` if chosen (rule 9), then the prolog comments, PIs, and `@doctype` in document order. The epilog follows the root in document order.
+2. **Prolog.** `@sml 1.0-SVG-1`, then `@standalone` if recorded, then `@indent` if chosen (rule 9), then the prolog comments, PIs, and `@doctype` in document order. The epilog follows the root in document order.
 3. **Indentation.** Two spaces per element depth. Block payload lines and continuation lines are indented one level deeper than their statement; a block terminator is at the statement's level.
 4. **Order.** Namespace declarations come first: the default namespace, then prefixes in ascending code-point order. Then attributes: those without a namespace by local name, then namespaced ones by namespace URI and then local name, all in ascending code-point order. This is the attribute order of Canonical XML.
 5. **Inline or vertical.** An element's namespace declarations and attributes are written inline, as one list, when every value is representable as a raw inline value (§6.3) under rule 7, and the indentation, element name, and inline list together are at most 100 code points long. Otherwise all are vertical: `@ns` lines, then `.attribute` lines.
@@ -1180,7 +1180,7 @@ Reject—not drop—unsupported input. Rendering comparisons are useful suppleme
 | CP-17 | `@ns s`; `@ns a b c`; `@ns ""`; `@ns "relative"`; inline `xmlns=s` | Rejected; rejected; accepted; accepted; rejected |
 | CP-18 | Vertical `.xmlns` and `.xmlns:p`; inline `xmlns` and `xmlns:p` on compact forms; the same prefix inline and in `@ns` | Rejected; namespace declarations; rejected |
 | CP-19 | `@ns xml http://www.w3.org/XML/1998/namespace`; `xml` with another URI; any prefix or the default namespace bound to the XML or xmlns namespace URI; declaring `xmlns` | Accepted; rejected; rejected; rejected |
-| CP-20 | `@sml` after another statement; another draft identifier, `@sml 1.0-SVG-5`; `@sml 1.0-SVG-4`; `@sml 1.0`; no header | Rejected; rejected; accepted; accepted as this revision; accepted as this revision |
+| CP-20 | `@sml` after another statement; another draft identifier, `@sml 1.0-SVG-2`; `@sml 1.0-SVG-1`; `@sml 1.0`; no header | Rejected; rejected; accepted; accepted as this revision; accepted as this revision |
 | CP-21 | Unknown required extension; unknown optional extension with directives (including a block value) in the prolog, a declaration section, and content | Rejected; directives skipped and the document is identical to one without them |
 | CP-22 | Extension directive between two `.attribute` lines | Declaration section stays open |
 | CP-23 | Documents equal in information but differing in attribute order, quoting, inline/vertical form, aliases, `end QName`, and comments | Canonical writer output byte-identical |
@@ -1357,4 +1357,4 @@ This revision addresses the design-level issues identified in review so far. It 
 
 ---
 
-**Status after this revision:** SML 1.0-SVG-4 is a compact, SVG-first design baseline. It has `"""`-delimited literal blocks, so that `end` closes only elements, generic, explicitly marked `@block` aliases in Core, whitespace-trimmed raw values, an indentation model for readable strict conversions, opaque DOCTYPE preservation, exact long-value wrapping, a deterministic canonical form, and defined conformance classes. Its required acceptance criterion is an information-preserving *strict-profile round trip* in both directions, not simply readable generated text or visual similarity.
+**Status after this revision:** SML 1.0-SVG-1 is a compact, SVG-first design baseline. It has `"""`-delimited literal blocks, so that `end` closes only elements, generic, explicitly marked `@block` aliases in Core, whitespace-trimmed raw values, an indentation model for readable strict conversions, opaque DOCTYPE preservation, exact long-value wrapping, a deterministic canonical form, and defined conformance classes. Its required acceptance criterion is an information-preserving *strict-profile round trip* in both directions, not simply readable generated text or visual similarity.

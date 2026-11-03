@@ -3,10 +3,10 @@ using System.Text.RegularExpressions;
 
 namespace Sml;
 
-/// <summary>Reads SML 1.0-SVG-4 (specification §§4–13) into the information model.</summary>
+/// <summary>Reads SML 1.0-SVG-1 (specification §§4–13) into the information model.</summary>
 public sealed partial class SmlReader
 {
-    public const string Version = "1.0-SVG-4";
+    public const string Version = "1.0-SVG-1";
 
     /// <summary>Whether s is a block marker (§7): three or more quotation marks and nothing else.</summary>
     public static bool IsBlockMarker(string s) => s.Length >= 3 && s.All(c => c == '"');

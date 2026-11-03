@@ -1,4 +1,4 @@
-@sml 1.0-SVG-4
+@sml 1.0-SVG-1
 @indent 2
 @comment """
   Prolog comment at depth 0

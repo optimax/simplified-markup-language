@@ -6,7 +6,7 @@ The script rewrites the fixture files, runs every check, and exits with status 1
 
 | Path | Contents |
 |---|---|
-| `sml_prototype.py` | Prototype for SML 1.0-SVG-4: SML reader, canonical writer (§14.2), expat-based XML importer, XML exporter, and the strict-profile comparison |
+| `sml_prototype.py` | Prototype for SML 1.0-SVG-1: SML reader, canonical writer (§14.2), expat-based XML importer, XML exporter, and the strict-profile comparison |
 | `build_and_test.py` | The harness and the fixture definitions it writes to `corpus/` and `corpus-negative/` |
 | `test_sml_core.py` | CP-1–CP-24 and the SML-only SV fixtures of the specification's §15 |
 | `fuzz_roundtrip.py` | Seeded fuzz and differential tests (see below); findings are shrunk and saved to `results/fuzz-findings/` |

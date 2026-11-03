@@ -150,9 +150,9 @@ public class ReaderTests
     [Fact]
     public void CP20_VersionHeader()
     {
-        Rejects("@comment x\n@sml 1.0-SVG-4\ng/\n", "first statement");
-        Rejects("@sml 1.0-SVG-5\ng/\n", "unsupported draft");
-        Root("# note\n@sml 1.0-SVG-4\ng/\n");
+        Rejects("@comment x\n@sml 1.0-SVG-1\ng/\n", "first statement");
+        Rejects("@sml 1.0-SVG-2\ng/\n", "unsupported draft");
+        Root("# note\n@sml 1.0-SVG-1\ng/\n");
         Root("@sml 1.0\ng/\n");
     }
 
@@ -246,7 +246,7 @@ public class ReaderTests
         Assert.Equal("|c", ((CommentNode)bars.Children[0]).Data);
         Assert.Equal("|p", ((ProcessingInstructionNode)bars.Children[1]).Data);
         Assert.Equal("|", ((TextNode)bars.Children[2]).Data);
-        Assert.Equal("@sml 1.0-SVG-4\ng(a=|x) = |\n", SmlWriter.Write(SmlReader.Read("g(a=|x)\n  = |\nend\n")));
+        Assert.Equal("@sml 1.0-SVG-1\ng(a=|x) = |\n", SmlWriter.Write(SmlReader.Read("g(a=|x)\n  = |\nend\n")));
         Rejects("g\n  .d|x\nend\n", "expected a space");
         Rejects("g\n  x |\nend\n", "unexpected ' |' after element name");
     }
@@ -283,7 +283,7 @@ public class ReaderTests
         Assert.Equal("\n  top\n", ((CommentNode)doc.Prolog[0]).Data);
         Assert.Equal("\n    a\n\n    b\n  ", Comments(doc.Root)[0]);
         Assert.Equal("\n      deep\n    ", Comments(doc.Root.Children.OfType<ElementNode>().First())[0]);
-        Assert.Equal("@sml 1.0-SVG-4\n" + source, SmlWriter.Write(doc));
+        Assert.Equal("@sml 1.0-SVG-1\n" + source, SmlWriter.Write(doc));
 
         // Without @indent, in @noindent elements, and in mixed content, blocks are literal.
         Assert.Equal("a", Comments(Root("g\n  @comment \"\"\"\n    a\n  \"\"\"\nend\n"))[0]);
@@ -309,7 +309,7 @@ public class ReaderTests
         Assert.Equal(["\n", "\n"], g.Children.OfType<ElementNode>().ElementAt(1).Children.OfType<TextNode>().Select(t => t.Data).ToList());
         SmlDocument doc = XmlImporter.Read(Encoding.UTF8.GetBytes("<g>\n<h/>\n<k>\n<m/>\n</k>\n<!--\nline\n-->\n</g>"));
         string sml = SmlWriter.Write(doc);
-        Assert.Equal("@sml 1.0-SVG-4\n@indent 0\ng\n  h/\n  k\n    m/\n  end\n  @comment \"\"\"\n    line\n  \"\"\"\nend\n", sml);
+        Assert.Equal("@sml 1.0-SVG-1\n@indent 0\ng\n  h/\n  k\n    m/\n  end\n  @comment \"\"\"\n    line\n  \"\"\"\nend\n", sml);
         Assert.Null(DocumentComparer.FirstDifference(doc, SmlReader.Read(sml)));
     }
 
@@ -342,7 +342,7 @@ public class ReaderTests
         Assert.Equal(["\n      ", "\n      ", "\n  "], Texts(h));
         Assert.Equal(["\n        ", "\n      "], Texts(h.Children.OfType<ElementNode>().ElementAt(1)));
         Assert.Equal(["\n  \t", "\n  "], Texts(doc.Root.Children.OfType<ElementNode>().ElementAt(1)));
-        Assert.Equal("@sml 1.0-SVG-4\n" + source, SmlWriter.Write(doc));
+        Assert.Equal("@sml 1.0-SVG-1\n" + source, SmlWriter.Write(doc));
         Rejects("g\n  @indent 4\n  h/\nend\n", "needs the @indent header");
         Rejects("@indent 2\ng\n  @indent 4\n  @indent 2\nend\n", "only once");
         Rejects("@indent 2\ng\n  h/\n  @indent 4\nend\n", "after the element");
@@ -358,7 +358,7 @@ public class ReaderTests
         List<ElementNode> elements = doc.Root.Children.OfType<ElementNode>().ToList();
         Assert.Equal("\n    one\n\n    two\n  ", ((TextNode)elements[0].Children[0]).Data);
         Assert.Equal("\n        deep\n      ", ((TextNode)elements[1].Children.OfType<ElementNode>().First().Children[0]).Data);
-        Assert.Equal("@sml 1.0-SVG-4\n" + source, SmlWriter.Write(doc));
+        Assert.Equal("@sml 1.0-SVG-1\n" + source, SmlWriter.Write(doc));
 
         // The normal form, @noindent parents, mixed content, and documents without @indent stay literal.
         foreach (string literal in new[]

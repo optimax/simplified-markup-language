@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""SML 1.0-SVG-4 prototype: reader, canonical writer, XML importer/exporter, and comparison.
+"""SML 1.0-SVG-1 prototype: reader, canonical writer, XML importer/exporter, and comparison.
 
 This is a prototype written to exercise Documents/SML-Language-Specification.md. It implements
 the Core syntax, the strict profile's information model, and the canonical form (§14.2), but it
@@ -15,7 +15,7 @@ import re
 import unicodedata
 import xml.parsers.expat as expat
 
-SML_VERSION = '1.0-SVG-4'
+SML_VERSION = '1.0-SVG-1'
 XML_NS = 'http://www.w3.org/XML/1998/namespace'
 XMLNS_NS = 'http://www.w3.org/2000/xmlns/'
 BASE_NS = {'xml': XML_NS}

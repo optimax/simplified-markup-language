@@ -1,4 +1,4 @@
-@sml 1.0-SVG-4
+@sml 1.0-SVG-1
 svg(xmlns=http://www.w3.org/2000/svg, xmlns:h=http://www.w3.org/1999/xhtml)
   foreignObject(height=70, width=100)
     h:div

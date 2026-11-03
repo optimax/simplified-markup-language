@@ -1,7 +1,7 @@
 {
-  "profile": "SVG-RTCP 1.0 draft, RT-2 with prefix preservation (strict profile of SML 1.0-SVG-4)",
+  "profile": "SVG-RTCP 1.0 draft, RT-2 with prefix preservation (strict profile of SML 1.0-SVG-1)",
   "date": "2026-11-03",
-  "method": "expat-based importer and SML 1.0-SVG-4 prototype reader/canonical writer; lxml used as an independent element-tree cross-check; no KDL parser",
+  "method": "expat-based importer and SML 1.0-SVG-1 prototype reader/canonical writer; lxml used as an independent element-tree cross-check; no KDL parser",
   "caveats": [
     "The SML reader and writer are a prototype, not an independently validated conforming implementation.",
     "The lxml cross-check compares the element tree, prolog/epilog, standalone flag, DOCTYPE identifiers, and namespace scopes; attribute prefix spelling and the DOCTYPE name are checked by the prototype only.",
