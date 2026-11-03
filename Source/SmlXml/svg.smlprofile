@@ -1,0 +1,52 @@
+# smlxml profile "svg": readable layouts for SVG's structured attribute values.
+#
+#   smlxml --profile svg drawing.svg            exact: drawing.sml converts back to the same SVG
+#   smlxml --profile svg --reflow drawing.svg   readable: one item per line, so the values change (SML §3.2)
+#
+# Statements:
+#   @ns [prefix] URI                    a namespace for the names below; all @ns lines come first
+#   @block element .attribute alias     an alias (SML §8): alias """ is written instead of .attribute """
+#   @node element alias                 an element alias (SML §8.7): alias opens the element
+#   @layout element .attribute kind     how the attribute's values divide into items: path, numbers N,
+#                                       declarations, functions, or list; the element * is any element
+
+@ns http://www.w3.org/2000/svg
+
+@node g group
+@node p para
+
+# Path data: one command per line; --reflow also spaces it, as in M 10, 20.
+@block path .d data
+@layout path .d path
+@block glyph .d data
+@layout glyph .d path
+@block missing-glyph .d data
+@layout missing-glyph .d path
+@block animateMotion .path path
+@layout animateMotion .path path
+@block textPath .path path
+@layout textPath .path path
+
+# Point lists: one x, y pair per line; --reflow also spaces it, as in 10, 20.
+@block polyline .points points
+@layout polyline .points numbers 2
+@block polygon .points points
+@layout polygon .points numbers 2
+
+# Color matrices: one row of five numbers per line.
+@layout feColorMatrix .values numbers 5
+
+# Animation: one value, key time, or key spline per line.
+@layout animate .values list
+@layout animateColor .values list
+@layout animateTransform .values list
+@layout animateMotion .values list
+@layout animateMotion .keyPoints list
+@layout * .keyTimes list
+@layout * .keySplines list
+
+# Styles and transforms, on any element: one declaration or function per line.
+@layout * .style declarations
+@layout * .transform functions
+@layout * .gradientTransform functions
+@layout * .patternTransform functions

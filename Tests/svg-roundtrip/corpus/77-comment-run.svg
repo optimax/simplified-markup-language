@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--=== prolog banner ===-->
+<!--= second line =-->
+<svg xmlns="http://www.w3.org/2000/svg">
+  <!--==========================================-->
+  <!--=  Example test case                     =-->
+  <!--# looks like a source comment-->
+  <!--==========================================-->
+  <!-- spaced -->
+  <g><!--a--><!--b--><!--"""--></g>
+  <rect width="1"/>
+</svg>

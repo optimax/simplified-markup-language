@@ -1,0 +1,74 @@
+# Implementation
+
+## Products
+
+| Product | Location | Purpose |
+|---|---|---|
+| SML specification | `Documents/SML-Language-Specification.md` | The language: SML 1.0-SVG-4 |
+| `smlxml` | `Source/SmlXml/` (command line), `Source/Sml/` (library) | Two-way SML ↔ XML/SVG converter in C# |
+| Python prototype and test harness | `Tests/svg-roundtrip/` | Reference implementation, fixture corpus, fuzz and differential tests |
+| SVG corpus | `Tests/svg-corpus/` | 385 third-party real-world SVG files, kept as examples |
+
+## Development environment
+
+- .NET 10 SDK (developed with 10.0.114), `net10.0`, the default C# version for that target (C# 14).
+- Tests: xUnit 2.9.3, xunit.runner.visualstudio 3.1.4, Microsoft.NET.Test.Sdk 17.14.1.
+- Python 3.10 or later with `lxml`, for `Tests/svg-roundtrip/`.
+- Solution: `SimplifiedMarkupLanguage.slnx` at the root.
+
+## Build and test
+
+```bash
+dotnet build SimplifiedMarkupLanguage.slnx -c Release
+dotnet test SimplifiedMarkupLanguage.slnx -c Release
+dotnet publish Source/SmlXml/SmlXml.csproj -p:PublishProfile=windows
+python Tests/svg-roundtrip/build_and_test.py
+python Tests/svg-roundtrip/crosscheck_csharp.py --docs 1000
+```
+
+The publish profile writes two framework-dependent single-file executables, each with `LICENSE.md` and `svg.smlprofile` beside it: `publish/smlxml/win-x64/smlxml.exe` (64-bit, needs the x64 .NET 10 runtime) and `publish/smlxml/win-x86/smlxml.exe` (32-bit, needs the x86 .NET 10 runtime). `Source/SmlXml/Properties/PublishProfiles/windows.pubxml` is the only publish profile; Visual Studio's Publish command uses it too. On Windows, `pull-and-publish.bat` runs `git pull --ff-only origin main` and then that publish; it stops if `main` is not checked out or the pull cannot fast-forward. `.gitattributes` gives `*.bat` files CRLF line endings, which `cmd.exe` needs. `crosscheck_csharp.py` needs a Release build of `Source/SmlXml` first.
+
+## Conventions
+
+- **Two implementations, one behavior.** The Python prototype and the C# library implement the same specification. Their canonical SML must be byte-identical: `CorpusTests` compares C# output with `Tests/svg-roundtrip/results/*.sml`, and `crosscheck_csharp.py` compares both on random documents and mutants. A change to the specification's syntax or canonical form must be made in both, followed by both test suites and the cross-check. Writer options (`SmlWriterOptions`: profiles with `SmlProfile` and `ValueLayout`, the reflow of §3.2, and vertical attributes) exist only in C#. They change neither syntax nor the canonical form, and their output is ordinary SML that the Python reader must read the same way.
+- **Code points, not UTF-16 units.** The canonical form measures lines in code points and orders names by code point. In C#, use `XmlRules.CodePointLength` and `XmlRules.CompareCodePoints`, never `string.Length` or ordinal comparison, for those rules.
+- **Warnings are errors** in all C# projects.
+- **Calculation separate from presentation.** `Source/Sml` has no console or file-system code; `Source/SmlXml/CommandLine.cs` owns arguments, files, and messages.
+
+## Decisions
+
+- **The library is split from the command line** so that the format logic can be tested directly and reused by future tools such as an editor.
+- **The XML importer turns off System.Xml namespace processing.** It uses `XmlTextReader` with `Namespaces = false`, wrapped with character checking, and validates names and namespaces itself with `XmlRules`, as the SML reader does. With namespace processing on, System.Xml rejects `xml:space` values other than `default` and `preserve`, which are well-formed opaque values without a DTD.
+- **Blocks are delimited by `"""`** (1.0-SVG-4), with a longer run of quotation marks when a payload line is `"""`, and `end` closes only elements.
+  - Braces were rejected: CSS and scripts, the usual block payloads, put `}` alone on a line, so a brace-delimited block would close early and the rest of the CSS would parse as SML.
+  - A backtick was rejected: it is hard to see, a dead key on many keyboard layouts, and PowerShell's escape character.
+- **Writer profiles are exact unless reflow is asked for.**
+  - A profile (`SmlProfile`) gives SML output aliases and layouts.
+  - By default it changes only the SML spelling: blocks through aliases, and continuation lines at item boundaries.
+  - `--reflow` applies the specification's lossy readable reflow (§3.2), which rewrites values one item per line.
+  - The format is smlxml configuration, not SML. SML written with a profile is self-contained (§8.5): `SmlWriter` declares the aliases it uses on the root element.
+- **External DTDs are never loaded** (`XmlResolver = null`). DTD internal subsets are rejected, including an empty `[]`, which System.Xml cannot distinguish from no subset; `XmlImporter.HasInternalSubset` scans the prolog for it.
+- **One publish profile, both bitnesses.**
+  - `windows.pubxml` serves both the command line and Visual Studio. `PublishProtocol=FileSystem` and `_TargetId=Folder` make Visual Studio list it as a folder profile.
+  - Visual Studio's Publish page shows "Target runtime: win-x64" for it, because a profile can name only one runtime. Each Publish still produces both builds. This display was accepted in preference to two profiles or a "Portable" profile.
+  - It publishes `win-x64`. The `PublishAdditionalRuntimes` target in `SmlXml.csproj` runs after `Publish` and publishes each runtime in `AdditionalPublishRuntimes` (`win-x86`) the same way, so both executables come from one publish, in Visual Studio too.
+  - `RuntimeIdentifiers` restores both runtimes up front.
+  - `PublishDir` (`..\..\publish\smlxml\$(RuntimeIdentifier)\`) is relative to the project folder, so the output is the same wherever publishing starts.
+- **Any CPU.** The assemblies are CPU-neutral (`PlatformTarget=AnyCPU`), also inside the 32- and 64-bit publishes; only the native `smlxml.exe` launcher is per-architecture. The solution has only the default Any CPU platform.
+- **Licensing.**
+  - The repository, `smlxml` included, is licensed under the MIT license in `LICENSE.md` at the root, Copyright (c) 2026 Optimax Technologies, Inc. The only exception is the third-party files in `Tests/svg-corpus`. The same copyright is in `<Company>` and `<Copyright>` in the C# project files, in the banner, and in `README.md`.
+  - `SmlXml.csproj` copies `LICENSE.md` to the build and publish output, beside `smlxml.exe`.
+  - The shipped `smlxml` uses no third-party packages; xUnit and the test SDK are test-only and not redistributed.
+  - `Tests/svg-corpus` holds third-party files under MIT and ISC licenses, with their exact license texts in its `THIRD-PARTY-NOTICES.md`. It is distributed with the source only, never with `smlxml`. `Tests/svg-corpus/gather_corpus.py` lists the sources at pinned versions, and writes both the files and the notices. A new source must be under an MIT-like license, and no file may carry an "All Rights Reserved" notice, which the script checks; the W3C SVG 1.1 test suite was removed for that reason. Brand logos are kept out because they are trademarks.
+
+## Known traps
+
+- **`--self-contained false` is not honored.** With SDK 10.0.114, `dotnet publish -r win-x64 --self-contained false` produced a 73 MB self-contained executable. `--no-self-contained`, `-p:SelfContained=false`, or the `windows` publish profile produce the 250 KB framework-dependent `smlxml.exe`.
+- **Single-file publishing bundles content files.** With `PublishSingleFile`, a file marked `CopyToPublishDirectory` is embedded in the executable unless it has `ExcludeFromSingleFile="true"`, as `LICENSE.md` does in `SmlXml.csproj`.
+- **System.Xml reports an empty internal subset (`[]`) exactly like no subset.** See `HasInternalSubset`.
+- **XML parsers disagree at the edges.** Recorded by the Python fuzzer as known divergences:
+  - libxml2 rejects namespace names that are not URI references;
+  - expat uses XML 1.0 4th-edition name characters, so 5th-edition names such as one containing U+FEFF fail in expat;
+  - libxml2 accepts a malformed `version="1."` with only a warning;
+  - lxml raises only when the last logged message is an error.
+- **Expat decodes undeclared encodings one byte at a time.** The Python importer transcodes registered multi-byte encodings itself (`_transcode`).

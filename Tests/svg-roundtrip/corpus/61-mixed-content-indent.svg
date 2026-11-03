@@ -1,0 +1,4 @@
+<svg xmlns="http://www.w3.org/2000/svg">
+  <text x="1"><tspan>A</tspan> B</text>
+  <text x="2">C <tspan>D</tspan></text>
+</svg>
