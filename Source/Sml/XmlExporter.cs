@@ -23,6 +23,14 @@ public static class XmlExporter
     private static string EscapeText(string s) =>
         s.Replace("&", "&amp;").Replace("<", "&lt;").Replace(">", "&gt;").Replace("\r", "&#13;");
 
+    /// <summary>Text as XML (§9): in a style or script element, text with &lt;, &amp;, or &gt; is a CDATA section, so
+    /// that style sheets and scripts stay readable; <c>]]&gt;</c> is split across two sections. Text with a CR, which a
+    /// CDATA section cannot keep, and all other text are escaped.</summary>
+    private static string Text(string s, ElementNode parent) =>
+        parent.Name.Local is "style" or "script" && s.AsSpan().ContainsAny('<', '&', '>') && !s.Contains('\r')
+            ? "<![CDATA[" + s.Replace("]]>", "]]]]><![CDATA[>") + "]]>"
+            : EscapeText(s);
+
     private static string EscapeAttribute(string s) =>
         s.Replace("&", "&amp;").Replace("<", "&lt;").Replace("\"", "&quot;")
             .Replace("\t", "&#9;").Replace("\n", "&#10;").Replace("\r", "&#13;");
@@ -94,7 +102,7 @@ public static class XmlExporter
                     Element(e, output, at);
                     break;
                 case TextNode t:
-                    output.Append(EscapeText(t.Data));
+                    output.Append(Text(t.Data, element));
                     break;
                 case CommentNode comment:
                     bool deeper = at.Length > indentation.Length && at.StartsWith(indentation, StringComparison.Ordinal);

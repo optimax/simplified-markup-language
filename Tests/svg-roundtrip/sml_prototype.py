@@ -1490,6 +1490,18 @@ def _esc_text(s: str) -> str:
             .replace('\r', '&#13;'))
 
 
+CDATA_ELEMENTS = ('style', 'script')
+
+
+def _text_xml(s: str, el: Element) -> str:
+    """Text as XML (§9): in a style or script element, text with <, &, or > is a CDATA section, so that style sheets
+    and scripts stay readable; ]]> is split across two sections. Text with a CR, which a CDATA section cannot keep,
+    and all other text are escaped."""
+    if el.expanded[1] in CDATA_ELEMENTS and any(c in s for c in '<&>') and '\r' not in s:
+        return '<![CDATA[' + s.replace(']]>', ']]]]><![CDATA[>') + ']]>'
+    return _esc_text(s)
+
+
 def _esc_attr(s: str) -> str:
     return (s.replace('&', '&amp;').replace('<', '&lt;').replace('"', '&quot;')
             .replace('\t', '&#9;').replace('\n', '&#10;').replace('\r', '&#13;'))
@@ -1548,7 +1560,7 @@ def _element_xml(el: Element, out: list[str], indentation: str = '') -> None:
         if isinstance(ch, Element):
             _element_xml(ch, out, at)
         elif isinstance(ch, Text):
-            out.append(_esc_text(ch.data))
+            out.append(_text_xml(ch.data, el))
         elif isinstance(ch, Comment):
             deeper = len(at) > len(indentation) and at.startswith(indentation)
             out.append(_comment_xml(ch.data, at, at[len(indentation):] if deeper else '  '))

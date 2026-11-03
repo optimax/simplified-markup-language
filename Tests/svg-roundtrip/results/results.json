@@ -627,7 +627,7 @@
     }
   ],
   "unit_tests": {
-    "run": 64,
+    "run": 65,
     "failed": []
   },
   "fuzz": {
@@ -638,7 +638,7 @@
     "xml_mutants": 1200,
     "xml_mutants_both_accepted": 344,
     "known_divergences": {
-      "libxml2 rejects namespace names that are not URI references; expat and the prototype accept them": 19
+      "libxml2 rejects namespace names that are not URI references; expat and the prototype accept them": 20
     },
     "findings": []
   }

@@ -212,6 +212,17 @@ class CoreFixtures(Base):
         self.assertEqual(list(read('g(b=1)\n  .a 2\n  .c 3\nend\n').root.attrs), ['b', 'a', 'c'])
         self.assertNotEqual(S.signature(read('g(a=1, b=2)/\n')), S.signature(read('g(b=2, a=1)/\n')))
 
+    def test_SV73b_cdata_in_style_and_script(self):
+        # XML output writes the text of style and script as CDATA when it has <, &, or > (§9), splitting ]]>.
+        doc = read('svg(xmlns=http://www.w3.org/2000/svg)\n  style = g > rect {}\n  script = """\n    if (a < b && c) x = "]]>";\n    """\n'
+                   '  script = "a\\rb<"\n  text = a < b\n  style = plain\nend\n')
+        xml = S.write_xml(doc)
+        for fragment in ('<style><![CDATA[g > rect {}]]></style>',
+                         '<script><![CDATA[\n    if (a < b && c) x = "]]]]><![CDATA[>";\n  ]]></script>',
+                         '<script>a&#13;b&lt;</script>', '<text>a &lt; b</text>', '<style>plain</style>'):
+            self.assertIn(fragment, xml)
+        self.assertEqual(S.signature(S.read_xml(xml.encode())), S.signature(doc))
+
     def test_CP24_canonical_writer_is_idempotent(self):
         src = ('@indent 2\nsvg(xmlns=http://www.w3.org/2000/svg)\n  text\n    @noindent\n    tspan = A\n'
                '    = " B"\n  end\n  style = """"\n    a\n    """\n    end\n    """"\nend\n')

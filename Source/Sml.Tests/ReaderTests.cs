@@ -200,6 +200,20 @@ public class ReaderTests
     }
 
     [Fact]
+    public void SV73b_CdataInStyleAndScript()
+    {
+        // XML output writes the text of style and script as CDATA when it has <, &, or > (§9), splitting ]]>.
+        SmlDocument doc = SmlReader.Read("svg(xmlns=http://www.w3.org/2000/svg)\n  style = g > rect {}\n  script = \"\"\"\n"
+            + "    if (a < b && c) x = \"]]>\";\n    \"\"\"\n  script = \"a\\rb<\"\n  text = a < b\n  style = plain\nend\n");
+        string xml = XmlExporter.Write(doc);
+        foreach (string fragment in new[] { "<style><![CDATA[g > rect {}]]></style>",
+                     "<script><![CDATA[\n    if (a < b && c) x = \"]]]]><![CDATA[>\";\n  ]]></script>",
+                     "<script>a&#13;b&lt;</script>", "<text>a &lt; b</text>", "<style>plain</style>" })
+            Assert.Contains(fragment, xml);
+        Assert.Null(DocumentComparer.FirstDifference(doc, XmlImporter.Read(Encoding.UTF8.GetBytes(xml))));
+    }
+
+    [Fact]
     public void CP24_CanonicalWriterIsIdempotent()
     {
         const string source = "@indent 2\nsvg(xmlns=http://www.w3.org/2000/svg)\n  text\n    @noindent\n    tspan = A\n    = \" B\"\n  end\n  style = \"\"\"\"\n    a\n    \"\"\"\n    end\n    \"\"\"\"\nend\n";
