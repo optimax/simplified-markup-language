@@ -7,7 +7,7 @@
 | SML specification | `Documents/SML-Language-Specification.md` | The language: SML 1.0-SVG-4 |
 | `smlxml` | `Source/SmlXml/` (command line), `Source/Sml/` (library) | Two-way SML ↔ XML/SVG converter in C# |
 | Python prototype and test harness | `Tests/svg-roundtrip/` | Reference implementation, fixture corpus, fuzz and differential tests |
-| SVG corpus | `Tests/svg-corpus/` | 385 third-party real-world SVG files, kept as examples |
+| SVG corpus | `Tests/svg-corpus/` | 897 third-party real-world SVG files, kept as examples |
 
 ## Development environment
 

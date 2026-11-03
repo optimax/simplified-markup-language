@@ -67,7 +67,7 @@ SOFTWARE.
 ## `flag-icons/`
 
 - Source: npm package [`flag-icons`](https://www.npmjs.com/package/flag-icons) 7.6.0 (https://github.com/lipis/flag-icons)
-- Files: 30, from `flags/`
+- Files: 542, from `flags/`
 - License: MIT
 
 ```text

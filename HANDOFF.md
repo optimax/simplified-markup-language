@@ -32,33 +32,33 @@ Provide `smlxml`, a two-way SML ↔ XML/SVG command-line converter in C# on .NET
   - `ProfileTests`: layouts, the profile format, and the profile writer in both modes, over every fixture and every file of `Tests/svg-corpus`;
   - `WriterOptionsTests`: vertical attributes, over the same files.
 - **`Tests/svg-roundtrip/crosscheck_csharp.py`** compares the C# and Python implementations on random documents, non-canonical SML spellings, and SML mutants.
-- **`Tests/svg-corpus`** holds 385 real-world SVG files from 15 MIT- and ISC-licensed projects: icon sets, emoji, flags, animated icons, and the resvg test suite. The W3C SVG 1.1 test suite was removed, because its files say "All Rights Reserved"; `gather_corpus.py` now refuses such files. `ProfileTests` reads them; the Python harness does not.
+- **`Tests/svg-corpus`** holds 897 real-world SVG files from 15 MIT- and ISC-licensed projects: icon sets, emoji, every flag of flag-icons, animated icons, and the resvg test suite. The W3C SVG 1.1 test suite was removed, because its files say "All Rights Reserved"; `gather_corpus.py` now refuses such files. `ProfileTests` reads them; the Python harness does not.
   - `gather_corpus.py` downloads the sources at pinned versions, selects the files, and writes them and `THIRD-PARTY-NOTICES.md`.
   - Its `README.md` describes the selection and the expected results.
 - **`README.md`** at the root introduces the project on GitHub. It assumes a public repository under the MIT license.
 - Solution-wide environment, conventions, decisions, and traps are in `implementation.md`.
 
-## Files changed in the last task (`|` freed; review removed)
+## Files changed in the last task (every flag in the corpus)
 
-The syntax is defined as it goes, with no compatibility with earlier forms, so nothing in the specification, the readers, or the tests refers to earlier syntax. The last remnant is gone:
+The user asked for all of flag-icons instead of a sample.
 
-- **`|` is an ordinary character.** A raw value may begin with `|` in every position: `.d`, `=`, inline lists, `@comment`, `@pi`, `@ns`. The canonical writer writes such values raw instead of quoted. No fixture or corpus file had one, so no reference output changed. The space before a value may still be left out only before a block marker, so `.d|x` is an error.
-  - Specification §§6.2, 6.3, 12.2 notes, 12.3, 14.1; CP-10 and SV-72 now test that such values are accepted.
-  - `Tests/svg-roundtrip/sml_prototype.py` (`parse_value_tail`, `tokens`, `parse_inline_list`, `raw_ok`), `fuzz_roundtrip.py` (`reader_raw_ok`), `test_sml_core.py`.
-  - `Source/Sml/SmlReader.cs` (`ParseValueTail`, the operand scanner, `ParseInlineList`), `SmlWriter.cs` (`RawOk`), `Source/Sml.Tests/ReaderTests.cs`.
-- **`Documents/SML-Spec-Review-Claude.md` deleted**, and its row in `README.md`: it reviewed revision 1.0-SVG-2 in that revision's syntax.
-- Earlier in this series: both alias declarations put the alias last (`@node g group`, `@block path .d data`), and `svg.smlprofile` uses that order. The user added `@node g group` and `@node p para` to it; the latter names an SVG-namespace `p`, which the user chose to leave as is.
+- `Tests/svg-corpus/gather_corpus.py` selects every file of `flag-icons` 7.6.0: 271 flags in each of `4x3` and `1x1`, 542 in all, including regions (`gb-eng`, `es-ct`, …), organizations (`eu`, `un`, `asean`, …), and the `xx` placeholder. None is over the 200 KB limit or carries an "All Rights Reserved" notice.
+- `Tests/svg-corpus/flag-icons/` now holds those 542 files (was 30), and `THIRD-PARTY-NOTICES.md` their count. The corpus has 897 files (was 385).
+- `Tests/svg-corpus/README.md`, `README.md`, and `implementation.md` give the new counts.
+- The C# test count grew to 4,084, because `ProfileTests` and `WriterOptionsTests` run once per corpus file.
+
+Earlier in this series: `|` became an ordinary character, the 1.0-SVG-2 review was deleted, nothing refers to earlier syntax, and both alias declarations put the alias last (`@node g group`, `@block path .d data`). The user added `@node g group` and `@node p para` to `svg.smlprofile`; the latter names an SVG-namespace `p`, which the user chose to leave as is.
 
 ## Build and test results
 
 - `dotnet build SimplifiedMarkupLanguage.slnx -c Release`: 0 warnings, 0 errors.
-- `dotnet test`: 2,036/2,036 passed, including the byte-for-byte comparison with the regenerated Python reference SML.
+- `dotnet test`: 4,084/4,084 passed, including the byte-for-byte comparison with the regenerated Python reference SML.
 - `fuzz_roundtrip.py --docs 2000 --seed 7`: 0 findings (only the known parser divergences).
 - `crosscheck_csharp.py` seeds 1–3 with `@node` variants and the new `@block` order (3,000 documents, 12,000 SML mutants): 0 differences.
-- `smlxml --verbose` over a copy of `Tests/svg-corpus`: the Python prototype read all 381 accepted files back equal to their originals.
-- Profiles over a copy of `Tests/svg-corpus` with the real executable, checked by the Python prototype (script not in the repository), after the `@block` order change:
-  - `smlxml -p svg` output read back equal to the original for all 381 accepted files;
-  - `smlxml -p svg -r` reflowed values in 311 files;
+- `smlxml --verbose` over a copy of `Tests/svg-corpus`: the Python prototype read all 893 accepted files back equal to their originals.
+- Profiles over a copy of `Tests/svg-corpus` with the real executable, checked by the Python prototype (script not in the repository), with all flags and the profile's `@node g group` (used in 830 files):
+  - `smlxml -p svg` output read back equal to the original for all 893 accepted files;
+  - `smlxml -p svg -r` reflowed values in 823 files;
   - the C# and Python readers agreed on every reflowed file.
 - The real executable was also exercised on Linux with quoted relative patterns (`*.svg`, `art/**/*.svg`, an unmatched pattern, no arguments), simulating how Windows shells pass them.
 - `smlxml *.svg` then `smlxml -o *.out.svg *.sml` over all 47 corpus fixtures produced 47 `.out.svg` files; the Python importer found each equal in information to its original.
@@ -67,10 +67,10 @@ The syntax is defined as it goes, with no compatibility with earlier forms, so n
 - `fuzz_roundtrip.py` seed 23 (1,500 documents) after the `@block` order change and the removal of the old-form checks: 0 findings. Seed 21 (1,500 documents) with `@node` variants: 0 findings (only the known parser divergences). 400 variants had 393 `@node` declarations, 171 of them in declaration sections, and 236 `@element` openers; all read back equal.
 - `smlxml -p` with `svg.smlprofile` plus six `@node` aliases (one colliding with real `desc` elements) over a copy of `Tests/svg-corpus` and the fixtures: the Python prototype read all 434 outputs back equal to their SVG files; 433 declared aliases, used 5,213 times, and no colliding alias was used.
 - `Tests/svg-corpus` was checked by hand, with a script that is not in the repository:
-  - Python and C# both accept 381 of the 385 files. Each round-trips XML → SML → XML to the same document, and the canonical SML is byte-identical between the implementations. Three files use the new forms (8 per-element steps, 1 laid-out text block).
+  - Python and C# both accept 893 of the 897 files, including all 542 flags. Each round-trips XML → SML → XML to the same document, and the canonical SML is byte-identical between the implementations.
   - Both reject the same 4 files (resvg), which have DTD internal subsets.
   - `smlxml "svg-corpus/**/*.svg"` followed by `smlxml -o "*.out.svg" "svg-corpus/**/*.sml"` on a copy gave the same result.
-  - `gather_corpus.py --dest <empty folder>` downloaded all 15 sources again and reproduced the 385 committed files and the notices byte for byte.
+  - `gather_corpus.py --dest <empty folder>` downloaded all 15 sources again. Every folder but `flag-icons` came out byte for byte as committed, the 30 flags already in the corpus were among the 542, and the notices differed only in the flag count.
 
 ## Unresolved
 

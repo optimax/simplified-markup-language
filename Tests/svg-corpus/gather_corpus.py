@@ -187,17 +187,8 @@ def select_npm(src, files):
         return [(p, svgs[p]) for p in spread(candidates(svgs, folder), k)]
 
     if src.folder == 'flag-icons':
-        # National flags only (two-letter ISO 3166 codes), not organizations (un, eu) or the placeholder (xx),
-        # with the six largest 4x3 flags for their detailed coats of arms.
-        def national(folder):
-            codes = {p: p[len(folder) + 1:-4] for p in candidates(svgs, folder, brands=False)}
-            return [p for p, code in codes.items()
-                    if re.fullmatch(r'[a-z]{2}', code) and code not in ('un', 'eu', 'xx')]
-        flags = national('4x3')
-        largest = sorted(flags, key=lambda p: -len(svgs[p]))[:6]
-        rest = [p for p in flags if p not in largest]
-        chosen = sorted(largest + spread(rest, 14)) + spread(national('1x1'), 10)
-        return [(p, svgs[p]) for p in chosen]
+        # Every flag in both aspect ratios: countries, regions, organizations, and the placeholder (xx).
+        return [(p, svgs[p]) for p in candidates(svgs, brands=False)]
     if src.folder == 'phosphor':
         # A different three icons in each of the six weights.
         weights = ('thin', 'light', 'regular', 'bold', 'fill', 'duotone')
