@@ -1,0 +1,331 @@
+﻿<?xml version="1.0" encoding="utf-8" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg width="1200" height="900" version="1.1" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <clipPath id="clipPath1">
+      <rect x="0" y="0" width="1200" height="900" />
+    </clipPath>
+  </defs>
+  <g clip-path="url(#clipPath1)" />
+  <defs>
+    <clipPath id="clipPath2">
+      <rect x="51.062" y="45.8345" width="1131.9335" height="811.0595" />
+    </clipPath>
+  </defs>
+  <g clip-path="url(#clipPath2)">
+    <polygon points="1052.6994,451.3643 541.2985,95.4931 1080.629,835.9417 884.161,687.8512 152.6994,51.3643" style="fill:rgb(205,92,92);fill-opacity:0.607843137254902;stroke:black;stroke-width:0" />
+  </g>
+  <defs>
+    <clipPath id="clipPath3">
+      <rect x="0" y="0" width="1200" height="900" />
+    </clipPath>
+  </defs>
+  <g clip-path="url(#clipPath3)">
+    <polyline points="60.2426,45.8345 60.2426,856.894" style="fill:none;stroke:rgb(0,0,0);stroke-width:1;stroke-opacity:0.125490196078431;stroke-dasharray:1,1" shape-rendering="crispEdges" />
+    <polyline points="87.3892,45.8345 87.3892,856.894" style="fill:none;stroke:rgb(0,0,0);stroke-width:1;stroke-opacity:0.125490196078431;stroke-dasharray:1,1" shape-rendering="crispEdges" />
+    <polyline points="100.9626,45.8345 100.9626,856.894" style="fill:none;stroke:rgb(0,0,0);stroke-width:1;stroke-opacity:0.125490196078431;stroke-dasharray:1,1" shape-rendering="crispEdges" />
+    <polyline points="114.5359,45.8345 114.5359,856.894" style="fill:none;stroke:rgb(0,0,0);stroke-width:1;stroke-opacity:0.125490196078431;stroke-dasharray:1,1" shape-rendering="crispEdges" />
+    <polyline points="128.1093,45.8345 128.1093,856.894" style="fill:none;stroke:rgb(0,0,0);stroke-width:1;stroke-opacity:0.125490196078431;stroke-dasharray:1,1" shape-rendering="crispEdges" />
+    <polyline points="155.256,45.8345 155.256,856.894" style="fill:none;stroke:rgb(0,0,0);stroke-width:1;stroke-opacity:0.125490196078431;stroke-dasharray:1,1" shape-rendering="crispEdges" />
+    <polyline points="168.8293,45.8345 168.8293,856.894" style="fill:none;stroke:rgb(0,0,0);stroke-width:1;stroke-opacity:0.125490196078431;stroke-dasharray:1,1" shape-rendering="crispEdges" />
+    <polyline points="182.4026,45.8345 182.4026,856.894" style="fill:none;stroke:rgb(0,0,0);stroke-width:1;stroke-opacity:0.125490196078431;stroke-dasharray:1,1" shape-rendering="crispEdges" />
+    <polyline points="195.976,45.8345 195.976,856.894" style="fill:none;stroke:rgb(0,0,0);stroke-width:1;stroke-opacity:0.125490196078431;stroke-dasharray:1,1" shape-rendering="crispEdges" />
+    <polyline points="223.1227,45.8345 223.1227,856.894" style="fill:none;stroke:rgb(0,0,0);stroke-width:1;stroke-opacity:0.125490196078431;stroke-dasharray:1,1" shape-rendering="crispEdges" />
+    <polyline points="236.696,45.8345 236.696,856.894" style="fill:none;stroke:rgb(0,0,0);stroke-width:1;stroke-opacity:0.125490196078431;stroke-dasharray:1,1" shape-rendering="crispEdges" />
+    <polyline points="250.2693,45.8345 250.2693,856.894" style="fill:none;stroke:rgb(0,0,0);stroke-width:1;stroke-opacity:0.125490196078431;stroke-dasharray:1,1" shape-rendering="crispEdges" />
+    <polyline points="263.8427,45.8345 263.8427,856.894" style="fill:none;stroke:rgb(0,0,0);stroke-width:1;stroke-opacity:0.125490196078431;stroke-dasharray:1,1" shape-rendering="crispEdges" />
+    <polyline points="290.9894,45.8345 290.9894,856.894" style="fill:none;stroke:rgb(0,0,0);stroke-width:1;stroke-opacity:0.125490196078431;stroke-dasharray:1,1" shape-rendering="crispEdges" />
+    <polyline points="304.5627,45.8345 304.5627,856.894" style="fill:none;stroke:rgb(0,0,0);stroke-width:1;stroke-opacity:0.125490196078431;stroke-dasharray:1,1" shape-rendering="crispEdges" />
+    <polyline points="318.1361,45.8345 318.1361,856.894" style="fill:none;stroke:rgb(0,0,0);stroke-width:1;stroke-opacity:0.125490196078431;stroke-dasharray:1,1" shape-rendering="crispEdges" />
+    <polyline points="331.7094,45.8345 331.7094,856.894" style="fill:none;stroke:rgb(0,0,0);stroke-width:1;stroke-opacity:0.125490196078431;stroke-dasharray:1,1" shape-rendering="crispEdges" />
+    <polyline points="358.8561,45.8345 358.8561,856.894" style="fill:none;stroke:rgb(0,0,0);stroke-width:1;stroke-opacity:0.125490196078431;stroke-dasharray:1,1" shape-rendering="crispEdges" />
+    <polyline points="372.4294,45.8345 372.4294,856.894" style="fill:none;stroke:rgb(0,0,0);stroke-width:1;stroke-opacity:0.125490196078431;stroke-dasharray:1,1" shape-rendering="crispEdges" />
+    <polyline points="386.0028,45.8345 386.0028,856.894" style="fill:none;stroke:rgb(0,0,0);stroke-width:1;stroke-opacity:0.125490196078431;stroke-dasharray:1,1" shape-rendering="crispEdges" />
+    <polyline points="399.5761,45.8345 399.5761,856.894" style="fill:none;stroke:rgb(0,0,0);stroke-width:1;stroke-opacity:0.125490196078431;stroke-dasharray:1,1" shape-rendering="crispEdges" />
+    <polyline points="426.7228,45.8345 426.7228,856.894" style="fill:none;stroke:rgb(0,0,0);stroke-width:1;stroke-opacity:0.125490196078431;stroke-dasharray:1,1" shape-rendering="crispEdges" />
+    <polyline points="440.2961,45.8345 440.2961,856.894" style="fill:none;stroke:rgb(0,0,0);stroke-width:1;stroke-opacity:0.125490196078431;stroke-dasharray:1,1" shape-rendering="crispEdges" />
+    <polyline points="453.8695,45.8345 453.8695,856.894" style="fill:none;stroke:rgb(0,0,0);stroke-width:1;stroke-opacity:0.125490196078431;stroke-dasharray:1,1" shape-rendering="crispEdges" />
+    <polyline points="467.4428,45.8345 467.4428,856.894" style="fill:none;stroke:rgb(0,0,0);stroke-width:1;stroke-opacity:0.125490196078431;stroke-dasharray:1,1" shape-rendering="crispEdges" />
+    <polyline points="494.5895,45.8345 494.5895,856.894" style="fill:none;stroke:rgb(0,0,0);stroke-width:1;stroke-opacity:0.125490196078431;stroke-dasharray:1,1" shape-rendering="crispEdges" />
+    <polyline points="508.1629,45.8345 508.1629,856.894" style="fill:none;stroke:rgb(0,0,0);stroke-width:1;stroke-opacity:0.125490196078431;stroke-dasharray:1,1" shape-rendering="crispEdges" />
+    <polyline points="521.7362,45.8345 521.7362,856.894" style="fill:none;stroke:rgb(0,0,0);stroke-width:1;stroke-opacity:0.125490196078431;stroke-dasharray:1,1" shape-rendering="crispEdges" />
+    <polyline points="535.3095,45.8345 535.3095,856.894" style="fill:none;stroke:rgb(0,0,0);stroke-width:1;stroke-opacity:0.125490196078431;stroke-dasharray:1,1" shape-rendering="crispEdges" />
+    <polyline points="562.4562,45.8345 562.4562,856.894" style="fill:none;stroke:rgb(0,0,0);stroke-width:1;stroke-opacity:0.125490196078431;stroke-dasharray:1,1" shape-rendering="crispEdges" />
+    <polyline points="576.0296,45.8345 576.0296,856.894" style="fill:none;stroke:rgb(0,0,0);stroke-width:1;stroke-opacity:0.125490196078431;stroke-dasharray:1,1" shape-rendering="crispEdges" />
+    <polyline points="589.6029,45.8345 589.6029,856.894" style="fill:none;stroke:rgb(0,0,0);stroke-width:1;stroke-opacity:0.125490196078431;stroke-dasharray:1,1" shape-rendering="crispEdges" />
+    <polyline points="603.1762,45.8345 603.1762,856.894" style="fill:none;stroke:rgb(0,0,0);stroke-width:1;stroke-opacity:0.125490196078431;stroke-dasharray:1,1" shape-rendering="crispEdges" />
+    <polyline points="630.3229,45.8345 630.3229,856.894" style="fill:none;stroke:rgb(0,0,0);stroke-width:1;stroke-opacity:0.125490196078431;stroke-dasharray:1,1" shape-rendering="crispEdges" />
+    <polyline points="643.8963,45.8345 643.8963,856.894" style="fill:none;stroke:rgb(0,0,0);stroke-width:1;stroke-opacity:0.125490196078431;stroke-dasharray:1,1" shape-rendering="crispEdges" />
+    <polyline points="657.4696,45.8345 657.4696,856.894" style="fill:none;stroke:rgb(0,0,0);stroke-width:1;stroke-opacity:0.125490196078431;stroke-dasharray:1,1" shape-rendering="crispEdges" />
+    <polyline points="671.043,45.8345 671.043,856.894" style="fill:none;stroke:rgb(0,0,0);stroke-width:1;stroke-opacity:0.125490196078431;stroke-dasharray:1,1" shape-rendering="crispEdges" />
+    <polyline points="698.1896,45.8345 698.1896,856.894" style="fill:none;stroke:rgb(0,0,0);stroke-width:1;stroke-opacity:0.125490196078431;stroke-dasharray:1,1" shape-rendering="crispEdges" />
+    <polyline points="711.763,45.8345 711.763,856.894" style="fill:none;stroke:rgb(0,0,0);stroke-width:1;stroke-opacity:0.125490196078431;stroke-dasharray:1,1" shape-rendering="crispEdges" />
+    <polyline points="725.3363,45.8345 725.3363,856.894" style="fill:none;stroke:rgb(0,0,0);stroke-width:1;stroke-opacity:0.125490196078431;stroke-dasharray:1,1" shape-rendering="crispEdges" />
+    <polyline points="738.9097,45.8345 738.9097,856.894" style="fill:none;stroke:rgb(0,0,0);stroke-width:1;stroke-opacity:0.125490196078431;stroke-dasharray:1,1" shape-rendering="crispEdges" />
+    <polyline points="766.0564,45.8345 766.0564,856.894" style="fill:none;stroke:rgb(0,0,0);stroke-width:1;stroke-opacity:0.125490196078431;stroke-dasharray:1,1" shape-rendering="crispEdges" />
+    <polyline points="779.6297,45.8345 779.6297,856.894" style="fill:none;stroke:rgb(0,0,0);stroke-width:1;stroke-opacity:0.125490196078431;stroke-dasharray:1,1" shape-rendering="crispEdges" />
+    <polyline points="793.203,45.8345 793.203,856.894" style="fill:none;stroke:rgb(0,0,0);stroke-width:1;stroke-opacity:0.125490196078431;stroke-dasharray:1,1" shape-rendering="crispEdges" />
+    <polyline points="806.7764,45.8345 806.7764,856.894" style="fill:none;stroke:rgb(0,0,0);stroke-width:1;stroke-opacity:0.125490196078431;stroke-dasharray:1,1" shape-rendering="crispEdges" />
+    <polyline points="833.9231,45.8345 833.9231,856.894" style="fill:none;stroke:rgb(0,0,0);stroke-width:1;stroke-opacity:0.125490196078431;stroke-dasharray:1,1" shape-rendering="crispEdges" />
+    <polyline points="847.4964,45.8345 847.4964,856.894" style="fill:none;stroke:rgb(0,0,0);stroke-width:1;stroke-opacity:0.125490196078431;stroke-dasharray:1,1" shape-rendering="crispEdges" />
+    <polyline points="861.0698,45.8345 861.0698,856.894" style="fill:none;stroke:rgb(0,0,0);stroke-width:1;stroke-opacity:0.125490196078431;stroke-dasharray:1,1" shape-rendering="crispEdges" />
+    <polyline points="874.6431,45.8345 874.6431,856.894" style="fill:none;stroke:rgb(0,0,0);stroke-width:1;stroke-opacity:0.125490196078431;stroke-dasharray:1,1" shape-rendering="crispEdges" />
+    <polyline points="901.7898,45.8345 901.7898,856.894" style="fill:none;stroke:rgb(0,0,0);stroke-width:1;stroke-opacity:0.125490196078431;stroke-dasharray:1,1" shape-rendering="crispEdges" />
+    <polyline points="915.3631,45.8345 915.3631,856.894" style="fill:none;stroke:rgb(0,0,0);stroke-width:1;stroke-opacity:0.125490196078431;stroke-dasharray:1,1" shape-rendering="crispEdges" />
+    <polyline points="928.9365,45.8345 928.9365,856.894" style="fill:none;stroke:rgb(0,0,0);stroke-width:1;stroke-opacity:0.125490196078431;stroke-dasharray:1,1" shape-rendering="crispEdges" />
+    <polyline points="942.5098,45.8345 942.5098,856.894" style="fill:none;stroke:rgb(0,0,0);stroke-width:1;stroke-opacity:0.125490196078431;stroke-dasharray:1,1" shape-rendering="crispEdges" />
+    <polyline points="969.6565,45.8345 969.6565,856.894" style="fill:none;stroke:rgb(0,0,0);stroke-width:1;stroke-opacity:0.125490196078431;stroke-dasharray:1,1" shape-rendering="crispEdges" />
+    <polyline points="983.2298,45.8345 983.2298,856.894" style="fill:none;stroke:rgb(0,0,0);stroke-width:1;stroke-opacity:0.125490196078431;stroke-dasharray:1,1" shape-rendering="crispEdges" />
+    <polyline points="996.8032,45.8345 996.8032,856.894" style="fill:none;stroke:rgb(0,0,0);stroke-width:1;stroke-opacity:0.125490196078431;stroke-dasharray:1,1" shape-rendering="crispEdges" />
+    <polyline points="1010.3765,45.8345 1010.3765,856.894" style="fill:none;stroke:rgb(0,0,0);stroke-width:1;stroke-opacity:0.125490196078431;stroke-dasharray:1,1" shape-rendering="crispEdges" />
+    <polyline points="1037.5232,45.8345 1037.5232,856.894" style="fill:none;stroke:rgb(0,0,0);stroke-width:1;stroke-opacity:0.125490196078431;stroke-dasharray:1,1" shape-rendering="crispEdges" />
+    <polyline points="1051.0965,45.8345 1051.0965,856.894" style="fill:none;stroke:rgb(0,0,0);stroke-width:1;stroke-opacity:0.125490196078431;stroke-dasharray:1,1" shape-rendering="crispEdges" />
+    <polyline points="1064.6699,45.8345 1064.6699,856.894" style="fill:none;stroke:rgb(0,0,0);stroke-width:1;stroke-opacity:0.125490196078431;stroke-dasharray:1,1" shape-rendering="crispEdges" />
+    <polyline points="1078.2432,45.8345 1078.2432,856.894" style="fill:none;stroke:rgb(0,0,0);stroke-width:1;stroke-opacity:0.125490196078431;stroke-dasharray:1,1" shape-rendering="crispEdges" />
+    <polyline points="1105.3899,45.8345 1105.3899,856.894" style="fill:none;stroke:rgb(0,0,0);stroke-width:1;stroke-opacity:0.125490196078431;stroke-dasharray:1,1" shape-rendering="crispEdges" />
+    <polyline points="1118.9633,45.8345 1118.9633,856.894" style="fill:none;stroke:rgb(0,0,0);stroke-width:1;stroke-opacity:0.125490196078431;stroke-dasharray:1,1" shape-rendering="crispEdges" />
+    <polyline points="1132.5366,45.8345 1132.5366,856.894" style="fill:none;stroke:rgb(0,0,0);stroke-width:1;stroke-opacity:0.125490196078431;stroke-dasharray:1,1" shape-rendering="crispEdges" />
+    <polyline points="1146.1099,45.8345 1146.1099,856.894" style="fill:none;stroke:rgb(0,0,0);stroke-width:1;stroke-opacity:0.125490196078431;stroke-dasharray:1,1" shape-rendering="crispEdges" />
+    <polyline points="1173.2566,45.8345 1173.2566,856.894" style="fill:none;stroke:rgb(0,0,0);stroke-width:1;stroke-opacity:0.125490196078431;stroke-dasharray:1,1" shape-rendering="crispEdges" />
+    <polyline points="60.2426,856.894 60.2426,860.894" style="fill:none;stroke:black;stroke-width:1" shape-rendering="crispEdges" />
+    <polyline points="87.3892,856.894 87.3892,860.894" style="fill:none;stroke:black;stroke-width:1" shape-rendering="crispEdges" />
+    <polyline points="100.9626,856.894 100.9626,860.894" style="fill:none;stroke:black;stroke-width:1" shape-rendering="crispEdges" />
+    <polyline points="114.5359,856.894 114.5359,860.894" style="fill:none;stroke:black;stroke-width:1" shape-rendering="crispEdges" />
+    <polyline points="128.1093,856.894 128.1093,860.894" style="fill:none;stroke:black;stroke-width:1" shape-rendering="crispEdges" />
+    <polyline points="155.256,856.894 155.256,860.894" style="fill:none;stroke:black;stroke-width:1" shape-rendering="crispEdges" />
+    <polyline points="168.8293,856.894 168.8293,860.894" style="fill:none;stroke:black;stroke-width:1" shape-rendering="crispEdges" />
+    <polyline points="182.4026,856.894 182.4026,860.894" style="fill:none;stroke:black;stroke-width:1" shape-rendering="crispEdges" />
+    <polyline points="195.976,856.894 195.976,860.894" style="fill:none;stroke:black;stroke-width:1" shape-rendering="crispEdges" />
+    <polyline points="223.1227,856.894 223.1227,860.894" style="fill:none;stroke:black;stroke-width:1" shape-rendering="crispEdges" />
+    <polyline points="236.696,856.894 236.696,860.894" style="fill:none;stroke:black;stroke-width:1" shape-rendering="crispEdges" />
+    <polyline points="250.2693,856.894 250.2693,860.894" style="fill:none;stroke:black;stroke-width:1" shape-rendering="crispEdges" />
+    <polyline points="263.8427,856.894 263.8427,860.894" style="fill:none;stroke:black;stroke-width:1" shape-rendering="crispEdges" />
+    <polyline points="290.9894,856.894 290.9894,860.894" style="fill:none;stroke:black;stroke-width:1" shape-rendering="crispEdges" />
+    <polyline points="304.5627,856.894 304.5627,860.894" style="fill:none;stroke:black;stroke-width:1" shape-rendering="crispEdges" />
+    <polyline points="318.1361,856.894 318.1361,860.894" style="fill:none;stroke:black;stroke-width:1" shape-rendering="crispEdges" />
+    <polyline points="331.7094,856.894 331.7094,860.894" style="fill:none;stroke:black;stroke-width:1" shape-rendering="crispEdges" />
+    <polyline points="358.8561,856.894 358.8561,860.894" style="fill:none;stroke:black;stroke-width:1" shape-rendering="crispEdges" />
+    <polyline points="372.4294,856.894 372.4294,860.894" style="fill:none;stroke:black;stroke-width:1" shape-rendering="crispEdges" />
+    <polyline points="386.0028,856.894 386.0028,860.894" style="fill:none;stroke:black;stroke-width:1" shape-rendering="crispEdges" />
+    <polyline points="399.5761,856.894 399.5761,860.894" style="fill:none;stroke:black;stroke-width:1" shape-rendering="crispEdges" />
+    <polyline points="426.7228,856.894 426.7228,860.894" style="fill:none;stroke:black;stroke-width:1" shape-rendering="crispEdges" />
+    <polyline points="440.2961,856.894 440.2961,860.894" style="fill:none;stroke:black;stroke-width:1" shape-rendering="crispEdges" />
+    <polyline points="453.8695,856.894 453.8695,860.894" style="fill:none;stroke:black;stroke-width:1" shape-rendering="crispEdges" />
+    <polyline points="467.4428,856.894 467.4428,860.894" style="fill:none;stroke:black;stroke-width:1" shape-rendering="crispEdges" />
+    <polyline points="494.5895,856.894 494.5895,860.894" style="fill:none;stroke:black;stroke-width:1" shape-rendering="crispEdges" />
+    <polyline points="508.1629,856.894 508.1629,860.894" style="fill:none;stroke:black;stroke-width:1" shape-rendering="crispEdges" />
+    <polyline points="521.7362,856.894 521.7362,860.894" style="fill:none;stroke:black;stroke-width:1" shape-rendering="crispEdges" />
+    <polyline points="535.3095,856.894 535.3095,860.894" style="fill:none;stroke:black;stroke-width:1" shape-rendering="crispEdges" />
+    <polyline points="562.4562,856.894 562.4562,860.894" style="fill:none;stroke:black;stroke-width:1" shape-rendering="crispEdges" />
+    <polyline points="576.0296,856.894 576.0296,860.894" style="fill:none;stroke:black;stroke-width:1" shape-rendering="crispEdges" />
+    <polyline points="589.6029,856.894 589.6029,860.894" style="fill:none;stroke:black;stroke-width:1" shape-rendering="crispEdges" />
+    <polyline points="603.1762,856.894 603.1762,860.894" style="fill:none;stroke:black;stroke-width:1" shape-rendering="crispEdges" />
+    <polyline points="630.3229,856.894 630.3229,860.894" style="fill:none;stroke:black;stroke-width:1" shape-rendering="crispEdges" />
+    <polyline points="643.8963,856.894 643.8963,860.894" style="fill:none;stroke:black;stroke-width:1" shape-rendering="crispEdges" />
+    <polyline points="657.4696,856.894 657.4696,860.894" style="fill:none;stroke:black;stroke-width:1" shape-rendering="crispEdges" />
+    <polyline points="671.043,856.894 671.043,860.894" style="fill:none;stroke:black;stroke-width:1" shape-rendering="crispEdges" />
+    <polyline points="698.1896,856.894 698.1896,860.894" style="fill:none;stroke:black;stroke-width:1" shape-rendering="crispEdges" />
+    <polyline points="711.763,856.894 711.763,860.894" style="fill:none;stroke:black;stroke-width:1" shape-rendering="crispEdges" />
+    <polyline points="725.3363,856.894 725.3363,860.894" style="fill:none;stroke:black;stroke-width:1" shape-rendering="crispEdges" />
+    <polyline points="738.9097,856.894 738.9097,860.894" style="fill:none;stroke:black;stroke-width:1" shape-rendering="crispEdges" />
+    <polyline points="766.0564,856.894 766.0564,860.894" style="fill:none;stroke:black;stroke-width:1" shape-rendering="crispEdges" />
+    <polyline points="779.6297,856.894 779.6297,860.894" style="fill:none;stroke:black;stroke-width:1" shape-rendering="crispEdges" />
+    <polyline points="793.203,856.894 793.203,860.894" style="fill:none;stroke:black;stroke-width:1" shape-rendering="crispEdges" />
+    <polyline points="806.7764,856.894 806.7764,860.894" style="fill:none;stroke:black;stroke-width:1" shape-rendering="crispEdges" />
+    <polyline points="833.9231,856.894 833.9231,860.894" style="fill:none;stroke:black;stroke-width:1" shape-rendering="crispEdges" />
+    <polyline points="847.4964,856.894 847.4964,860.894" style="fill:none;stroke:black;stroke-width:1" shape-rendering="crispEdges" />
+    <polyline points="861.0698,856.894 861.0698,860.894" style="fill:none;stroke:black;stroke-width:1" shape-rendering="crispEdges" />
+    <polyline points="874.6431,856.894 874.6431,860.894" style="fill:none;stroke:black;stroke-width:1" shape-rendering="crispEdges" />
+    <polyline points="901.7898,856.894 901.7898,860.894" style="fill:none;stroke:black;stroke-width:1" shape-rendering="crispEdges" />
+    <polyline points="915.3631,856.894 915.3631,860.894" style="fill:none;stroke:black;stroke-width:1" shape-rendering="crispEdges" />
+    <polyline points="928.9365,856.894 928.9365,860.894" style="fill:none;stroke:black;stroke-width:1" shape-rendering="crispEdges" />
+    <polyline points="942.5098,856.894 942.5098,860.894" style="fill:none;stroke:black;stroke-width:1" shape-rendering="crispEdges" />
+    <polyline points="969.6565,856.894 969.6565,860.894" style="fill:none;stroke:black;stroke-width:1" shape-rendering="crispEdges" />
+    <polyline points="983.2298,856.894 983.2298,860.894" style="fill:none;stroke:black;stroke-width:1" shape-rendering="crispEdges" />
+    <polyline points="996.8032,856.894 996.8032,860.894" style="fill:none;stroke:black;stroke-width:1" shape-rendering="crispEdges" />
+    <polyline points="1010.3765,856.894 1010.3765,860.894" style="fill:none;stroke:black;stroke-width:1" shape-rendering="crispEdges" />
+    <polyline points="1037.5232,856.894 1037.5232,860.894" style="fill:none;stroke:black;stroke-width:1" shape-rendering="crispEdges" />
+    <polyline points="1051.0965,856.894 1051.0965,860.894" style="fill:none;stroke:black;stroke-width:1" shape-rendering="crispEdges" />
+    <polyline points="1064.6699,856.894 1064.6699,860.894" style="fill:none;stroke:black;stroke-width:1" shape-rendering="crispEdges" />
+    <polyline points="1078.2432,856.894 1078.2432,860.894" style="fill:none;stroke:black;stroke-width:1" shape-rendering="crispEdges" />
+    <polyline points="1105.3899,856.894 1105.3899,860.894" style="fill:none;stroke:black;stroke-width:1" shape-rendering="crispEdges" />
+    <polyline points="1118.9633,856.894 1118.9633,860.894" style="fill:none;stroke:black;stroke-width:1" shape-rendering="crispEdges" />
+    <polyline points="1132.5366,856.894 1132.5366,860.894" style="fill:none;stroke:black;stroke-width:1" shape-rendering="crispEdges" />
+    <polyline points="1146.1099,856.894 1146.1099,860.894" style="fill:none;stroke:black;stroke-width:1" shape-rendering="crispEdges" />
+    <polyline points="1173.2566,856.894 1173.2566,860.894" style="fill:none;stroke:black;stroke-width:1" shape-rendering="crispEdges" />
+    <polyline points="51.062,854.418 1182.9955,854.418" style="fill:none;stroke:rgb(0,0,0);stroke-width:1;stroke-opacity:0.125490196078431;stroke-dasharray:1,1" shape-rendering="crispEdges" />
+    <polyline points="51.062,839.3192 1182.9955,839.3192" style="fill:none;stroke:rgb(0,0,0);stroke-width:1;stroke-opacity:0.125490196078431;stroke-dasharray:1,1" shape-rendering="crispEdges" />
+    <polyline points="51.062,824.2205 1182.9955,824.2205" style="fill:none;stroke:rgb(0,0,0);stroke-width:1;stroke-opacity:0.125490196078431;stroke-dasharray:1,1" shape-rendering="crispEdges" />
+    <polyline points="51.062,794.0229 1182.9955,794.0229" style="fill:none;stroke:rgb(0,0,0);stroke-width:1;stroke-opacity:0.125490196078431;stroke-dasharray:1,1" shape-rendering="crispEdges" />
+    <polyline points="51.062,778.9241 1182.9955,778.9241" style="fill:none;stroke:rgb(0,0,0);stroke-width:1;stroke-opacity:0.125490196078431;stroke-dasharray:1,1" shape-rendering="crispEdges" />
+    <polyline points="51.062,763.8253 1182.9955,763.8253" style="fill:none;stroke:rgb(0,0,0);stroke-width:1;stroke-opacity:0.125490196078431;stroke-dasharray:1,1" shape-rendering="crispEdges" />
+    <polyline points="51.062,748.7266 1182.9955,748.7266" style="fill:none;stroke:rgb(0,0,0);stroke-width:1;stroke-opacity:0.125490196078431;stroke-dasharray:1,1" shape-rendering="crispEdges" />
+    <polyline points="51.062,718.529 1182.9955,718.529" style="fill:none;stroke:rgb(0,0,0);stroke-width:1;stroke-opacity:0.125490196078431;stroke-dasharray:1,1" shape-rendering="crispEdges" />
+    <polyline points="51.062,703.4302 1182.9955,703.4302" style="fill:none;stroke:rgb(0,0,0);stroke-width:1;stroke-opacity:0.125490196078431;stroke-dasharray:1,1" shape-rendering="crispEdges" />
+    <polyline points="51.062,688.3314 1182.9955,688.3314" style="fill:none;stroke:rgb(0,0,0);stroke-width:1;stroke-opacity:0.125490196078431;stroke-dasharray:1,1" shape-rendering="crispEdges" />
+    <polyline points="51.062,673.2326 1182.9955,673.2326" style="fill:none;stroke:rgb(0,0,0);stroke-width:1;stroke-opacity:0.125490196078431;stroke-dasharray:1,1" shape-rendering="crispEdges" />
+    <polyline points="51.062,643.0351 1182.9955,643.0351" style="fill:none;stroke:rgb(0,0,0);stroke-width:1;stroke-opacity:0.125490196078431;stroke-dasharray:1,1" shape-rendering="crispEdges" />
+    <polyline points="51.062,627.9363 1182.9955,627.9363" style="fill:none;stroke:rgb(0,0,0);stroke-width:1;stroke-opacity:0.125490196078431;stroke-dasharray:1,1" shape-rendering="crispEdges" />
+    <polyline points="51.062,612.8375 1182.9955,612.8375" style="fill:none;stroke:rgb(0,0,0);stroke-width:1;stroke-opacity:0.125490196078431;stroke-dasharray:1,1" shape-rendering="crispEdges" />
+    <polyline points="51.062,597.7387 1182.9955,597.7387" style="fill:none;stroke:rgb(0,0,0);stroke-width:1;stroke-opacity:0.125490196078431;stroke-dasharray:1,1" shape-rendering="crispEdges" />
+    <polyline points="51.062,567.5412 1182.9955,567.5412" style="fill:none;stroke:rgb(0,0,0);stroke-width:1;stroke-opacity:0.125490196078431;stroke-dasharray:1,1" shape-rendering="crispEdges" />
+    <polyline points="51.062,552.4424 1182.9955,552.4424" style="fill:none;stroke:rgb(0,0,0);stroke-width:1;stroke-opacity:0.125490196078431;stroke-dasharray:1,1" shape-rendering="crispEdges" />
+    <polyline points="51.062,537.3436 1182.9955,537.3436" style="fill:none;stroke:rgb(0,0,0);stroke-width:1;stroke-opacity:0.125490196078431;stroke-dasharray:1,1" shape-rendering="crispEdges" />
+    <polyline points="51.062,522.2448 1182.9955,522.2448" style="fill:none;stroke:rgb(0,0,0);stroke-width:1;stroke-opacity:0.125490196078431;stroke-dasharray:1,1" shape-rendering="crispEdges" />
+    <polyline points="51.062,492.0473 1182.9955,492.0473" style="fill:none;stroke:rgb(0,0,0);stroke-width:1;stroke-opacity:0.125490196078431;stroke-dasharray:1,1" shape-rendering="crispEdges" />
+    <polyline points="51.062,476.9485 1182.9955,476.9485" style="fill:none;stroke:rgb(0,0,0);stroke-width:1;stroke-opacity:0.125490196078431;stroke-dasharray:1,1" shape-rendering="crispEdges" />
+    <polyline points="51.062,461.8497 1182.9955,461.8497" style="fill:none;stroke:rgb(0,0,0);stroke-width:1;stroke-opacity:0.125490196078431;stroke-dasharray:1,1" shape-rendering="crispEdges" />
+    <polyline points="51.062,446.7509 1182.9955,446.7509" style="fill:none;stroke:rgb(0,0,0);stroke-width:1;stroke-opacity:0.125490196078431;stroke-dasharray:1,1" shape-rendering="crispEdges" />
+    <polyline points="51.062,416.5534 1182.9955,416.5534" style="fill:none;stroke:rgb(0,0,0);stroke-width:1;stroke-opacity:0.125490196078431;stroke-dasharray:1,1" shape-rendering="crispEdges" />
+    <polyline points="51.062,401.4546 1182.9955,401.4546" style="fill:none;stroke:rgb(0,0,0);stroke-width:1;stroke-opacity:0.125490196078431;stroke-dasharray:1,1" shape-rendering="crispEdges" />
+    <polyline points="51.062,386.3558 1182.9955,386.3558" style="fill:none;stroke:rgb(0,0,0);stroke-width:1;stroke-opacity:0.125490196078431;stroke-dasharray:1,1" shape-rendering="crispEdges" />
+    <polyline points="51.062,371.257 1182.9955,371.257" style="fill:none;stroke:rgb(0,0,0);stroke-width:1;stroke-opacity:0.125490196078431;stroke-dasharray:1,1" shape-rendering="crispEdges" />
+    <polyline points="51.062,341.0594 1182.9955,341.0594" style="fill:none;stroke:rgb(0,0,0);stroke-width:1;stroke-opacity:0.125490196078431;stroke-dasharray:1,1" shape-rendering="crispEdges" />
+    <polyline points="51.062,325.9607 1182.9955,325.9607" style="fill:none;stroke:rgb(0,0,0);stroke-width:1;stroke-opacity:0.125490196078431;stroke-dasharray:1,1" shape-rendering="crispEdges" />
+    <polyline points="51.062,310.8619 1182.9955,310.8619" style="fill:none;stroke:rgb(0,0,0);stroke-width:1;stroke-opacity:0.125490196078431;stroke-dasharray:1,1" shape-rendering="crispEdges" />
+    <polyline points="51.062,295.7631 1182.9955,295.7631" style="fill:none;stroke:rgb(0,0,0);stroke-width:1;stroke-opacity:0.125490196078431;stroke-dasharray:1,1" shape-rendering="crispEdges" />
+    <polyline points="51.062,265.5655 1182.9955,265.5655" style="fill:none;stroke:rgb(0,0,0);stroke-width:1;stroke-opacity:0.125490196078431;stroke-dasharray:1,1" shape-rendering="crispEdges" />
+    <polyline points="51.062,250.4668 1182.9955,250.4668" style="fill:none;stroke:rgb(0,0,0);stroke-width:1;stroke-opacity:0.125490196078431;stroke-dasharray:1,1" shape-rendering="crispEdges" />
+    <polyline points="51.062,235.368 1182.9955,235.368" style="fill:none;stroke:rgb(0,0,0);stroke-width:1;stroke-opacity:0.125490196078431;stroke-dasharray:1,1" shape-rendering="crispEdges" />
+    <polyline points="51.062,220.2692 1182.9955,220.2692" style="fill:none;stroke:rgb(0,0,0);stroke-width:1;stroke-opacity:0.125490196078431;stroke-dasharray:1,1" shape-rendering="crispEdges" />
+    <polyline points="51.062,190.0716 1182.9955,190.0716" style="fill:none;stroke:rgb(0,0,0);stroke-width:1;stroke-opacity:0.125490196078431;stroke-dasharray:1,1" shape-rendering="crispEdges" />
+    <polyline points="51.062,174.9728 1182.9955,174.9728" style="fill:none;stroke:rgb(0,0,0);stroke-width:1;stroke-opacity:0.125490196078431;stroke-dasharray:1,1" shape-rendering="crispEdges" />
+    <polyline points="51.062,159.8741 1182.9955,159.8741" style="fill:none;stroke:rgb(0,0,0);stroke-width:1;stroke-opacity:0.125490196078431;stroke-dasharray:1,1" shape-rendering="crispEdges" />
+    <polyline points="51.062,144.7753 1182.9955,144.7753" style="fill:none;stroke:rgb(0,0,0);stroke-width:1;stroke-opacity:0.125490196078431;stroke-dasharray:1,1" shape-rendering="crispEdges" />
+    <polyline points="51.062,114.5777 1182.9955,114.5777" style="fill:none;stroke:rgb(0,0,0);stroke-width:1;stroke-opacity:0.125490196078431;stroke-dasharray:1,1" shape-rendering="crispEdges" />
+    <polyline points="51.062,99.4789 1182.9955,99.4789" style="fill:none;stroke:rgb(0,0,0);stroke-width:1;stroke-opacity:0.125490196078431;stroke-dasharray:1,1" shape-rendering="crispEdges" />
+    <polyline points="51.062,84.3802 1182.9955,84.3802" style="fill:none;stroke:rgb(0,0,0);stroke-width:1;stroke-opacity:0.125490196078431;stroke-dasharray:1,1" shape-rendering="crispEdges" />
+    <polyline points="51.062,69.2814 1182.9955,69.2814" style="fill:none;stroke:rgb(0,0,0);stroke-width:1;stroke-opacity:0.125490196078431;stroke-dasharray:1,1" shape-rendering="crispEdges" />
+    <polyline points="51.062,854.418 47.062,854.418" style="fill:none;stroke:black;stroke-width:1" shape-rendering="crispEdges" />
+    <polyline points="51.062,839.3192 47.062,839.3192" style="fill:none;stroke:black;stroke-width:1" shape-rendering="crispEdges" />
+    <polyline points="51.062,824.2205 47.062,824.2205" style="fill:none;stroke:black;stroke-width:1" shape-rendering="crispEdges" />
+    <polyline points="51.062,794.0229 47.062,794.0229" style="fill:none;stroke:black;stroke-width:1" shape-rendering="crispEdges" />
+    <polyline points="51.062,778.9241 47.062,778.9241" style="fill:none;stroke:black;stroke-width:1" shape-rendering="crispEdges" />
+    <polyline points="51.062,763.8253 47.062,763.8253" style="fill:none;stroke:black;stroke-width:1" shape-rendering="crispEdges" />
+    <polyline points="51.062,748.7266 47.062,748.7266" style="fill:none;stroke:black;stroke-width:1" shape-rendering="crispEdges" />
+    <polyline points="51.062,718.529 47.062,718.529" style="fill:none;stroke:black;stroke-width:1" shape-rendering="crispEdges" />
+    <polyline points="51.062,703.4302 47.062,703.4302" style="fill:none;stroke:black;stroke-width:1" shape-rendering="crispEdges" />
+    <polyline points="51.062,688.3314 47.062,688.3314" style="fill:none;stroke:black;stroke-width:1" shape-rendering="crispEdges" />
+    <polyline points="51.062,673.2326 47.062,673.2326" style="fill:none;stroke:black;stroke-width:1" shape-rendering="crispEdges" />
+    <polyline points="51.062,643.0351 47.062,643.0351" style="fill:none;stroke:black;stroke-width:1" shape-rendering="crispEdges" />
+    <polyline points="51.062,627.9363 47.062,627.9363" style="fill:none;stroke:black;stroke-width:1" shape-rendering="crispEdges" />
+    <polyline points="51.062,612.8375 47.062,612.8375" style="fill:none;stroke:black;stroke-width:1" shape-rendering="crispEdges" />
+    <polyline points="51.062,597.7387 47.062,597.7387" style="fill:none;stroke:black;stroke-width:1" shape-rendering="crispEdges" />
+    <polyline points="51.062,567.5412 47.062,567.5412" style="fill:none;stroke:black;stroke-width:1" shape-rendering="crispEdges" />
+    <polyline points="51.062,552.4424 47.062,552.4424" style="fill:none;stroke:black;stroke-width:1" shape-rendering="crispEdges" />
+    <polyline points="51.062,537.3436 47.062,537.3436" style="fill:none;stroke:black;stroke-width:1" shape-rendering="crispEdges" />
+    <polyline points="51.062,522.2448 47.062,522.2448" style="fill:none;stroke:black;stroke-width:1" shape-rendering="crispEdges" />
+    <polyline points="51.062,492.0473 47.062,492.0473" style="fill:none;stroke:black;stroke-width:1" shape-rendering="crispEdges" />
+    <polyline points="51.062,476.9485 47.062,476.9485" style="fill:none;stroke:black;stroke-width:1" shape-rendering="crispEdges" />
+    <polyline points="51.062,461.8497 47.062,461.8497" style="fill:none;stroke:black;stroke-width:1" shape-rendering="crispEdges" />
+    <polyline points="51.062,446.7509 47.062,446.7509" style="fill:none;stroke:black;stroke-width:1" shape-rendering="crispEdges" />
+    <polyline points="51.062,416.5534 47.062,416.5534" style="fill:none;stroke:black;stroke-width:1" shape-rendering="crispEdges" />
+    <polyline points="51.062,401.4546 47.062,401.4546" style="fill:none;stroke:black;stroke-width:1" shape-rendering="crispEdges" />
+    <polyline points="51.062,386.3558 47.062,386.3558" style="fill:none;stroke:black;stroke-width:1" shape-rendering="crispEdges" />
+    <polyline points="51.062,371.257 47.062,371.257" style="fill:none;stroke:black;stroke-width:1" shape-rendering="crispEdges" />
+    <polyline points="51.062,341.0594 47.062,341.0594" style="fill:none;stroke:black;stroke-width:1" shape-rendering="crispEdges" />
+    <polyline points="51.062,325.9607 47.062,325.9607" style="fill:none;stroke:black;stroke-width:1" shape-rendering="crispEdges" />
+    <polyline points="51.062,310.8619 47.062,310.8619" style="fill:none;stroke:black;stroke-width:1" shape-rendering="crispEdges" />
+    <polyline points="51.062,295.7631 47.062,295.7631" style="fill:none;stroke:black;stroke-width:1" shape-rendering="crispEdges" />
+    <polyline points="51.062,265.5655 47.062,265.5655" style="fill:none;stroke:black;stroke-width:1" shape-rendering="crispEdges" />
+    <polyline points="51.062,250.4668 47.062,250.4668" style="fill:none;stroke:black;stroke-width:1" shape-rendering="crispEdges" />
+    <polyline points="51.062,235.368 47.062,235.368" style="fill:none;stroke:black;stroke-width:1" shape-rendering="crispEdges" />
+    <polyline points="51.062,220.2692 47.062,220.2692" style="fill:none;stroke:black;stroke-width:1" shape-rendering="crispEdges" />
+    <polyline points="51.062,190.0716 47.062,190.0716" style="fill:none;stroke:black;stroke-width:1" shape-rendering="crispEdges" />
+    <polyline points="51.062,174.9728 47.062,174.9728" style="fill:none;stroke:black;stroke-width:1" shape-rendering="crispEdges" />
+    <polyline points="51.062,159.8741 47.062,159.8741" style="fill:none;stroke:black;stroke-width:1" shape-rendering="crispEdges" />
+    <polyline points="51.062,144.7753 47.062,144.7753" style="fill:none;stroke:black;stroke-width:1" shape-rendering="crispEdges" />
+    <polyline points="51.062,114.5777 47.062,114.5777" style="fill:none;stroke:black;stroke-width:1" shape-rendering="crispEdges" />
+    <polyline points="51.062,99.4789 47.062,99.4789" style="fill:none;stroke:black;stroke-width:1" shape-rendering="crispEdges" />
+    <polyline points="51.062,84.3802 47.062,84.3802" style="fill:none;stroke:black;stroke-width:1" shape-rendering="crispEdges" />
+    <polyline points="51.062,69.2814 47.062,69.2814" style="fill:none;stroke:black;stroke-width:1" shape-rendering="crispEdges" />
+    <text dominant-baseline="hanging" text-anchor="middle" transform="translate(73.8159,867.894)" font-family="Segoe UI" font-size="12" font-weight="400" fill="black">-800</text>
+    <text dominant-baseline="hanging" text-anchor="middle" transform="translate(141.6826,867.894)" font-family="Segoe UI" font-size="12" font-weight="400" fill="black">-700</text>
+    <text dominant-baseline="hanging" text-anchor="middle" transform="translate(209.5493,867.894)" font-family="Segoe UI" font-size="12" font-weight="400" fill="black">-600</text>
+    <text dominant-baseline="hanging" text-anchor="middle" transform="translate(277.416,867.894)" font-family="Segoe UI" font-size="12" font-weight="400" fill="black">-500</text>
+    <text dominant-baseline="hanging" text-anchor="middle" transform="translate(345.2827,867.894)" font-family="Segoe UI" font-size="12" font-weight="400" fill="black">-400</text>
+    <text dominant-baseline="hanging" text-anchor="middle" transform="translate(413.1495,867.894)" font-family="Segoe UI" font-size="12" font-weight="400" fill="black">-300</text>
+    <text dominant-baseline="hanging" text-anchor="middle" transform="translate(481.0162,867.894)" font-family="Segoe UI" font-size="12" font-weight="400" fill="black">-200</text>
+    <text dominant-baseline="hanging" text-anchor="middle" transform="translate(548.8829,867.894)" font-family="Segoe UI" font-size="12" font-weight="400" fill="black">-100</text>
+    <text dominant-baseline="hanging" text-anchor="middle" transform="translate(616.7496,867.894)" font-family="Segoe UI" font-size="12" font-weight="400" fill="black">0</text>
+    <text dominant-baseline="hanging" text-anchor="middle" transform="translate(684.6163,867.894)" font-family="Segoe UI" font-size="12" font-weight="400" fill="black">100</text>
+    <text dominant-baseline="hanging" text-anchor="middle" transform="translate(752.483,867.894)" font-family="Segoe UI" font-size="12" font-weight="400" fill="black">200</text>
+    <text dominant-baseline="hanging" text-anchor="middle" transform="translate(820.3497,867.894)" font-family="Segoe UI" font-size="12" font-weight="400" fill="black">300</text>
+    <text dominant-baseline="hanging" text-anchor="middle" transform="translate(888.2164,867.894)" font-family="Segoe UI" font-size="12" font-weight="400" fill="black">400</text>
+    <text dominant-baseline="hanging" text-anchor="middle" transform="translate(956.0831,867.894)" font-family="Segoe UI" font-size="12" font-weight="400" fill="black">500</text>
+    <text dominant-baseline="hanging" text-anchor="middle" transform="translate(1023.9499,867.894)" font-family="Segoe UI" font-size="12" font-weight="400" fill="black">600</text>
+    <text dominant-baseline="hanging" text-anchor="middle" transform="translate(1091.8166,867.894)" font-family="Segoe UI" font-size="12" font-weight="400" fill="black">700</text>
+    <text dominant-baseline="hanging" text-anchor="middle" transform="translate(1159.6833,867.894)" font-family="Segoe UI" font-size="12" font-weight="400" fill="black">800</text>
+    <polyline points="73.8159,45.8345 73.8159,856.894" style="fill:none;stroke:rgb(0,0,0);stroke-width:1;stroke-opacity:0.250980392156863" shape-rendering="crispEdges" />
+    <polyline points="141.6826,45.8345 141.6826,856.894" style="fill:none;stroke:rgb(0,0,0);stroke-width:1;stroke-opacity:0.250980392156863" shape-rendering="crispEdges" />
+    <polyline points="209.5493,45.8345 209.5493,856.894" style="fill:none;stroke:rgb(0,0,0);stroke-width:1;stroke-opacity:0.250980392156863" shape-rendering="crispEdges" />
+    <polyline points="277.416,45.8345 277.416,856.894" style="fill:none;stroke:rgb(0,0,0);stroke-width:1;stroke-opacity:0.250980392156863" shape-rendering="crispEdges" />
+    <polyline points="345.2827,45.8345 345.2827,856.894" style="fill:none;stroke:rgb(0,0,0);stroke-width:1;stroke-opacity:0.250980392156863" shape-rendering="crispEdges" />
+    <polyline points="413.1495,45.8345 413.1495,856.894" style="fill:none;stroke:rgb(0,0,0);stroke-width:1;stroke-opacity:0.250980392156863" shape-rendering="crispEdges" />
+    <polyline points="481.0162,45.8345 481.0162,856.894" style="fill:none;stroke:rgb(0,0,0);stroke-width:1;stroke-opacity:0.250980392156863" shape-rendering="crispEdges" />
+    <polyline points="548.8829,45.8345 548.8829,856.894" style="fill:none;stroke:rgb(0,0,0);stroke-width:1;stroke-opacity:0.250980392156863" shape-rendering="crispEdges" />
+    <polyline points="616.7496,45.8345 616.7496,856.894" style="fill:none;stroke:rgb(0,0,0);stroke-width:1;stroke-opacity:0.250980392156863" shape-rendering="crispEdges" />
+    <polyline points="684.6163,45.8345 684.6163,856.894" style="fill:none;stroke:rgb(0,0,0);stroke-width:1;stroke-opacity:0.250980392156863" shape-rendering="crispEdges" />
+    <polyline points="752.483,45.8345 752.483,856.894" style="fill:none;stroke:rgb(0,0,0);stroke-width:1;stroke-opacity:0.250980392156863" shape-rendering="crispEdges" />
+    <polyline points="820.3497,45.8345 820.3497,856.894" style="fill:none;stroke:rgb(0,0,0);stroke-width:1;stroke-opacity:0.250980392156863" shape-rendering="crispEdges" />
+    <polyline points="888.2164,45.8345 888.2164,856.894" style="fill:none;stroke:rgb(0,0,0);stroke-width:1;stroke-opacity:0.250980392156863" shape-rendering="crispEdges" />
+    <polyline points="956.0831,45.8345 956.0831,856.894" style="fill:none;stroke:rgb(0,0,0);stroke-width:1;stroke-opacity:0.250980392156863" shape-rendering="crispEdges" />
+    <polyline points="1023.9499,45.8345 1023.9499,856.894" style="fill:none;stroke:rgb(0,0,0);stroke-width:1;stroke-opacity:0.250980392156863" shape-rendering="crispEdges" />
+    <polyline points="1091.8166,45.8345 1091.8166,856.894" style="fill:none;stroke:rgb(0,0,0);stroke-width:1;stroke-opacity:0.250980392156863" shape-rendering="crispEdges" />
+    <polyline points="1159.6833,45.8345 1159.6833,856.894" style="fill:none;stroke:rgb(0,0,0);stroke-width:1;stroke-opacity:0.250980392156863" shape-rendering="crispEdges" />
+    <polyline points="73.8159,856.894 73.8159,863.894" style="fill:none;stroke:black;stroke-width:1" shape-rendering="crispEdges" />
+    <polyline points="141.6826,856.894 141.6826,863.894" style="fill:none;stroke:black;stroke-width:1" shape-rendering="crispEdges" />
+    <polyline points="209.5493,856.894 209.5493,863.894" style="fill:none;stroke:black;stroke-width:1" shape-rendering="crispEdges" />
+    <polyline points="277.416,856.894 277.416,863.894" style="fill:none;stroke:black;stroke-width:1" shape-rendering="crispEdges" />
+    <polyline points="345.2827,856.894 345.2827,863.894" style="fill:none;stroke:black;stroke-width:1" shape-rendering="crispEdges" />
+    <polyline points="413.1495,856.894 413.1495,863.894" style="fill:none;stroke:black;stroke-width:1" shape-rendering="crispEdges" />
+    <polyline points="481.0162,856.894 481.0162,863.894" style="fill:none;stroke:black;stroke-width:1" shape-rendering="crispEdges" />
+    <polyline points="548.8829,856.894 548.8829,863.894" style="fill:none;stroke:black;stroke-width:1" shape-rendering="crispEdges" />
+    <polyline points="616.7496,856.894 616.7496,863.894" style="fill:none;stroke:black;stroke-width:1" shape-rendering="crispEdges" />
+    <polyline points="684.6163,856.894 684.6163,863.894" style="fill:none;stroke:black;stroke-width:1" shape-rendering="crispEdges" />
+    <polyline points="752.483,856.894 752.483,863.894" style="fill:none;stroke:black;stroke-width:1" shape-rendering="crispEdges" />
+    <polyline points="820.3497,856.894 820.3497,863.894" style="fill:none;stroke:black;stroke-width:1" shape-rendering="crispEdges" />
+    <polyline points="888.2164,856.894 888.2164,863.894" style="fill:none;stroke:black;stroke-width:1" shape-rendering="crispEdges" />
+    <polyline points="956.0831,856.894 956.0831,863.894" style="fill:none;stroke:black;stroke-width:1" shape-rendering="crispEdges" />
+    <polyline points="1023.9499,856.894 1023.9499,863.894" style="fill:none;stroke:black;stroke-width:1" shape-rendering="crispEdges" />
+    <polyline points="1091.8166,856.894 1091.8166,863.894" style="fill:none;stroke:black;stroke-width:1" shape-rendering="crispEdges" />
+    <polyline points="1159.6833,856.894 1159.6833,863.894" style="fill:none;stroke:black;stroke-width:1" shape-rendering="crispEdges" />
+    <text dominant-baseline="baseline" text-anchor="middle" transform="translate(617.0288,888)" font-family="Segoe UI" font-size="12" font-weight="400" fill="black">Surge [mm]</text>
+    <text dominant-baseline="middle" text-anchor="end" transform="translate(40.062,809.1217)" font-family="Segoe UI" font-size="12" font-weight="400" fill="black">-500</text>
+    <text dominant-baseline="middle" text-anchor="end" transform="translate(40.062,733.6278)" font-family="Segoe UI" font-size="12" font-weight="400" fill="black">-400</text>
+    <text dominant-baseline="middle" text-anchor="end" transform="translate(40.062,658.1339)" font-family="Segoe UI" font-size="12" font-weight="400" fill="black">-300</text>
+    <text dominant-baseline="middle" text-anchor="end" transform="translate(40.062,582.64)" font-family="Segoe UI" font-size="12" font-weight="400" fill="black">-200</text>
+    <text dominant-baseline="middle" text-anchor="end" transform="translate(40.062,507.146)" font-family="Segoe UI" font-size="12" font-weight="400" fill="black">-100</text>
+    <text dominant-baseline="middle" text-anchor="end" transform="translate(40.062,431.6521)" font-family="Segoe UI" font-size="12" font-weight="400" fill="black">0</text>
+    <text dominant-baseline="middle" text-anchor="end" transform="translate(40.062,356.1582)" font-family="Segoe UI" font-size="12" font-weight="400" fill="black">100</text>
+    <text dominant-baseline="middle" text-anchor="end" transform="translate(40.062,280.6643)" font-family="Segoe UI" font-size="12" font-weight="400" fill="black">200</text>
+    <text dominant-baseline="middle" text-anchor="end" transform="translate(40.062,205.1704)" font-family="Segoe UI" font-size="12" font-weight="400" fill="black">300</text>
+    <text dominant-baseline="middle" text-anchor="end" transform="translate(40.062,129.6765)" font-family="Segoe UI" font-size="12" font-weight="400" fill="black">400</text>
+    <text dominant-baseline="middle" text-anchor="end" transform="translate(40.062,54.1826)" font-family="Segoe UI" font-size="12" font-weight="400" fill="black">500</text>
+    <polyline points="51.062,809.1217 1182.9955,809.1217" style="fill:none;stroke:rgb(0,0,0);stroke-width:1;stroke-opacity:0.250980392156863" shape-rendering="crispEdges" />
+    <polyline points="51.062,733.6278 1182.9955,733.6278" style="fill:none;stroke:rgb(0,0,0);stroke-width:1;stroke-opacity:0.250980392156863" shape-rendering="crispEdges" />
+    <polyline points="51.062,658.1339 1182.9955,658.1339" style="fill:none;stroke:rgb(0,0,0);stroke-width:1;stroke-opacity:0.250980392156863" shape-rendering="crispEdges" />
+    <polyline points="51.062,582.64 1182.9955,582.64" style="fill:none;stroke:rgb(0,0,0);stroke-width:1;stroke-opacity:0.250980392156863" shape-rendering="crispEdges" />
+    <polyline points="51.062,507.146 1182.9955,507.146" style="fill:none;stroke:rgb(0,0,0);stroke-width:1;stroke-opacity:0.250980392156863" shape-rendering="crispEdges" />
+    <polyline points="51.062,431.6521 1182.9955,431.6521" style="fill:none;stroke:rgb(0,0,0);stroke-width:1;stroke-opacity:0.250980392156863" shape-rendering="crispEdges" />
+    <polyline points="51.062,356.1582 1182.9955,356.1582" style="fill:none;stroke:rgb(0,0,0);stroke-width:1;stroke-opacity:0.250980392156863" shape-rendering="crispEdges" />
+    <polyline points="51.062,280.6643 1182.9955,280.6643" style="fill:none;stroke:rgb(0,0,0);stroke-width:1;stroke-opacity:0.250980392156863" shape-rendering="crispEdges" />
+    <polyline points="51.062,205.1704 1182.9955,205.1704" style="fill:none;stroke:rgb(0,0,0);stroke-width:1;stroke-opacity:0.250980392156863" shape-rendering="crispEdges" />
+    <polyline points="51.062,129.6765 1182.9955,129.6765" style="fill:none;stroke:rgb(0,0,0);stroke-width:1;stroke-opacity:0.250980392156863" shape-rendering="crispEdges" />
+    <polyline points="51.062,54.1826 1182.9955,54.1826" style="fill:none;stroke:rgb(0,0,0);stroke-width:1;stroke-opacity:0.250980392156863" shape-rendering="crispEdges" />
+    <polyline points="51.062,809.1217 44.062,809.1217" style="fill:none;stroke:black;stroke-width:1" shape-rendering="crispEdges" />
+    <polyline points="51.062,733.6278 44.062,733.6278" style="fill:none;stroke:black;stroke-width:1" shape-rendering="crispEdges" />
+    <polyline points="51.062,658.1339 44.062,658.1339" style="fill:none;stroke:black;stroke-width:1" shape-rendering="crispEdges" />
+    <polyline points="51.062,582.64 44.062,582.64" style="fill:none;stroke:black;stroke-width:1" shape-rendering="crispEdges" />
+    <polyline points="51.062,507.146 44.062,507.146" style="fill:none;stroke:black;stroke-width:1" shape-rendering="crispEdges" />
+    <polyline points="51.062,431.6521 44.062,431.6521" style="fill:none;stroke:black;stroke-width:1" shape-rendering="crispEdges" />
+    <polyline points="51.062,356.1582 44.062,356.1582" style="fill:none;stroke:black;stroke-width:1" shape-rendering="crispEdges" />
+    <polyline points="51.062,280.6643 44.062,280.6643" style="fill:none;stroke:black;stroke-width:1" shape-rendering="crispEdges" />
+    <polyline points="51.062,205.1704 44.062,205.1704" style="fill:none;stroke:black;stroke-width:1" shape-rendering="crispEdges" />
+    <polyline points="51.062,129.6765 44.062,129.6765" style="fill:none;stroke:black;stroke-width:1" shape-rendering="crispEdges" />
+    <polyline points="51.062,54.1826 44.062,54.1826" style="fill:none;stroke:black;stroke-width:1" shape-rendering="crispEdges" />
+    <text dominant-baseline="hanging" text-anchor="middle" transform="translate(12,451.3643) rotate(-90)" font-family="Segoe UI" font-size="12" font-weight="400" fill="black">Heave [mm]</text>
+    <text dominant-baseline="hanging" text-anchor="middle" transform="translate(617.0288,8)" font-family="Segoe UI" font-size="18" font-weight="700" fill="black">Surge vs Heave</text>
+    <rect x="51.062" y="45.8345" width="1131.9335" height="811.0595" style="fill:none;stroke:black;stroke-width:1" shape-rendering="crispEdges" />
+  </g>
+</svg>
