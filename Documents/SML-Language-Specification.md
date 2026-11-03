@@ -808,6 +808,61 @@ is the XML
 
 **Writers.** An XML-to-SML writer MAY use element aliases as a formatting choice. It MUST declare each alias before the root, or on an ancestor of every element it opens with that alias. It MUST open an element whose name equals an alias in scope with `@element`, or not use that alias. The canonical form (§14.2) uses no element aliases.
 
+### 8.8 Redefining aliases
+
+Both kinds of alias can be declared before the root and declared again, with another meaning, in the root or any other element. These rules follow from §§8.1, 8.4, and 8.7:
+
+| | `@block` | `@node` |
+|---|---|---|
+| Before the root | Applies to the whole document, the root included. Its names are resolved where the alias is invoked (§8.2). | Applies to the whole document, the root included. |
+| In a declaration section, the root's included | Applies to the declaring element and its descendants. Its names are resolved where it is declared. | Applies to the declaring element's content, its children and their descendants, but not to the element itself, whose name is already read. |
+| Redefinition | A nearer declaration of the same alias **for the same element** shadows an outer one. The same alias for other elements stays as it was. | A nearer declaration of the same alias shadows an outer one. |
+| The same alias twice in one scope | An error, for the same element | An error |
+| After the root | An error | An error |
+
+The nearest scope wins. For `@block`, that is the declaration section of the invoking element itself, then those of its ancestors from the nearest outward, then the declarations before the root. For `@node`, it is the declaration sections of the enclosing elements from the nearest outward, then the declarations before the root. A redefinition ends with the element that declares it: its siblings and the rest of the document see the outer meaning again. For example,
+
+```sml
+@node rect box
+@block path .d data
+svg
+  @ns http://www.w3.org/2000/svg
+  g(id=outlines)
+    @node circle box
+    @block path .style data
+    box(r=5)/
+    path
+      data """
+        fill: none;
+        stroke: blue;
+        """
+    end
+  end
+  box(width=5, height=5)/
+  path
+    data """
+      M 0 0
+      L 10 10
+      """
+  end
+end
+```
+
+is the XML
+
+```xml
+<svg xmlns="http://www.w3.org/2000/svg">
+  <g id="outlines">
+    <circle r="5"/>
+    <path style="fill: none;&#10;stroke: blue;"/>
+  </g>
+  <rect width="5" height="5"/>
+  <path d="M 0 0&#10;L 10 10"/>
+</svg>
+```
+
+Inside `g`, `box` opens a `circle` and `data` sets a path's `style`; after `g`, they mean `rect` and `d` again. Had `g` declared `@block circle .style data` instead, the path inside it would still set `d` with `data`, because that redefinition is for another element.
+
 ## 9. XML comments, PIs and source comments
 
 `#` introduces an SML-only source comment when it is the first non-indentation character. There are no end-of-line comments: `#` later in a line, and anywhere in a value, is ordinary data. Source comments are discarded on XML export, so they do not survive an SML → XML → SML round trip. A project that relies on `#` comments must keep the SML file as its source of truth.
