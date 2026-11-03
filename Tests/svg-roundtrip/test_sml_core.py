@@ -548,6 +548,26 @@ class SmlSideFixtures(Base):
         self.rejects('svg\n  a/\n  @node g x\nend\n', 'after the element')
         self.rejects('@node g group\ngroup\nend p\n', 'does not match')
 
+    def test_SV85_block_before_root(self):
+        # Before the root, a @block alias's names are resolved where it is invoked (§8.1).
+        src = ('@block path .d data\n@block s:rect .s:k data\ndoc\n  svg(xmlns=http://www.w3.org/2000/svg)\n    path\n'
+               '      data """\n        M 0 0\n        """\n    end\n  end\n  x(xmlns:s=urn:s)\n    s:rect\n      data """\n        v\n        """\n'
+               '    end\n  end\nend\n')
+        d = read(src).root
+        svg, x = kids(d)
+        self.assertEqual(kids(svg)[0].attrs, {'d': 'M 0 0'})
+        self.assertEqual(kids(x)[0].attr_expanded['s:k'], ('urn:s', 'k'))
+        # A nearer declaration shadows it; an element it does not resolve to has no such alias.
+        el = root('@block path .d data\npath\n  @block path .other data\n  path\n    data """\n      v\n      """\n  end\nend\n')
+        self.assertEqual(kids(el)[0].attrs, {'other': 'v'})
+        self.rejects('@block path .d data\ng(xmlns=urn:x)\n  data """\n    v\n    """\nend\n', 'no active alias')
+        self.rejects('@block q:path .d data\npath\n  data """\n    v\n    """\nend\n', 'no active alias')
+        self.rejects('@block path .d data\n@block p:path .e data\npath(xmlns=urn:x, xmlns:p=urn:x)\n  data """\n    v\n'
+                     '    """\nend\n', 'ambiguous')
+        self.rejects('@block path .d data\n@block path .d data\ng/\n', 'declared twice')
+        self.rejects('g/\n@block path .d data\n', 'only allowed before the root')
+        self.rejects('@block 1x .d data\ng/\n', 'invalid name')
+
     def test_SV84_nested_indentation(self):
         # Pretty-printed XML nested one level deeper than its root, as SVG copied out of HTML: the root is exact with its
         # own step, and everything below it is laid out.

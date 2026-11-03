@@ -52,8 +52,8 @@ public class WriterOptionsTests
         SmlDocument doc = Xml("<g transform='scale(2)'><g transform='translate(1,2) rotate(3)'/></g>");
         Assert.Equal(""""
             @sml 1.0-SVG-1 tidy
+            @block g .transform t
             g
-              @block g .transform t
               .transform scale(2)
               g
                 t """

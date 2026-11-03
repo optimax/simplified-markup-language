@@ -401,6 +401,7 @@ class VariantWriter:
         self.doc, self.r, self.out = doc, r, []
         self.scopes: list[dict[str, str]] = [{}]    # element aliases (§8.7), innermost last
         self.names = sorted({e.qname for e in iter_elements(doc.root)})
+        self.prolog_blocks: dict = {}   # (element QName, attribute QName) -> alias declared before the root (§8.1)
 
     def emit(self, line: str) -> None:
         if self.r.random() < 0.05:
@@ -418,6 +419,14 @@ class VariantWriter:
         self.emit(r.choice(['@indent none', '@indent\tnone']))     # whitespace is written out below
         if r.random() < 0.3:
             self.declare_nodes('', 3)
+        if r.random() < 0.3:
+            # @block before the root: its names are resolved where the alias is invoked.
+            for el in iter_elements(d.root):
+                for q, v in el.attrs.items():
+                    key = (el.qname, q)
+                    if '\n' in v and S.block_marker(v) is not None and key not in self.prolog_blocks and len(self.prolog_blocks) < 4:
+                        self.prolog_blocks[key] = f'p{len(self.prolog_blocks)}'
+                        self.emit(f'@block {el.qname} .{q} {self.prolog_blocks[key]}')
         self.items(d.prolog, '')
         self.element(d.root, '')
         self.items(d.epilog, '')
@@ -577,7 +586,9 @@ class VariantWriter:
                 self.emit(inner + ns_entry(p, u, False))
         aliases = 0
         for q, v in vertical_attrs:
-            if '\n' in v and S.block_marker(v) is not None and r.random() < 0.4:
+            if (el.qname, q) in self.prolog_blocks and '\n' in v and S.block_marker(v) is not None and r.random() < 0.7:
+                self.value(inner + self.prolog_blocks[(el.qname, q)], v, inner, alias=True)
+            elif '\n' in v and S.block_marker(v) is not None and r.random() < 0.4:
                 name = f'v{aliases}'
                 aliases += 1
                 self.emit(inner + f'@block {el.qname} .{q} {name}')

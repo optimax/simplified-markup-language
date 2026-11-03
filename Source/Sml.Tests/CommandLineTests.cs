@@ -310,8 +310,7 @@ public sealed class CommandLineTests : IDisposable
         File.WriteAllText(PathOf("drawing.svg"), PathXml);
         Assert.Equal(CommandLine.Success, Run("--clean", "svg", PathOf("drawing.svg")).Code);
         string cleaned = File.ReadAllText(PathOf("drawing.sml"));
-        Assert.StartsWith("@sml 1.0-SVG-1 tidy\n", cleaned);
-        Assert.Contains("  @block path .d data\n", cleaned);
+        Assert.StartsWith("@sml 1.0-SVG-1 tidy\n@block path .d data\nsvg", cleaned);
         Assert.Contains("    data \"\"\"\n      M 0 0\n      L 1 1\n      \"\"\"\n", cleaned);
         Assert.Equal(CommandLine.Success, Run("-c", "svg", "-f", PathOf("drawing.svg")).Code);
         Assert.Equal(cleaned, File.ReadAllText(PathOf("drawing.sml")));
@@ -355,7 +354,7 @@ public sealed class CommandLineTests : IDisposable
             File.ReadAllText(PathOf("drawing.sml")));
         File.WriteAllText(PathOf("path.svg"), PathXml);
         Assert.Equal(CommandLine.Success, Run("--verbose", "-c", "svg", PathOf("path.svg")).Code);
-        Assert.Contains("svg\n  @ns http://www.w3.org/2000/svg\n  @block path .d data\n  path\n    data \"\"\"\n", File.ReadAllText(PathOf("path.sml")));
+        Assert.Contains("@block path .d data\nsvg\n  @ns http://www.w3.org/2000/svg\n  path\n    data \"\"\"\n", File.ReadAllText(PathOf("path.sml")));
         Assert.Contains("--verbose", Run("--help").Out);
     }
 

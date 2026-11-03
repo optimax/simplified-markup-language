@@ -23,7 +23,7 @@ public sealed class SmlWriter
     private readonly List<(string Element, string Alias, string Attribute)> _aliasDeclarations = [];
 
     /// <summary>The attributes written with an alias: element expanded name and attribute lexical name.</summary>
-    private readonly Dictionary<(ExpandedName Element, string Attribute), string> _aliasOf = [];
+    private readonly Dictionary<(ExpandedName Element, string QName, string Attribute), string> _aliasOf = [];
 
     /// <summary>The element aliases declared before the root: element QName and alias.</summary>
     private readonly List<(string Element, string Alias)> _nodeDeclarations = [];
@@ -158,7 +158,9 @@ public sealed class SmlWriter
         {
             _out.Add("@indent " + (_unit == "\t" ? "tab" : _unit.Length.ToString()));
         }
+        // Cleaning: every alias is declared before the root, right after the header (§§8.1, 8.7).
         _out.AddRange(_nodeDeclarations.Select(d => $"@node {d.Element} {d.Alias}"));
+        _out.AddRange(_aliasDeclarations.Select(d => $"@block {d.Element} .{d.Attribute} {d.Alias}"));
         Items(_doc.Prolog, 0, _unit is not null, "");
         Element(_doc.Root, 0, "", _unit is not null);
         Items(_doc.Epilog, 0, _unit is not null, "");
@@ -200,13 +202,12 @@ public sealed class SmlWriter
     private static bool Segmented(string value, Layout? layout) =>
         layout is { } l && BlockTag(value) is null && ValueLayout.Segments(value, l) is not null;
 
-    /// <summary>Chooses the aliases to use: those of attributes written as blocks, where the element and attribute
-    /// names resolve on the root (§8.5), so that one declaration there serves the whole document.</summary>
+    /// <summary>Chooses the aliases to use: those of attributes written as blocks. Each is declared before the root,
+    /// where its names are resolved at each invocation (§8.1), with the element and attribute names of its first
+    /// use, and used wherever an element and its attribute are written with those names.</summary>
     private void PlanAliases(SmlProfile profile)
     {
-        ElementNode root = _doc.Root;
-        var stack = new Stack<ElementNode>([root]);
-        var used = new HashSet<SmlProfile.Alias>();
+        var stack = new Stack<ElementNode>([_doc.Root]);
         var lexical = new Dictionary<SmlProfile.Alias, (string Element, string Attribute)>();
         while (stack.Count > 0)
         {
@@ -216,23 +217,15 @@ public sealed class SmlWriter
                 SmlProfile.Alias? alias = profile.FindAlias(element.Name, element.AttributeNames[name]);
                 if (alias is null || BlockTag(Effective(element, name, value).Value) is null)
                     continue;
-                if (lexical.TryGetValue(alias, out var declared))
-                {
-                    if (declared.Attribute == name)
-                        _aliasOf[(element.Name, name)] = alias.Name;
-                    continue;
-                }
-                string? elementName = QNameOnRoot(root, element.Name);
-                if (elementName is null || !AttributeResolvesOnRoot(root, name, element.AttributeNames[name]))
-                    continue;
-                lexical[alias] = (elementName, name);
-                used.Add(alias);
-                _aliasOf[(element.Name, name)] = alias.Name;
+                if (!lexical.TryGetValue(alias, out var declared))
+                    lexical[alias] = declared = (element.QualifiedName, name);
+                if (declared == (element.QualifiedName, name))
+                    _aliasOf[(element.Name, element.QualifiedName, name)] = alias.Name;
             }
             foreach (ElementNode child in element.Children.OfType<ElementNode>().Reverse())
                 stack.Push(child);
         }
-        foreach (SmlProfile.Alias alias in profile.Aliases.Where(used.Contains))
+        foreach (SmlProfile.Alias alias in profile.Aliases.Where(lexical.ContainsKey))
             _aliasDeclarations.Add((lexical[alias].Element, alias.Name, lexical[alias].Attribute));
     }
 
@@ -263,36 +256,6 @@ public sealed class SmlWriter
         }
     }
 
-    /// <summary>A QName for an element's expanded name under the root's namespace declarations, or null.</summary>
-    private static string? QNameOnRoot(ElementNode root, ExpandedName name)
-    {
-        root.NamespaceDeclarations.TryGetValue("", out string? defaultNs);
-        if (string.IsNullOrEmpty(defaultNs))
-            defaultNs = null;
-        if (name.Namespace == defaultNs)
-            return name.Local;
-        if (name.Namespace is null)
-            return null;
-        string? prefix = root.NamespaceDeclarations
-            .Where(d => d.Key.Length > 0 && d.Value == name.Namespace)
-            .Select(d => d.Key)
-            .Order(Comparer<string>.Create(XmlRules.CompareCodePoints))
-            .FirstOrDefault();
-        return prefix is null ? null : prefix + ":" + name.Local;
-    }
-
-    /// <summary>Whether an attribute's lexical name means the same expanded name on the root.</summary>
-    private static bool AttributeResolvesOnRoot(ElementNode root, string lexical, ExpandedName name)
-    {
-        int colon = lexical.IndexOf(':');
-        if (colon < 0)
-            return true;
-        string prefix = lexical[..colon];
-        if (prefix == "xml")
-            return true;
-        return root.NamespaceDeclarations.TryGetValue(prefix, out string? uri) && uri == name.Namespace;
-    }
-
     /// <summary>Writes an attribute: with a profile, as a block with its alias, or with a continuation line per
     /// item, where those apply; otherwise in canonical form.</summary>
     private void Attribute(ElementNode element, string name, string value, int depth)
@@ -301,7 +264,7 @@ public sealed class SmlWriter
         var (written, layout) = Effective(element, name, value);
         if (_profile is not null && BlockTag(written) is { } tag)
         {
-            string head = _aliasOf.TryGetValue((element.Name, name), out string? alias) ? alias : "." + name;
+            string head = _aliasOf.TryGetValue((element.Name, element.QualifiedName, name), out string? alias) ? alias : "." + name;
             Block(ind + head, written, tag, depth);
             return;
         }
@@ -794,8 +757,7 @@ public sealed class SmlWriter
             opener += "(" + string.Join(", ", entries.Select(e => e.Name + "=" + e.Value)) + ")";
             inline = XmlRules.CodePointLength(ind + opener) <= LineLimit;
         }
-        bool declaresAliases = depth == 0 && _aliasDeclarations.Count > 0;
-        if ((inline || entries.Count == 0) && !isEnd && !declaresAliases)
+        if ((inline || entries.Count == 0) && !isEnd)
         {
             if (nodes.Count == 0)
             {
@@ -824,8 +786,6 @@ public sealed class SmlWriter
                 _out.Add(inner + "@ns " + (prefix.Length == 0 ? "" : prefix + " ") + token);
             }
         }
-        if (declaresAliases)
-            _out.AddRange(_aliasDeclarations.Select(d => $"{inner}@block {d.Element} .{d.Attribute} {d.Alias}"));
         if (vertical)
         {
             foreach (var (name, value) in attributes)

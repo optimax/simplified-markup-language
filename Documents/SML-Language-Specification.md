@@ -197,7 +197,7 @@ A writer MAY still use a layout to show a value one item per line exactly, such 
 | `= value` | Text child of current element |
 | `"more"` | Continuation line: appends a quoted string to the previous quoted value (§6.5) |
 | `@ns [prefix] URI` | Namespace declaration on current element, only at the start of its declaration section |
-| `@block element-qname .attribute-qname alias` | Core declaration mapping a named multiline block to an attribute on matching elements |
+| `@block element-qname .attribute-qname alias` | Core declaration mapping a named multiline block to an attribute on matching elements; before the root or in a declaration section (§8.1) |
 | `alias """` … `"""` | In a matching element's declaration section, supplies the declared attribute as a multiline value (`alias"""` is equivalent) |
 | `@node element-qname alias` | Element alias: an opener spelled `alias` opens an element named `element-qname`; before the root or in a declaration section (§8.7) |
 | `@noindent` | Marks the current element's content as exact: no predicted formatting whitespace is inserted (§6.4); only in its declaration section |
@@ -575,15 +575,32 @@ The operands are:
 - `.attribute-qname`: normal dot-prefixed attribute QName receiving the block's decoded string.
 - `alias-name`: unprefixed `NCName` that names the block. It is invoked as `alias-name """` (§8.3) and MUST NOT be `end`.
 
-`@block` is allowed **only inside a normal element's declaration section**, never in a document prolog. Its binding is lexically scoped to that declaring element and its descendants (including the declaring element itself). It is not written to XML.
+`@block` MAY appear before the root element, where it applies to the whole document, the root included. It MAY also appear in a normal element's declaration section, where its binding is lexically scoped to that declaring element and its descendants (including the declaring element itself). It MUST NOT appear after the root element. It is not written to XML.
 
 ### 8.2 Namespace resolution
 
-The element QName is resolved **at declaration time** against the in-scope namespace bindings. A prefixed name requires a preceding `@ns prefix URI` declaration (possibly inherited). An unprefixed element name uses the current default namespace; if no default namespace is declared, it means **no namespace**. A default namespace is never inferred from SVG, HTML, file extensions, or the element's spelling.
+In a declaration section, the element QName is resolved **at declaration time** against the in-scope namespace bindings. A prefixed name requires a preceding `@ns prefix URI` declaration (possibly inherited). An unprefixed element name uses the current default namespace; if no default namespace is declared, it means **no namespace**. A default namespace is never inferred from SVG, HTML, file extensions, or the element's spelling.
 
 The target attribute QName uses ordinary XML attribute rules: an unprefixed `.style` or `.d` has **no namespace**, regardless of the default namespace. A prefixed attribute QName requires its prefix to be bound in scope. Both element and attribute names are stored as expanded names, along with their lexical prefix information where the SVG-safe profile requires it.
 
 Because an element's `@ns` lines precede its `@block` declarations (§5.1), the bindings a declaration resolves against are final. A later shadowing of a prefix or default namespace in a descendant does not retroactively alter an already resolved alias mapping.
+
+**Before the root,** no namespace is bound yet, so a declaration keeps its element and attribute QNames as written and resolves them **where the alias is invoked**, against the bindings of the invoking element (after its own `@ns` declarations), as an element alias does (§8.7). The alias matches an element whose expanded name equals its element QName so resolved; an element QName with a prefix unbound there matches nothing. Declarations in declaration sections take precedence, since the nearest scope wins (§8.4). If two declarations before the root with the same alias match one element, the invocation is an error. For example,
+
+```sml
+@block path .d data
+svg
+  @ns http://www.w3.org/2000/svg
+  path
+    data """
+      M 0 0
+      L 10 10
+      """
+  end
+end
+```
+
+gives the SVG `path` its `d`, because `path` is resolved inside `svg`, where the SVG namespace is the default.
 
 Examples:
 
@@ -661,7 +678,7 @@ A named block is an **attribute declaration** for ordering and duplicate detecti
 
 ### 8.5 XML-to-SML writer requirements
 
-An XML-to-SML writer MAY introduce or use `@block` aliases as a formatting choice. It MUST emit any required alias declaration on the invoking element itself or on an ancestor, where the target element and attribute names resolve correctly, before any invocation. The result MUST remain self-contained: decoding it cannot depend on an external alias registry.
+An XML-to-SML writer MAY introduce or use `@block` aliases as a formatting choice. It MUST emit any required alias declaration before the root, where its names are resolved at each invocation, or on the invoking element itself or an ancestor, where the target element and attribute names resolve correctly, before any invocation. The result MUST remain self-contained: decoding it cannot depend on an external alias registry.
 
 A writer MUST choose a named block only if the complete attribute string can be represented **exactly** by a block (§7): it has no CR and none of the characters §4 says to escape, and a longer marker is used if a payload line is `"""`. Otherwise it MUST fall back to an ordinary `.attribute` value, usually quoted with explicit escapes. It MUST preserve XML namespace prefixes/declaration locations under the SVG-safe profile. Because invocations carry a block marker, a real child element whose name equals an active alias is written as an ordinary element. Writers MUST NOT alter the text of SVG `d`, CSS `style`, `points`, or any other attribute to make an alias representation possible. The only exception is the readable attribute reflow of §3.2, which must be selected explicitly and is not a strict conversion.
 
@@ -886,7 +903,7 @@ Every namespace used by a prefixed element or attribute must be bound in scope. 
 - Writers SHOULD emit `@sml 1.0-SVG-1` while the specification is a draft.
 - `tidy` states that the document was written by a readable import (§§3.1–3.2), so it differs from the XML it was converted from in whitespace. It has no effect on reading. A writer of exact SML, such as the canonical writer, never writes it.
 
-**Other headers.** `@standalone yes` MAY appear once before the root, for an XML declaration with `standalone="yes"`. Without it, the document has no standalone flag. `@standalone no` is accepted and means the same: XML 1.0 §2.9 assumes `no` when external markup declarations exist and the flag is missing, and gives the flag no meaning when there are none, so an importer reads `standalone="no"` as no flag. `@indent` (§6.4) and `@doctype` (§11.1) MAY each appear once before the root (`@indent` also in declaration sections, as a per-element step), and `@node` (§8.7) and `@use` (§13) MAY appear before the root.
+**Other headers.** `@standalone yes` MAY appear once before the root, for an XML declaration with `standalone="yes"`. Without it, the document has no standalone flag. `@standalone no` is accepted and means the same: XML 1.0 §2.9 assumes `no` when external markup declarations exist and the flag is missing, and gives the flag no meaning when there are none, so an importer reads `standalone="no"` as no flag. `@indent` (§6.4) and `@doctype` (§11.1) MAY each appear once before the root (`@indent` also in declaration sections, as a per-element step), and `@block` (§8.1), `@node` (§8.7), and `@use` (§13) MAY appear before the root.
 
 **XML output.** All XML output uses version 1.0 and UTF-8 without a BOM. It begins with the declaration `<?xml version="1.0" encoding="UTF-8"?>`, adding `standalone="yes"` when recorded; it never writes `standalone="no"`. Top-level items (the declaration, prolog and epilog comments and PIs, the DOCTYPE, and the root) are separated by single LFs, and the output ends with an LF. Comments, and text in CDATA sections, are written as §9 says. The literal presence of the original `<?xml ...?>` declaration, its quote style, and its original encoding are not retained.
 
@@ -949,7 +966,7 @@ The parser maintains a scoped block-alias table and a scoped element-alias table
 Document          = Prolog, RootElement, Epilog, EOF ;
 Prolog            = { Blank | SourceComment }, [ SmlHeader ],
                     { PrologItem }, [ Doctype, { PrologItem } ] ;
-PrologItem        = Blank | SourceComment | Header | NodeAlias | XMLComment | XMLComments | PI
+PrologItem        = Blank | SourceComment | Header | NodeAlias | BlockDeclaration | XMLComment | XMLComments | PI
                   | ExtensionDirective ;
 Epilog            = { Blank | SourceComment | XMLComment | XMLComments | PI
                     | ExtensionDirective } ;
@@ -1191,6 +1208,7 @@ The following fixtures are mandatory in addition to the baseline corpus:
 | SV-81 | Under `@indent 2`, a subtree whose children are indented by four more spaces, one indented by a tab, and the grandchildren of a four-space element; a per-element `@indent` without the header, twice in one element, after content, or after the root | `@indent 4` and `@indent tab` steps in the declaration sections; the grandchildren follow the unit again; exact round trip; the four invalid forms rejected |
 | SV-82 | Under `@indent`, pretty-printed multi-line text in `desc`, `style`, and `title`, including an empty line and a child of a four-space element; text without whitespace at its edges; text not indented one unit deeper; a compact block under `@noindent`, in mixed content, and without `@indent` | Laid-out text blocks (`desc = """`), read back with the same text; the edgeless text in the normal form with a literal `= """`; the unindented text quoted; the last three literal |
 | SV-83 | `@node` before the root and in a declaration section, used in every opener form, shadowed in a nested scope, and naming a prefixed element whose prefix is bound where it is used; `@element` and `end QName` with aliases; an alias that is `end` or prefixed, an alias declared twice in one scope, and `@node` after the root or after content | The document of the real names; aliases never chain; the invalid forms rejected; canonical output has no `@node` |
+| SV-85 | `@block` before the root, used inside an element of another vocabulary and with a prefix bound only where it is used; shadowed by a declaration section; on an element it does not resolve to; with an unbound prefix; two declarations that match one element; twice; after the root; with an invalid name | Attributes set where the names resolve at the invocation; the nearer declaration wins; no active alias where nothing matches; ambiguity, duplicates, placement, and the name rejected |
 | SV-84 | Pretty-printed XML whose root's children are indented one level deeper than its closing tag, as SVG copied out of HTML; an exact element whose own step is zero spaces; uniformly indented XML with 4 spaces and with tabs | No `@indent` header, the root exact with `@indent 4`, everything below laid out; the zero step written `@indent 0`; one `@indent` line and no per-element steps; exact round trips |
 
 **Mandatory round-trip acceptance:**

@@ -89,8 +89,8 @@ becomes
 ```text
 @sml 1.0-SVG-1 tidy
 @node g group
+@block path .d data
 svg(xmlns=http://www.w3.org/2000/svg)
-  @block path .d data
   style = """
     .road {
       stroke: #123456;
@@ -142,8 +142,8 @@ A profile is a UTF-8 text file with one statement per line; blank lines and line
 | Statement | Meaning |
 |---|---|
 | `@ns [prefix] URI` | Binds a prefix, or the default namespace, for the names that follow. All `@ns` lines come first. |
-| `@block element .attribute alias` | An alias, as in SML (§8): a block for this attribute of this element is written `alias """` instead of `.attribute """`. The aliases used are declared on the root element, so an alias is used only where the root's namespace declarations can name its element. |
-| `@node element alias` | An element alias, as in SML (§8.7): elements with this name are opened as `alias`, as in `group(id=a)` for `<g id="a">`. The aliases used are declared before the root, for the name of the first such element; elements with another prefix keep their names. An alias is not used at all when an element of the document already has that name. |
+| `@block element .attribute alias` | An alias, as in SML (§8): a block for this attribute of this element is written `alias """` instead of `.attribute """`. The aliases used are declared at the top of the file, after the `@sml` line, where their names are resolved wherever they are used (§8.1). Each is declared with the element and attribute names of its first use, and used for the elements and attributes written with those names. |
+| `@node element alias` | An element alias, as in SML (§8.7): elements with this name are opened as `alias`, as in `group(id=a)` for `<g id="a">`. The aliases used are declared at the top of the file, after the `@sml` line, for the name of the first such element; elements with another prefix keep their names. An alias is not used at all when an element of the document already has that name. |
 | `@layout element .attribute layout` | How the attribute's values divide into items (§3.2): `path`, `numbers N` (N numbers per item), `declarations`, `functions`, or `list` (`;`-separated). The element `*` means any element without a layout of its own for that attribute. |
 
 A mistake in a profile is reported as `file(line): error: message` before any file is converted.

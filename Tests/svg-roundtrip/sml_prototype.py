@@ -334,6 +334,7 @@ class SmlReader:
         self.phase = 'prolog'
         self.indent: str | None = DEFAULT_UNIT     # §6.4; @indent none turns the model off
         self.nodes: dict[str, str] = {}     # element aliases declared in the prolog (§8.7)
+        self.blocks: dict = {}              # (element QName, alias) -> attribute QName, declared in the prolog (§8.1)
         self.seen_statement = False
         self.seen: set[str] = set()
         self.extensions: dict[str, bool] = {}
@@ -618,6 +619,19 @@ class SmlReader:
             if target:
                 break
         if target is None:
+            # A declaration before the root matches where its element name resolves to the current element's.
+            matches = set()
+            for (element, name), attr in self.blocks.items():
+                if name == alias:
+                    try:
+                        if resolve_qname(element, f.ns, False, ln) == f.el.expanded:
+                            matches.add(attr)
+                    except SmlError:
+                        pass
+            if len(matches) > 1:
+                raise SmlError(f'alias {alias!r} is ambiguous for element {f.lexical!r}', ln)
+            target = matches.pop() if matches else None
+        if target is None:
             raise SmlError(f'no active alias {alias!r} for element {f.lexical!r}', ln)
         self.set_attr(f, target, self.read_block(marker, ln), ln)
 
@@ -825,6 +839,24 @@ class SmlReader:
         self.add_ns_decl(f, prefix, uri, quoted, ln)
 
     def d_block(self, rest: str, ln: int) -> None:
+        if not self.stack:
+            # Before the root, the names are resolved where the alias is invoked (§8.1).
+            if self.phase != 'prolog':
+                raise SmlError('@block is only allowed before the root element or in a declaration section', ln)
+            toks = [t for t in re.split(r'[ \t]+', rest) if t]
+            if len(toks) != 3 or not toks[1].startswith('.'):
+                raise SmlError('@block takes: element-qname .attribute-qname alias', ln)
+            element, attr, alias = toks[0], toks[1][1:], toks[2]
+            if not is_qname(element) or not is_qname(attr):
+                raise SmlError(f'invalid name in @block {element} .{attr}', ln)
+            if not is_ncname(alias) or alias == 'end':
+                raise SmlError(f'invalid alias name {alias!r}', ln)
+            if attr == 'xmlns' or attr.startswith('xmlns:'):
+                raise SmlError('an alias cannot target a namespace declaration', ln)
+            if (element, alias) in self.blocks:
+                raise SmlError(f'alias {alias!r} is declared twice for this element in one scope', ln)
+            self.blocks[(element, alias)] = attr
+            return
         f = self.decl_frame(ln, '@block')
         toks = [t for t in re.split(r'[ \t]+', rest) if t]
         if len(toks) != 3 or not toks[1].startswith('.'):

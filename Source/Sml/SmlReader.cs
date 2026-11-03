@@ -25,6 +25,10 @@ public sealed partial class SmlReader
     /// <summary>The indentation unit without an @indent header (§6.4).</summary>
     public const string DefaultUnit = "  ";
     private readonly Dictionary<string, string> _nodes = new(StringComparer.Ordinal);
+
+    /// <summary>The @block aliases declared before the root (§8.1): (element QName, alias) to attribute QName,
+    /// resolved where the alias is invoked.</summary>
+    private readonly Dictionary<(string Element, string Alias), string> _blocks = [];
     private bool _seenStatement;
     private Pending? _pending;
 
@@ -498,6 +502,19 @@ public sealed partial class SmlReader
         for (int k = _stack.Count - 1; k >= 0 && target is null; k--)
             _stack[k].Aliases.TryGetValue((f.Element.Name, alias), out target);
         if (target is null)
+        {
+            // A declaration before the root matches where its element name resolves to the current element's.
+            var matches = new HashSet<string>(StringComparer.Ordinal);
+            foreach (var ((element, name), attribute) in _blocks)
+            {
+                if (name == alias && TryResolve(element, f.Ns) == f.Element.Name)
+                    matches.Add(attribute);
+            }
+            if (matches.Count > 1)
+                throw new SmlException($"alias '{alias}' is ambiguous for element '{f.Lexical}'", ln);
+            target = matches.FirstOrDefault();
+        }
+        if (target is null)
             throw new SmlException($"no active alias '{alias}' for element '{f.Lexical}'", ln);
         SetAttribute(f, target, ReadBlock(marker, ln), ln);
     }
@@ -770,8 +787,40 @@ public sealed partial class SmlReader
             throw new SmlException("@ns takes one or two operands: [prefix] URI", ln);
     }
 
+    /// <summary>The expanded name of an element QName under the bindings, or null if its prefix is unbound.</summary>
+    private static ExpandedName? TryResolve(string qname, IReadOnlyDictionary<string, string> ns)
+    {
+        try
+        {
+            return XmlRules.Resolve(qname, ns, attribute: false, null);
+        }
+        catch (SmlException)
+        {
+            return null;
+        }
+    }
+
     private void BlockDeclaration(string rest, int ln)
     {
+        if (_stack.Count == 0)
+        {
+            // Before the root, the names are resolved where the alias is invoked (§8.1).
+            if (_phase != "prolog")
+                throw new SmlException("@block is only allowed before the root element or in a declaration section", ln);
+            string[] p = XmlRules.StripSpacesAndTabs(rest).Split([' ', '\t'], StringSplitOptions.RemoveEmptyEntries);
+            if (p.Length != 3 || !p[1].StartsWith('.'))
+                throw new SmlException("@block takes: element-qname .attribute-qname alias", ln);
+            string attributeName = p[1][1..], aliasName = p[2];
+            if (!XmlRules.IsQName(p[0]) || !XmlRules.IsQName(attributeName))
+                throw new SmlException($"invalid name in @block {p[0]} .{attributeName}", ln);
+            if (!XmlRules.IsNCName(aliasName) || aliasName == "end")
+                throw new SmlException($"invalid alias name '{aliasName}'", ln);
+            if (attributeName == "xmlns" || attributeName.StartsWith("xmlns:", StringComparison.Ordinal))
+                throw new SmlException("an alias cannot target a namespace declaration", ln);
+            if (!_blocks.TryAdd((p[0], aliasName), attributeName))
+                throw new SmlException($"alias '{aliasName}' is declared twice for this element in one scope", ln);
+            return;
+        }
         Frame f = DeclarationFrame(ln, "@block");
         string[] t = XmlRules.StripSpacesAndTabs(rest).Split([' ', '\t'], StringSplitOptions.RemoveEmptyEntries);
         if (t.Length != 3 || !t[1].StartsWith('.'))

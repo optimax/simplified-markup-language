@@ -215,13 +215,13 @@ public class ProfileTests
     }
 
     [Fact]
-    public void CleansIntoAliasBlocksDeclaredOnTheRoot()
+    public void CleansIntoAliasBlocksDeclaredAtTheTop()
     {
         SmlDocument doc = Xml("<svg xmlns='http://www.w3.org/2000/svg'>\n  <path d='M 0 0 L 1 1 Z' fill='red'/>\n</svg>");
         Assert.Equal(""""
             @sml 1.0-SVG-1 tidy
+            @block path .d data
             svg(xmlns=http://www.w3.org/2000/svg)
-              @block path .d data
               path
                 data """
                   M 0 0
@@ -236,22 +236,39 @@ public class ProfileTests
     }
 
     [Fact]
-    public void UsesAliasesWithTheRootsPrefix()
+    public void UsesAliasesWithTheElementsPrefix()
     {
         SmlDocument doc = Xml("<s:svg xmlns:s='http://www.w3.org/2000/svg'><s:polygon points='0,0&#10;1,1'/></s:svg>");
         string sml = SmlWriter.Write(doc, Svg);
-        Assert.Contains("  @block s:polygon .points points\n", sml);
+        Assert.StartsWith("@sml 1.0-SVG-1 tidy\n@block s:polygon .points points\ns:svg", sml);
         Assert.Contains("    points \"\"\"\n      0, 0\n      1, 1\n      \"\"\"\n", sml);
         Assert.Equal("0, 0\n1, 1", SmlReader.Read(sml).Root.Children.OfType<ElementNode>().First().Attributes["points"]);
     }
 
     [Fact]
-    public void WritesNoAliasWhenTheRootCannotDeclareIt()
+    public void UsesAliasesBelowARootOfAnotherVocabulary()
     {
+        // A declaration before the root is resolved where it is used (§8.1), so SVG inside another vocabulary gets it.
         SmlDocument doc = Xml("<doc><svg xmlns='http://www.w3.org/2000/svg'><path d='M 0 0&#10;L 1 1'/></svg></doc>");
         string sml = SmlWriter.Write(doc, Svg);
-        Assert.DoesNotContain("@block", sml);
-        Assert.Contains("      .d \"\"\"\n        M 0 0\n        L 1 1\n        \"\"\"\n", sml);
+        Assert.StartsWith("@sml 1.0-SVG-1 tidy\n@block path .d data\ndoc\n", sml);
+        Assert.Contains("      data \"\"\"\n        M 0 0\n        L 1 1\n        \"\"\"\n", sml);
+        ElementNode path = Elements(SmlReader.Read(sml).Root).Single(e => e.Name.Local == "path");
+        Assert.Equal("M 0 0\nL 1 1", path.Attributes["d"]);
+    }
+
+    [Fact]
+    public void UsesAnAliasOnlyWithTheDeclaredNames()
+    {
+        // The alias is declared with the names of its first use; an element written with another prefix keeps .d.
+        SmlDocument doc = Xml("<svg xmlns='http://www.w3.org/2000/svg' xmlns:s='http://www.w3.org/2000/svg'>"
+            + "<path d='M 0 0&#10;L 1 1'/><s:path d='M 2 2&#10;L 3 3'/></svg>");
+        string sml = SmlWriter.Write(doc, Svg);
+        Assert.StartsWith("@sml 1.0-SVG-1 tidy\n@block path .d data\nsvg", sml);
+        Assert.Contains("  path\n    data \"\"\"\n", sml);
+        Assert.Contains("  s:path\n    .d \"\"\"\n", sml);
+        Assert.Equal(["M 0 0\nL 1 1", "M 2 2\nL 3 3"],
+            SmlReader.Read(sml).Root.Children.OfType<ElementNode>().Select(e => e.Attributes["d"]));
     }
 
     [Fact]

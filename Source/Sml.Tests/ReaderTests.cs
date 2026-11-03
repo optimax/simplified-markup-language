@@ -506,6 +506,27 @@ public class ReaderTests
     }
 
     [Fact]
+    public void SV85_BlockBeforeRoot()
+    {
+        // Before the root, a @block alias's names are resolved where it is invoked (§8.1).
+        SmlDocument doc = SmlReader.Read("@block path .d data\n@block s:rect .s:k data\ndoc\n  svg(xmlns=http://www.w3.org/2000/svg)\n"
+            + "    path\n      data \"\"\"\n        M 0 0\n        \"\"\"\n    end\n  end\n  x(xmlns:s=urn:s)\n    s:rect\n"
+            + "      data \"\"\"\n        v\n        \"\"\"\n    end\n  end\nend\n");
+        List<ElementNode> kids = doc.Root.Children.OfType<ElementNode>().ToList();
+        Assert.Equal("M 0 0", kids[0].Children.OfType<ElementNode>().Single().Attributes["d"]);
+        Assert.Equal(new ExpandedName("urn:s", "k"), kids[1].Children.OfType<ElementNode>().Single().AttributeNames["s:k"]);
+        // A nearer declaration shadows it; an element it does not resolve to has no such alias.
+        ElementNode el = Root("@block path .d data\npath\n  @block path .other data\n  path\n    data \"\"\"\n      v\n      \"\"\"\n  end\nend\n");
+        Assert.Equal(["other"], el.Children.OfType<ElementNode>().Single().Attributes.Keys);
+        Rejects("@block path .d data\ng(xmlns=urn:x)\n  data \"\"\"\n    v\n    \"\"\"\nend\n", "no active alias");
+        Rejects("@block q:path .d data\npath\n  data \"\"\"\n    v\n    \"\"\"\nend\n", "no active alias");
+        Rejects("@block path .d data\n@block p:path .e data\npath(xmlns=urn:x, xmlns:p=urn:x)\n  data \"\"\"\n    v\n    \"\"\"\nend\n", "ambiguous");
+        Rejects("@block path .d data\n@block path .d data\ng/\n", "declared twice");
+        Rejects("g/\n@block path .d data\n", "only allowed before the root");
+        Rejects("@block 1x .d data\ng/\n", "invalid name");
+    }
+
+    [Fact]
     public void SV84_NestedIndentation()
     {
         // Pretty-printed XML nested one level deeper than its root, as SVG copied out of HTML: the root is exact with
