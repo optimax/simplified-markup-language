@@ -62,7 +62,7 @@ SML also has vertical attributes, multiline literal blocks for long paths, CSS, 
 | [`Source/SmlXml/`](Source/SmlXml/) | `smlxml`, the command-line converter |
 | [`Source/Sml.Tests/`](Source/Sml.Tests/) | xUnit tests for the library and the command line |
 | [`Tests/svg-roundtrip/`](Tests/svg-roundtrip/) | Python prototype, conformance fixtures, and fuzz and differential tests |
-| [`Tests/svg-corpus/`](Tests/svg-corpus/) | 897 real-world SVG files from open-source projects, for testing |
+| [`Tests/svg-corpus/`](Tests/svg-corpus/) | 985 real-world SVG files from open-source projects around the world, for testing |
 
 ## smlxml
 

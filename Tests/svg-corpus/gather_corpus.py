@@ -13,7 +13,7 @@ temporary folder that is removed afterwards. In the destination, each source's f
 are replaced; other files are left alone.
 
 The selection is deterministic, so the pinned sources always give the same files. A new source must be under
-a license that allows redistribution with the source code, such as MIT, ISC, or BSD, and its files must say
+a license that allows redistribution with the source code, such as MIT, ISC, BSD, Apache-2.0, or CC0, and its files must say
 nothing to the contrary: a file with an "All Rights Reserved" notice is never selected, and the run stops if
 one is selected by name.
 """
@@ -53,6 +53,21 @@ BRANDS = re.compile(
     re.IGNORECASE,
 )
 
+# More brands, for the sources added later; kept apart so that the earlier sources' selections stay the same.
+MORE_BRANDS = re.compile(
+    r'(^|[-_])(weibo|taobao|dingtalk|dingding|zhihu|yuque|alibaba|aliwangwang|aliyun|ant|qq|baidu|bilibili|java|'
+    r'ruby|dotnet|harmony|open-a-i|ie|x|vk|vkontakte|ok|odnoklassniki|mail|mailru|youla|boom|clips|tiktok|'
+    r'telegram|logo|service|services|netflix|tik-tok|whats-app|code-sandbox|dot-net|hugging-face|gemini|deep-seek|'
+    r'mistral|ollama|perplexity|qwen|replicate|eleven-labs)([-_.]|$)',
+    re.IGNORECASE,
+)
+
+
+def unbranded(files):
+    """The files whose names do not match MORE_BRANDS."""
+    return {p: data for p, data in files.items() if not MORE_BRANDS.search(p.rsplit('/', 1)[-1][:-4])}
+
+
 # Test-suite files with these features are always selected, because few files have them.
 RARE = re.compile(r'<!DOCTYPE|<!ENTITY|xml:space|xml:lang|<\?xml-stylesheet|encoding="[^Uu]|&#x?[0-9A-Fa-f]+;')
 
@@ -69,6 +84,9 @@ class Source:
     license_file: str = 'LICENSE'
     root: str = ''     # folder in the package or repository that holds the files
     note: str = ''
+    notice_file: str = ''        # an Apache-2.0 NOTICE file, copied into the notices too
+    files: tuple = ()            # a hand-picked selection, relative to root, instead of a computed one
+    max_bytes: int = MAX_BYTES   # the largest file selected
 
 
 SOURCES = [
@@ -106,6 +124,34 @@ SOURCES = [
            repo='https://github.com/tabler/tabler-icons', root='icons'),
     Source('weather-icons', 'MIT', 'the package root', npm='@bybas/weather-icons', version='2.0.0',
            repo='https://github.com/basmilius/weather-icons'),
+    # Real-world files from around the world: editors' exports, maps, diagrams, and text in several scripts.
+    Source('ant-design-icons', 'MIT', '`packages/icons-svg/svg/`',
+           git='https://github.com/ant-design/ant-design-icons',
+           version='7f2516ac91226d2b41f93b35cb5197c8d94f7189', root='packages/icons-svg/svg'),
+    Source('batik', 'Apache-2.0', '`samples/`', git='https://github.com/apache/xmlgraphics-batik',
+           version='0d9a9b91931ea7512ee79292f940a10899fee66a',
+           license_file='batik-shared-resources/src/main/resources/LICENSE',
+           notice_file='batik-shared-resources/src/main/resources/NOTICE', root='samples', max_bytes=300_000,
+           files=('GVT.svg', 'anne.svg', 'barChart.svg', 'chessFont.svg', 'chessboard.svg', 'gradients.svg',
+                  'henryV.svg', 'mapSpain.svg', 'mapWaadt.svg', 'mathMetal.svg', 'mines.svg', 'moonPhases.svg',
+                  'sizeOfSun.svg', 'starfield.svg', 'strokeFont.svg', 'sydney.svg', 'textRotate.svg',
+                  'textRotateShadows.svg', 'extensions/flowText.svg', 'extensions/regularPolygon.svg',
+                  'tests/spec/fonts/fontArabic.svg', 'tests/spec/text/textBiDi.svg', 'tests/spec12/text/flowBidi.svg'),
+           note='The samples that draw the Batik or Apache logo or name are left out.'),
+    Source('drawio-diagrams', 'Apache-2.0', '`diagrams/`', git='https://github.com/jgraph/drawio-diagrams',
+           version='cc78dc2e7df8cf3ad437e6f876fbc33d2d0b7e01', root='diagrams',
+           files=('flowchart.drawio.svg', 'svgfile.svg')),
+    Source('noto-emoji', 'Apache-2.0', '`2D/svg/`', git='https://github.com/googlefonts/noto-emoji',
+           version='99701e07d3d1fe1bdbcdb14964547f0fd592966f', license_file='2D/svg/LICENSE', root='2D/svg'),
+    Source('openstreetmap-carto', 'CC0-1.0', '`symbols/`', git='https://github.com/gravitystorm/openstreetmap-carto',
+           version='003cefdd67918e8317e9753312ec3327d78f5d1f', license_file='LICENSE.txt', root='symbols'),
+    Source('region-flags', 'Public domain', '`third_party/region-flags/svg/` of Noto Emoji',
+           git='https://github.com/googlefonts/noto-emoji', version='99701e07d3d1fe1bdbcdb14964547f0fd592966f',
+           license_file='third_party/region-flags/LICENSE', root='third_party/region-flags/svg',
+           note='The flags were taken from Wikimedia Commons; the copying notice below lists the ones that are '
+                'public domain under national law. Only flags saved by Inkscape are selected.'),
+    Source('vk-icons', 'MIT', '`src/svg/`', npm='@vkontakte/icons', version='3.79.0',
+           repo='https://github.com/VKCOM/icons', root='src/svg'),
 ]
 
 
@@ -123,21 +169,21 @@ def reserved(data):
     return b'all rights reserved' in data.lower()
 
 
-def ok(path, data, brands=True):
+def ok(path, data, brands=True, max_bytes=MAX_BYTES):
     """Whether a file may be selected: a plain file name, not a brand logo, no "All Rights Reserved" notice, and
-    at most MAX_BYTES."""
+    at most max_bytes."""
     name = path.rsplit('/', 1)[-1]
     if not SAFE_NAME.match(name):
         return False
     if brands and BRANDS.search(name[:-4]):
         return False
-    return len(data) <= MAX_BYTES and not reserved(data)
+    return len(data) <= max_bytes and not reserved(data)
 
 
-def candidates(files, folder='', brands=True):
+def candidates(files, folder='', brands=True, max_bytes=MAX_BYTES):
     """The sorted paths of the selectable files in folder (and its subfolders)."""
     prefix = folder + '/' if folder else ''
-    return sorted(p for p, data in files.items() if p.startswith(prefix) and ok(p, data, brands))
+    return sorted(p for p, data in files.items() if p.startswith(prefix) and ok(p, data, brands, max_bytes))
 
 
 def below(files, root):
@@ -189,6 +235,10 @@ def select_npm(src, files):
     if src.folder == 'flag-icons':
         # Every flag in both aspect ratios: countries, regions, organizations, and the placeholder (xx).
         return [(p, svgs[p]) for p in candidates(svgs, brands=False)]
+    if src.folder == 'vk-icons':
+        # Icons exported from Sketch, which keep its generator comment and layer names.
+        sketch = unbranded({p: data for p, data in svgs.items() if b'Generator: Sketch' in data})
+        return [(p, svgs[p]) for p in spread(candidates(sketch), 10)]
     if src.folder == 'phosphor':
         # A different three icons in each of the six weights.
         weights = ('thin', 'light', 'regular', 'bold', 'fill', 'duotone')
@@ -239,6 +289,35 @@ def select_tests(src, work, total):
     return [(p, svgs[p]) for p in chosen], (folder / src.license_file).read_bytes()
 
 
+def select_git(src, work):
+    """A repository's files: the hand-picked ones, or a selection by folder."""
+    folder = git_fetch(src, work)
+    extra = ['/' + src.notice_file] if src.notice_file else []
+    patterns = [f'/{src.root}/{p}' for p in src.files] if src.files else [f'/{src.root}/**/*.svg']
+    git_checkout(folder, ['/' + src.license_file] + extra + patterns)
+    root = folder / src.root
+    svgs = {p.relative_to(root).as_posix(): p.read_bytes() for p in root.rglob('*.svg')}
+    if src.files:
+        for p in src.files:
+            if p not in svgs or not ok(p, svgs[p], max_bytes=src.max_bytes):
+                raise ValueError(f'{src.folder}/{p} is missing or may not be selected')
+        chosen = list(src.files)
+    elif src.folder == 'region-flags':
+        inkscape = {p: data for p, data in svgs.items() if b'inkscape:version' in data}
+        chosen = spread(candidates(inkscape, brands=False), 10)
+    else:
+        quotas = {
+            'ant-design-icons': [('filled', 4), ('outlined', 4), ('twotone', 4)],
+            'noto-emoji': [('', 12)],
+            'openstreetmap-carto': [('religion', 8), ('amenity', 4), ('shop', 3), ('historic', 2), ('tourism', 2)],
+        }[src.folder]
+        chosen = [p for sub, k in quotas for p in spread(candidates(unbranded(svgs), sub, max_bytes=src.max_bytes), k)]
+    license_text = (folder / src.license_file).read_bytes()
+    if src.notice_file:
+        license_text += b'\n\n' + (folder / src.notice_file).read_bytes()
+    return [(p, svgs[p]) for p in chosen], license_text
+
+
 def gather(src, work):
     """Downloads one source; returns ([(path in the corpus folder, bytes)], license text as bytes)."""
     if src.npm:
@@ -246,7 +325,9 @@ def gather(src, work):
         return select_npm(src, files), files[src.license_file]
     if src.folder == 'fluent-emoji':
         return select_fluent(src, work)
-    return select_tests(src, work, {'resvg': 100}[src.folder])
+    if src.folder == 'resvg':
+        return select_tests(src, work, 100)
+    return select_git(src, work)
 
 
 def notices(results):
@@ -271,7 +352,7 @@ def notices(results):
         out += [f'## `{src.folder}/`', '',
                 f'- Source: {origin}',
                 f'- Files: {len(selection)}, from {src.location}',
-                f'- License: {src.license}', '']
+                f'- License: {src.license}' + (', followed by its NOTICE file' if src.notice_file else ''), '']
         if src.note:
             out += [src.note, '']
         out += ['```text', text, '```', '']
