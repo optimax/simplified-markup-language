@@ -38,6 +38,10 @@ public sealed class SmlWriter
     /// foreignObject, and xml:space="preserve".</summary>
     private readonly HashSet<ElementNode> _tidyable = [];
 
+    /// <summary>When cleaning, the SVG style elements whose CSS is laid out (§3.2), even under xml:space="preserve",
+    /// since whitespace in CSS never renders.</summary>
+    private readonly HashSet<ElementNode> _styleSheets = [];
+
     /// <summary>The indentation unit of cleaned SML, whatever the input's indentation (§3.1).</summary>
     private const string CleanUnit = "  ";
 
@@ -75,6 +79,8 @@ public sealed class SmlWriter
                 preserve = value == "preserve";
         }
         bool rendered = inText || textContent;   // SVG renders this element's character data
+        if (svg && element.Name.Local == "style" && !foreign && !rendered && IsCss(element))
+            _styleSheets.Add(element);
         if (!foreign && (!preserve || svg && !rendered))
         {
             if (!preserve && !rendered)
@@ -88,6 +94,17 @@ public sealed class SmlWriter
         }
         foreach (ElementNode child in element.Children.OfType<ElementNode>())
             FindNormalized(child, inText || textContent, foreign, preserve);
+    }
+
+    /// <summary>Whether a style element holds CSS: its type is absent, empty, or text/css.</summary>
+    public static bool IsCss(ElementNode element)
+    {
+        foreach (var (name, value) in element.Attributes)
+        {
+            if (element.AttributeNames[name] == new ExpandedName(null, "type"))
+                return value.Trim().Length == 0 || value.Trim().Equals("text/css", StringComparison.OrdinalIgnoreCase);
+        }
+        return true;
     }
 
     private static bool IsWhitespace(string text) => text.All(c => c is ' ' or '\t' or '\n' or '\r');
@@ -728,7 +745,15 @@ public sealed class SmlWriter
     {
         string ind = Indentation(depth), inner = Indentation(depth + 1);
         List<SmlNode> nodes = ContentNodes(element);
-        string? code = _profile is not null && nodes is [TextNode text] && _tidyable.Contains(element) ? TidyText(text.Data) : null;
+        // Cleaning: a style sheet is laid out as CSS, other code and text tidied (§3.2).
+        string? code = null;
+        if (_profile is not null && nodes is [TextNode text])
+        {
+            if (_styleSheets.Contains(element) && CssFormatter.Format(TidyText(text.Data) ?? text.Data) is { } sheet)
+                code = sheet;
+            else if (_tidyable.Contains(element))
+                code = TidyText(text.Data);
+        }
         var (laidOut, step, local, noIndent) = Plan(element, nodes, indentation, _unit);
         if (_normalized.Contains(element))
         {

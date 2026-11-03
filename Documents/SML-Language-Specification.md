@@ -163,6 +163,16 @@ A writer MAY still use a layout to show a value one item per line exactly, such 
 
 **Text and comments.** Tidying applies to multi-line text: the text of an element whose content is a single text node outside SVG text content, `foreignObject`, and `xml:space="preserve"`, such as a `style` sheet, a `script`, a `desc`, or metadata, and the data of a comment anywhere. It removes the spaces and tabs at the end of every line, the empty lines at the start and the end, runs of empty lines down to one, and the indentation that all non-empty lines share. A comment's data is already normalized (§9), so for a comment only the line ends and the empty lines change. Text without a line break, with a CR, or of whitespace only is left alone. Tidied text with more than one line is written as a block: text as a laid-out text block (§6.4) in a laid-out position, which puts the line breaks and indentation of pretty-printed text back around it, and otherwise, and for every comment, as a literal block. Tidying is not applied to SVG text content, because SVG 1.1 removes line breaks without adding a space, so removing the indentation after one could join two words. In CSS such whitespace never matters, and in scripts only inside multi-line strings such as JavaScript template literals.
 
+**Style sheets.** The CSS of an SVG `style` element whose `type` is absent, empty, or `text/css`, outside SVG text content and `foreignObject`, and also under `xml:space="preserve"`, since whitespace in CSS never renders, is laid out instead, on one line or several: each statement on its own line; a rule as its prelude (such as a selector), a space, and `{`, then its contents one level (two spaces) deeper, then `}`; and declarations, at-rules such as `@import`, and comments each on a line of their own. Nested blocks, such as those of `@media`, are laid out the same way. Strings, comments, and the text inside parentheses, such as `url(data:…;base64,…)`, are kept as they are, and so is the whitespace inside a statement, except that a run of whitespace with a line break becomes one space. A style sheet with an unclosed string, comment, parenthesis, or block, a stray `}` or `)`, or `<!--` or `-->` is tidied as text instead. For example, `.fnt26 {font-weight:normal;font-size:97;font-family:FontID19, Symbol}` becomes
+
+```css
+.fnt26 {
+  font-weight:normal;
+  font-size:97;
+  font-family:FontID19, Symbol
+}
+```
+
 ## 4. Encoding, lines, names, and structural model
 
 - SML source MUST be valid UTF-8; a UTF-8 BOM is permitted on input, and writers MUST NOT emit one. Invalid byte sequences are errors.

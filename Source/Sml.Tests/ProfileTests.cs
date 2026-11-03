@@ -385,23 +385,42 @@ public class ProfileTests
             svg(xmlns=http://www.w3.org/2000/svg)
               style(id=style1) = """
                 :root {
-                	--blue: #303b5f;
+                  --blue: #303b5f;
                 }
                 .text1 {
-                	font-weight:bold;
+                  font-weight:bold;
                 }
                 """
             end
 
             """".ReplaceLineEndings("\n"), sml);
         string style = SmlReader.Read(sml).Root.Children.OfType<ElementNode>().First().Children.OfType<TextNode>().Single().Data;
-        Assert.Equal("\n    :root {\n    \t--blue: #303b5f;\n    }\n    .text1 {\n    \tfont-weight:bold;\n    }\n  ", style);
+        Assert.Equal("\n    :root {\n      --blue: #303b5f;\n    }\n    .text1 {\n      font-weight:bold;\n    }\n  ", style);
         Assert.Equal(sml, SmlWriter.Write(SmlReader.Read(sml), Svg));
 
         // In the normal form, the tidied code is a literal block without edges.
         string vertical = SmlWriter.Write(doc, new SmlWriterOptions { Clean = Svg, VerticalAttributes = true });
         Assert.Contains("  style\n    .id style1\n    = \"\"\"\n      :root {\n", vertical);
         Assert.Contains("      }\n      \"\"\"\n  end\n", vertical);
+    }
+
+    [Fact]
+    public void LaysOutStyleSheets()
+    {
+        // One declaration per line, two spaces deeper than its rule; the text of each statement stays.
+        Assert.Equal(".fnt26 {\n  font-weight:normal;\n  font-size:97;\n  font-family:FontID19, Symbol\n}",
+            CssFormatter.Format(".fnt26 {font-weight:normal;font-size:97;font-family:FontID19, Symbol}"));
+        // Nested blocks, comments, strings and parentheses with ; { }, line breaks inside a declaration, ;; and @import.
+        Assert.Equal("@import url(\"a;b.css\");\n/* layout */\n@media screen and (min-width: 10px) {\n  .a, .b {\n"
+            + "    content: \"{;}\";\n    background: url(data:image/png;base64,AA==);;\n    margin: 0 auto\n  }\n}\n.c {\n}",
+            CssFormatter.Format("  @import url(\"a;b.css\");/* layout */\n@media screen and (min-width: 10px){.a,\n .b{content: \"{;}\";"
+                + "background: url(data:image/png;base64,AA==);;margin: 0\n      auto}}\n.c{}"));
+        // Laying out twice gives the same text.
+        string once = CssFormatter.Format("a{x:1;y:2}b{z:3}")!;
+        Assert.Equal(once, CssFormatter.Format(once));
+        // Not laid out: unclosed or stray delimiters, HTML comment delimiters, nothing but whitespace.
+        foreach (string bad in new[] { "a{x:1", "a{x:\"1}", "a{x:1}}", "a{x:(1}", "/* a", "<!-- a{} -->", " \n " })
+            Assert.Null(CssFormatter.Format(bad));
     }
 
     [Fact]
@@ -562,6 +581,12 @@ public class ProfileTests
         }
         element.Children.Clear();
         element.Children.AddRange(children);
+        // A style sheet is laid out as CSS, which changes only whitespace: compare it without any.
+        if (svg && element.Name.Local == "style" && !foreign && !inText && !textContent && SmlWriter.IsCss(element)
+            && children is [TextNode sheet])
+        {
+            sheet.Data = string.Concat(sheet.Data.Where(c => !char.IsWhiteSpace(c)));
+        }
         // SVG applies xml:space to text only, so outside text content an SVG element is cleaned under preserve too.
         if (!foreign && (!preserve || svg && !inText && !textContent))
         {

@@ -93,7 +93,7 @@ svg(xmlns=http://www.w3.org/2000/svg)
   @block path .d data
   style = """
     .road {
-    	stroke: #123456;
+      stroke: #123456;
     }
     """
   group
@@ -115,7 +115,8 @@ This is a readable conversion, not a strict one (§§3.1–3.2 of the specificat
 - A value is reflowed only if it has its layout's form and at least two items. A value that has the form but cannot be divided cleanly, such as one with a TAB inside an item, keeps its whitespace and is quoted with a continuation line per item. Any other value is written exactly.
 - A single path command is never split, so a long run of coordinates after one command stays on one line.
 - The whitespace between elements is replaced by two-space indentation, however the input was indented or even if it was minified. Where whitespace can change rendering, it stays as it was: in mixed text, between `tspan`s where SVG 1.1 would render no space, in text and in elements of other namespaces under `xml:space="preserve"`, and in `foreignObject`. SVG applies `xml:space` to text only, so the other SVG elements under `preserve` are tidied too.
-- Multi-line text, such as a style sheet, a script, or a description, and multi-line comments lose the spaces and tabs at the ends of their lines, their empty first and last lines, extra empty lines, and the indentation all their lines share. Comments are normalized this way in part even without `--clean` (specification §9): they lose the whitespace at their ends and the indentation their lines share, and multi-line comments are written back pretty-printed. Inner indentation, such as the tab before `stroke`, stays. In a script, whitespace inside a multi-line string, such as a JavaScript template literal, would change too. Text in SVG `text` elements is left alone, because there a line break counts.
+- A style sheet (the CSS of a `style` element) is laid out as CSS: each rule as its selector and `{`, then one declaration per line, two spaces deeper, then `}`, so `.a {fill:red;stroke:blue}` becomes four lines. Nested blocks such as `@media` are indented the same way. Only whitespace changes; strings, comments, and the text inside parentheses stay as they are. A style sheet that is not well-formed CSS is tidied like other text instead.
+- Multi-line text, such as a script or a description, and multi-line comments lose the spaces and tabs at the ends of their lines, their empty first and last lines, extra empty lines, and the indentation all their lines share. Comments are normalized this way in part even without `--clean` (specification §9): they lose the whitespace at their ends and the indentation their lines share, and multi-line comments are written back pretty-printed. Inner indentation stays. In a script, whitespace inside a multi-line string, such as a JavaScript template literal, would change too. Text in SVG `text` elements is left alone, because there a line break counts.
 
 The SML written with a profile is self-contained: it declares every alias it uses, attribute and element aliases alike, and reads without the profile. Profiles apply only to XML-to-SML conversion; SML input converts as usual.
 
