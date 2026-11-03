@@ -3,7 +3,7 @@ svg(xmlns=http://www.w3.org/2000/svg)
   style = """
     .a { fill: #f00; }
     #b:hover { opacity: .5; }
-  """
+    """
   rect
     .class a
     .height 30

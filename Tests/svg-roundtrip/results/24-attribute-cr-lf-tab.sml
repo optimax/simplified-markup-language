@@ -5,8 +5,11 @@ svg(xmlns=http://www.w3.org/2000/svg)
     .data-b """
       x
       y
-    """
+      """
     .data-c "x\ty"
-    .data-d "\tlead and trail\n"
+    .data-d """
+      	lead and trail
+
+      """
   end
 end

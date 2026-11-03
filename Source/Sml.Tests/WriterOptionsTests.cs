@@ -50,7 +50,7 @@ public class WriterOptionsTests
         SmlProfile profile = SmlProfile.Parse("@layout * .transform functions\n@block g .transform t\n");
         SmlDocument doc = Xml("<g transform='scale(2)'><g transform='translate(1,2) rotate(3)'/></g>");
         Assert.Equal(""""
-            # Readable conversion (SML §3.2), not strict: one item per line in transform
+            # Cleaned (SML §3.2), not exact: one item per line in transform
             @sml 1.0-SVG-1
             g
               @block g .transform t
@@ -59,12 +59,12 @@ public class WriterOptionsTests
                 t """
                   translate(1,2)
                   rotate(3)
-                """
+                  """
               end
             end
 
             """".ReplaceLineEndings("\n"),
-            SmlWriter.Write(doc, new SmlWriterOptions { Profile = profile, Reflow = true, VerticalAttributes = true }));
+            SmlWriter.Write(doc, new SmlWriterOptions { Clean = profile, VerticalAttributes = true }));
     }
 
     [Theory]

@@ -30,7 +30,7 @@ The publish profile writes two framework-dependent single-file executables, each
 
 ## Conventions
 
-- **Two implementations, one behavior.** The Python prototype and the C# library implement the same specification. Their canonical SML must be byte-identical: `CorpusTests` compares C# output with `Tests/svg-roundtrip/results/*.sml`, and `crosscheck_csharp.py` compares both on random documents and mutants. A change to the specification's syntax or canonical form must be made in both, followed by both test suites and the cross-check. Writer options (`SmlWriterOptions`: profiles with `SmlProfile` and `ValueLayout`, the reflow of §3.2, and vertical attributes) exist only in C#. They change neither syntax nor the canonical form, and their output is ordinary SML that the Python reader must read the same way.
+- **Two implementations, one behavior.** The Python prototype and the C# library implement the same specification. Their canonical SML must be byte-identical: `CorpusTests` compares C# output with `Tests/svg-roundtrip/results/*.sml`, and `crosscheck_csharp.py` compares both on random documents and mutants. A change to the specification's syntax or canonical form must be made in both, followed by both test suites and the cross-check. Writer options (`SmlWriterOptions`: cleaning with a profile, `SmlProfile` and `ValueLayout`, as in §3.2, and vertical attributes) exist only in C#. They change neither syntax nor the canonical form, and their output is ordinary SML that the Python reader must read the same way.
 - **Code points, not UTF-16 units.** The canonical form measures lines in code points and orders names by code point. In C#, use `XmlRules.CodePointLength` and `XmlRules.CompareCodePoints`, never `string.Length` or ordinal comparison, for those rules.
 - **Warnings are errors** in all C# projects.
 - **Calculation separate from presentation.** `Source/Sml` has no console or file-system code; `Source/SmlXml/CommandLine.cs` owns arguments, files, and messages.
@@ -42,10 +42,10 @@ The publish profile writes two framework-dependent single-file executables, each
 - **Blocks are delimited by `"""`**, with a longer run of quotation marks when a payload line is `"""`, and `end` closes only elements.
   - Braces were rejected: CSS and scripts, the usual block payloads, put `}` alone on a line, so a brace-delimited block would close early and the rest of the CSS would parse as SML.
   - A backtick was rejected: it is hard to see, a dead key on many keyboard layouts, and PowerShell's escape character.
-- **Writer profiles are exact unless reflow is asked for.**
-  - A profile (`SmlProfile`) gives SML output aliases and layouts.
-  - By default it changes only the SML spelling: blocks through aliases, and continuation lines at item boundaries.
-  - `--reflow` applies the specification's lossy readable reflow (§3.2), which rewrites values one item per line.
+- **Blocks are verbatim.** Only the closing marker's indentation comes off each payload line; trailing whitespace, extra indentation, and whitespace-only lines are data. The user chose this over trimming, so that CSS and scripts from editors such as Inkscape stay readable blocks instead of quoted strings. The cost: an editor that strips trailing whitespace changes a block's data. The canonical writer therefore quotes values of whitespace only, and puts a block's closing marker level with its payload.
+- **Profiles are only for cleaning.**
+  - A profile (`SmlProfile`) gives SML output aliases and layouts, and marks code elements; `smlxml --clean <profile>` applies it, and there is no exact profile mode.
+  - Cleaning is the specification's lossy readable cleanup (§3.2): values with a layout one item per line, and the text of code elements tidied. A value that cannot be divided cleanly keeps its whitespace and is quoted with a continuation line per item.
   - The format is smlxml configuration, not SML. SML written with a profile is self-contained (§8.5): `SmlWriter` declares the aliases it uses on the root element.
 - **External DTDs are never loaded** (`XmlResolver = null`). DTD internal subsets are rejected, including an empty `[]`, which System.Xml cannot distinguish from no subset; `XmlImporter.HasInternalSubset` scans the prolog for it.
 - **One publish profile, both bitnesses.**

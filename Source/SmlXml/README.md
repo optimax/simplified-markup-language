@@ -46,15 +46,14 @@ smlxml -o *.out.svg *.sml
 |---|---|
 | `-o`, `--output <path>` | Write to this file instead (one input file only), or with `*`, one file per input (see below) |
 | `-f`, `--force` | Overwrite an existing output file |
-| `-p`, `--profile <name>` | Write SML with a profile's aliases and layouts (see [Profiles](#profiles)) |
-| `-r`, `--reflow` | With `--profile`: one item per line in blocks; readable, but not lossless |
+| `-c`, `--clean <name>` | Write readable SML with a profile: one item per line, tidy CSS and scripts, and aliases; not exact (see [Cleaning with a profile](#cleaning-with-a-profile)) |
 | `--verbose` | Write every attribute and namespace declaration on its own line, never in a `name(...)` list |
 | `-h`, `--help` | Show help |
 | `-v`, `--version` | Show the version (the banner) |
 
 An existing output file is never overwritten without `--force`. Errors appear as `file(line): error: message`. The exit code is 0 on success, 1 if a conversion failed or a pattern matched no file, and 2 for an invalid command line or profile, including no arguments.
 
-SML output is in the canonical form of the specification (§14.2), unless a profile or `--verbose` is used.
+SML output is in the canonical form of the specification (§14.2), unless `--clean` or `--verbose` is used. It is exact: text such as a style sheet keeps every space and tab, in a block whose lines are copied verbatim (§7).
 
 The canonical form writes short attribute lists inline: `path(d=M0 0 L1 1, fill=#fff)/`. With `--verbose`, every attribute and namespace declaration gets its own line instead:
 
@@ -65,44 +64,58 @@ path
 end
 ```
 
-Elements without attributes keep their compact forms (`g/`, `title = Text`), and values are written as in the canonical form. The SML reads back as the same document. `--verbose` has no short form, because `-v` is `--version`; it can be combined with `--profile`. XML input must be namespace-well-formed XML 1.0 without a DTD internal subset (§3); a DOCTYPE with only a public or system identifier is kept, and its DTD is never loaded.
+Elements without attributes keep their compact forms (`g/`, `title = Text`), and values are written as in the canonical form. The SML reads back as the same document. `--verbose` has no short form, because `-v` is `--version`; it can be combined with `--clean`. XML input must be namespace-well-formed XML 1.0 without a DTD internal subset (§3); a DOCTYPE with only a public or system identifier is kept, and its DTD is never loaded.
 
-## Profiles
+## Cleaning with a profile
 
-A profile makes the SML easier to read by giving long, structured attribute values a layout: one path command, coordinate pair, CSS declaration, or transform function per line. `smlxml` comes with the `svg` profile, `svg.smlprofile` beside `smlxml.exe`.
+`smlxml --clean svg drawing.svg` writes SML that is easier to read and edit, using a profile. `smlxml` comes with the `svg` profile, `svg.smlprofile` beside `smlxml.exe`. A profile gives long, structured attribute values a layout, with one path command, coordinate pair, CSS declaration, or transform function per line. It marks style sheets and scripts as code to tidy, and it supplies aliases. For example:
 
-**Exact.** `smlxml --profile svg drawing.svg` writes SML that converts back to exactly the same SVG. A value with a layout and at least two items is quoted, with a continuation line per item:
-
-```text
-path
-  .d "M 20 60 "
-    "L 60 20 "
-    "Z"
-end
+```xml
+<svg xmlns="http://www.w3.org/2000/svg">
+  <style>
+		.road {
+			stroke: #123456;
+		}
+  </style>
+  <g>
+    <path d="M20,60L60,20Z"/>
+  </g>
+</svg>
 ```
 
-**Reflowed.** `smlxml --profile svg --reflow drawing.svg` puts each item on its own line in a block, using the profile's aliases, which it declares on the root element:
+becomes
 
 ```text
-# Readable conversion (SML §3.2), not strict: one item per line in d
+# Cleaned (SML §3.2), not exact: one item per line in d; code tidied in style
 @sml 1.0-SVG-1
+@indent 2
+@node g group
 svg(xmlns=http://www.w3.org/2000/svg)
   @block path .d data
-  path
-    data """
-      M 20 60
-      L 60 20
-      Z
+  style = """
+    .road {
+    	stroke: #123456;
+    }
     """
+  group
+    path
+      data """
+        M 20, 60
+        L 60, 20
+        Z
+        """
+    end
   end
 end
 ```
 
-This is easier to read and edit, but it is a readable conversion, not a strict one (§3.2 of the specification). The values now contain line breaks where they had spaces, so converting the SML back gives SVG that renders the same but is not identical, and the first line says so.
+This is a readable conversion, not a strict one (§3.2 of the specification). Values and code now differ in whitespace, so converting the SML back gives SVG that renders the same but is not identical, and the first line says so.
+
 - In path data, each command letter and each comma is followed by a space, so `M10,20L30,40` becomes the lines `M 10, 20` and `L 30, 40`. Parameters written together are separated too, so `a.75.75 0 01-.69-.35` becomes `a .75 .75 0 0 1 -.69 -.35`. Parameters are read as path data reads them: numbers each as long as possible, and an arc's two flags as single characters `0` or `1`.
 - Point lists and other number lists are spaced the same way: `10,20` becomes `10, 20`, and `1-2` becomes `1 -2`.
-- A value is reflowed only if it has its layout's form and at least two items; any other value is written exactly.
+- A value is reflowed only if it has its layout's form and at least two items. A value that has the form but cannot be divided cleanly, such as one with a TAB inside an item, keeps its whitespace and is quoted with a continuation line per item. Any other value is written exactly.
 - A single path command is never split, so a long run of coordinates after one command stays on one line.
+- Style sheets and scripts lose the spaces and tabs at the ends of their lines, their empty first and last lines, and the indentation all their lines share. Inner indentation, such as the tab before `stroke`, stays. In a script, whitespace inside a multi-line string, such as a JavaScript template literal, would change too.
 
 The SML written with a profile is self-contained: it declares every alias it uses, attribute and element aliases alike, and reads without the profile. Profiles apply only to XML-to-SML conversion; SML input converts as usual.
 
@@ -116,14 +129,15 @@ The SML written with a profile is self-contained: it declares every alias it use
 | `values` of `animate`, `animateColor`, `animateTransform`, and `animateMotion`; `keyPoints` of `animateMotion`; `keyTimes` and `keySplines` | Entries | |
 | `style` of any element | CSS declarations | |
 | `transform`, `gradientTransform`, and `patternTransform` of any element | Functions | |
+| The text of `style` and `script` | Code, tidied | |
 
-An alias appears only where the value is written as a block: with `--reflow`, or for a value that already contains line breaks.
+An attribute alias appears wherever such a value is written as a block.
 
 The profile also has element aliases (`@node`): `g` elements are opened as `group`, and `p` elements in its namespace, the SVG namespace, as `para`.
 
 ### Writing a profile
 
-A profile is a UTF-8 text file with one statement per line; blank lines and lines starting with `#` are ignored. Pass its path to `--profile`, or put `name.smlprofile` beside `smlxml` and pass `name`. The built-in [`svg.smlprofile`](svg.smlprofile) is an example.
+A profile is a UTF-8 text file with one statement per line; blank lines and lines starting with `#` are ignored. Pass its path to `--clean`, or put `name.smlprofile` beside `smlxml` and pass `name`. The built-in [`svg.smlprofile`](svg.smlprofile) is an example.
 
 | Statement | Meaning |
 |---|---|
@@ -131,6 +145,7 @@ A profile is a UTF-8 text file with one statement per line; blank lines and line
 | `@block element .attribute alias` | An alias, as in SML (§8): a block for this attribute of this element is written `alias """` instead of `.attribute """`. The aliases used are declared on the root element, so an alias is used only where the root's namespace declarations can name its element. |
 | `@node element alias` | An element alias, as in SML (§8.7): elements with this name are opened as `alias`, as in `group(id=a)` for `<g id="a">`. The aliases used are declared before the root, for the name of the first such element; elements with another prefix keep their names. An alias is not used at all when an element of the document already has that name. |
 | `@layout element .attribute layout` | How the attribute's values divide into items (§3.2): `path`, `numbers N` (N numbers per item), `declarations`, `functions`, or `list` (`;`-separated). The element `*` means any element without a layout of its own for that attribute. |
+| `@layout element = code` | The element's text is code, such as CSS or a script: its trailing whitespace, empty first and last lines, and shared indentation are removed (§3.2), and it is written as a block. |
 
 A mistake in a profile is reported as `file(line): error: message` before any file is converted.
 
