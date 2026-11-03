@@ -238,7 +238,7 @@ public sealed partial class SmlReader
         string v;
         if (rest[0] is ' ' or '\t')
             v = rest.TrimStart(' ', '\t');
-        else if (IsBlockMarker(rest) || rest[0] == '|')
+        else if (IsBlockMarker(rest))
             v = rest;       // the space before a block marker is optional (§6.2)
         else
             throw new SmlException("expected a space before the value", ln);
@@ -250,8 +250,6 @@ public sealed partial class SmlReader
         }
         if (v[0] == '"')
             return (ValueKind.Quoted, ParseQuotedWhole(v, ln));
-        if (v[0] == '|')
-            throw new SmlException("a raw value cannot begin with '|'; quote it", ln);
         return (ValueKind.Raw, XmlRules.CheckChars(v, ln));
     }
 
@@ -311,10 +309,6 @@ public sealed partial class SmlReader
                 (string value, int end) = ParseQuoted(rest, i, ln);
                 result.Add((value, true));
                 i = end;
-            }
-            else if (rest[i] == '|')
-            {
-                throw new SmlException("an operand cannot begin with '|'; quote it", ln);
             }
             else
             {
@@ -581,8 +575,6 @@ public sealed partial class SmlReader
             }
             else
             {
-                if (i < n && s[i] == '|')
-                    throw new SmlException("an inline value cannot begin with '|'; quote it", ln);
                 int start = i, depth = 0;
                 for (; i < n; i++)
                 {

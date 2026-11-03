@@ -91,11 +91,11 @@ public class ReaderTests
     }
 
     [Fact]
-    public void CP10_RawValuesCannotBeginWithBarOrQuote()
+    public void CP10_ValuesBeginningWithBar()
     {
-        Rejects("g(a=|x)/\n");
-        Rejects("@pi t |x\ng/\n");
-        Rejects("g\n  @ns |x\nend\n");
+        Assert.Equal("|x", Root("g(a=|x)/\n").Attributes["a"]);
+        Assert.Equal("|x", ((ProcessingInstructionNode)SmlReader.Read("@pi t |x\ng/\n").Prolog[0]).Data);
+        Assert.Equal("|x:y", Root("g\n  @ns |x:y\nend\n").NamespaceDeclarations[""]);
         Assert.Equal("|x", Root("g(a=\"|x\")/\n").Attributes["a"]);
     }
 
@@ -241,8 +241,13 @@ public class ReaderTests
     {
         Same("g\n  .d\"\"\"\n    v\n  \"\"\"\nend\n", "g\n  .d \"\"\"\n    v\n  \"\"\"\nend\n");
         Same("g\n  @block g .y x\n  x\"\"\"\n    v\n  \"\"\"\nend\n", "g\n  .y \"\"\"\n    v\n  \"\"\"\nend\n");
-        foreach (string value in new[] { ".d |", ".d|", ".d |x y", "= |" })
-            Rejects($"g\n  {value}\nend\n", "cannot begin with '|'");
+        ElementNode bars = Root("g(a=|x, b=|)\n  .c |x y\n  @comment |c\n  @pi t |p\n  = |\nend\n");
+        Assert.Equal(("|x", "|", "|x y"), (bars.Attributes["a"], bars.Attributes["b"], bars.Attributes["c"]));
+        Assert.Equal("|c", ((CommentNode)bars.Children[0]).Data);
+        Assert.Equal("|p", ((ProcessingInstructionNode)bars.Children[1]).Data);
+        Assert.Equal("|", ((TextNode)bars.Children[2]).Data);
+        Assert.Equal("@sml 1.0-SVG-4\ng(a=|x) = |\n", SmlWriter.Write(SmlReader.Read("g(a=|x)\n  = |\nend\n")));
+        Rejects("g\n  .d|x\nend\n", "expected a space");
         Rejects("g\n  x |\nend\n", "unexpected ' |' after element name");
     }
 

@@ -337,7 +337,7 @@ public sealed class SmlWriter
     /// <summary>A non-empty value that can be written raw (§6.2) under canonical rule 7.</summary>
     private static bool RawOk(string value)
     {
-        if (value.Length == 0 || value[0] is '"' or '|' or ' ' or '\t' || value[^1] is ' ' or '\t')
+        if (value.Length == 0 || value[0] is '"' or ' ' or '\t' || value[^1] is ' ' or '\t')
             return false;
         foreach (Rune r in value.EnumerateRunes())
         {

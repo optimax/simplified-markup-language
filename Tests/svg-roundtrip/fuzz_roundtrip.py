@@ -368,7 +368,7 @@ def expat_only_rejection(root, warnings: set) -> str | None:
 
 def reader_raw_ok(v: str) -> bool:
     """A value the reader accepts raw (looser than the canonical writer's raw_ok)."""
-    return bool(v) and v[0] not in '"| \t' and v[-1] not in ' \t' and '\n' not in v and '\r' not in v
+    return bool(v) and v[0] not in '" \t' and v[-1] not in ' \t' and '\n' not in v and '\r' not in v
 
 
 def reader_inline_ok(v: str) -> bool:
@@ -406,7 +406,7 @@ class VariantWriter:
 
     def emit(self, line: str) -> None:
         if self.r.random() < 0.05:
-            self.out.append(self.r.choice(['', '# note', '   ', '#| not a block']))
+            self.out.append(self.r.choice(['', '# note', '   ', '#|x']))
         self.out.append(line)
 
     def write(self) -> str:

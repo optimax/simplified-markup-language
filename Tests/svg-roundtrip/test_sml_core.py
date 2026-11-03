@@ -93,10 +93,10 @@ class CoreFixtures(Base):
         self.assertEqual(self.attr('g\n  .a ""\nend\n', 'a'), '')
         self.rejects('g\n  .a """x\nend\n')
 
-    def test_CP10_raw_values_cannot_begin_with_bar_or_quote(self):
-        self.rejects('g(a=|x)/\n')
-        self.rejects('@pi t |x\ng/\n')
-        self.rejects('g\n  @ns |x\nend\n')
+    def test_CP10_values_beginning_with_bar(self):
+        self.assertEqual(root('g(a=|x)/\n').attrs['a'], '|x')
+        self.assertEqual(read('@pi t |x\ng/\n').prolog[0].data, '|x')
+        self.assertEqual(root('g\n  @ns |x:y\nend\n').ns_decls[None], '|x:y')
         self.assertEqual(root('g(a="|x")/\n').attrs['a'], '|x')
         self.assertEqual(read('@pi t "|x"\ng/\n').prolog[0].data, '|x')
         self.assertEqual(root('g\n  @ns "|x"\nend\n').ns_decls[None], '|x')
@@ -345,8 +345,12 @@ class SmlSideFixtures(Base):
         self.assertIn('.d """', S.write_sml(read('g\n  .d"""\n    v\n    w\n  """\nend\n')))
 
     def test_SV72_bar_at_value_start(self):
-        for value in ('.d |', '.d|', '.d |x y', '= |'):
-            self.rejects(f'g\n  {value}\nend\n', "cannot begin with '|'")
+        el = root('g(a=|x, b=|)\n  .c |x y\n  @comment |c\n  @pi t |p\n  = |\nend\n')
+        self.assertEqual((el.attrs['a'], el.attrs['b'], el.attrs['c']), ('|x', '|', '|x y'))
+        self.assertEqual([(type(n).__name__, getattr(n, 'data', None)) for n in el.children],
+                         [('Comment', '|c'), ('PI', '|p'), ('Text', '|')])
+        self.assertEqual(S.write_sml(read('g(a=|x)\n  = |\nend\n')), '@sml 1.0-SVG-4\ng(a=|x) = |\n')
+        self.rejects('g\n  .d|x\nend\n', 'expected a space')
         self.rejects('g\n  x |\nend\n', "unexpected ' |' after element name")
 
     def test_SV77_comment_runs(self):

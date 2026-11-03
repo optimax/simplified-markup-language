@@ -38,21 +38,16 @@ Provide `smlxml`, a two-way SML ↔ XML/SVG command-line converter in C# on .NET
 - **`README.md`** at the root introduces the project on GitHub. It assumes a public repository under the MIT license.
 - Solution-wide environment, conventions, decisions, and traps are in `implementation.md`.
 
-## Files changed in the last task (alias last in `@block`; no prior syntax)
+## Files changed in the last task (`|` freed; review removed)
 
-- **Alias last.** Both alias declarations read the same way, XML names first and alias last: `@node g group` and `@block path .d data`. The language stays 1.0-SVG-4.
-- **No prior syntax.** The user's direction: the syntax is defined as it goes, with no compatibility with earlier forms. So nothing refers to them any more:
-  - the specification has no change lists, and no passages on earlier drafts, earlier revisions, or forms that are no longer valid;
-  - neither reader has special messages for old forms (`|` blocks, the `=` separator in `@block`, the old `@block` order); such input gets the ordinary errors;
-  - SV-46 now covers malformed `@block` declarations, SV-72 raw values that begin with `|`, and CP-20 rejects another draft identifier, `1.0-SVG-5`.
-- `|` is still reserved at the start of a raw value (§6.2); with the compatibility reason gone, the specification gives none. Whether to free it is open.
-- `svg.smlprofile` uses the new `@block` order. The user added `@node g group` and `@node p para` to it. Under the profile's `@ns http://www.w3.org/2000/svg`, `p` names an SVG-namespace `p`, so the alias does not apply to XHTML `p` elements in `foreignObject` or metadata; that would need `@ns h http://www.w3.org/1999/xhtml` and `@node h:p para`. Left as the user wrote it.
-- Files:
-  - `Documents/SML-Language-Specification.md`: change lists removed; §§1, 5, 6.2, 8.1, 11, 12.2, 12.3; SV-46, SV-72, CP-20; every `@block` example.
-  - `Tests/svg-roundtrip/sml_prototype.py` (`d_block`, and the old-form checks removed), `test_sml_core.py`, `fuzz_roundtrip.py`.
-  - `Source/Sml/SmlReader.cs`, `SmlProfile.cs`, `SmlWriter.cs`; `Source/Sml.Tests/ReaderTests.cs`, `ProfileTests.cs`, `CommandLineTests.cs`, `WriterOptionsTests.cs`.
-  - `Source/SmlXml/svg.smlprofile`, `Source/SmlXml/README.md`, `Source/SmlXml/implementation.md`, `implementation.md`.
-- `Documents/SML-Spec-Review-Claude.md` is a review of revision 1.0-SVG-2 and still shows that syntax; whether to keep it is the user's call.
+The syntax is defined as it goes, with no compatibility with earlier forms, so nothing in the specification, the readers, or the tests refers to earlier syntax. The last remnant is gone:
+
+- **`|` is an ordinary character.** A raw value may begin with `|` in every position: `.d`, `=`, inline lists, `@comment`, `@pi`, `@ns`. The canonical writer writes such values raw instead of quoted. No fixture or corpus file had one, so no reference output changed. The space before a value may still be left out only before a block marker, so `.d|x` is an error.
+  - Specification §§6.2, 6.3, 12.2 notes, 12.3, 14.1; CP-10 and SV-72 now test that such values are accepted.
+  - `Tests/svg-roundtrip/sml_prototype.py` (`parse_value_tail`, `tokens`, `parse_inline_list`, `raw_ok`), `fuzz_roundtrip.py` (`reader_raw_ok`), `test_sml_core.py`.
+  - `Source/Sml/SmlReader.cs` (`ParseValueTail`, the operand scanner, `ParseInlineList`), `SmlWriter.cs` (`RawOk`), `Source/Sml.Tests/ReaderTests.cs`.
+- **`Documents/SML-Spec-Review-Claude.md` deleted**, and its row in `README.md`: it reviewed revision 1.0-SVG-2 in that revision's syntax.
+- Earlier in this series: both alias declarations put the alias last (`@node g group`, `@block path .d data`), and `svg.smlprofile` uses that order. The user added `@node g group` and `@node p para` to it; the latter names an SVG-namespace `p`, which the user chose to leave as is.
 
 ## Build and test results
 

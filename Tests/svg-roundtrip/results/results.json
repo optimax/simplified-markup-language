@@ -1,6 +1,6 @@
 {
   "profile": "SVG-RTCP 1.0 draft, RT-2 with prefix preservation (strict profile of SML 1.0-SVG-4)",
-  "date": "2026-11-02",
+  "date": "2026-11-03",
   "method": "expat-based importer and SML 1.0-SVG-4 prototype reader/canonical writer; lxml used as an independent element-tree cross-check; no KDL parser",
   "caveats": [
     "The SML reader and writer are a prototype, not an independently validated conforming implementation.",
@@ -624,11 +624,11 @@
     "seed": 1,
     "documents": 300,
     "sml_mutants": 1200,
-    "sml_mutants_accepted": 349,
+    "sml_mutants_accepted": 341,
     "xml_mutants": 1200,
     "xml_mutants_both_accepted": 324,
     "known_divergences": {
-      "libxml2 rejects namespace names that are not URI references; expat and the prototype accept them": 26,
+      "libxml2 rejects namespace names that are not URI references; expat and the prototype accept them": 28,
       "expat uses XML 1.0 4th-edition name characters and rejects names that 5th-edition parsers such as libxml2 accept": 2
     },
     "findings": []

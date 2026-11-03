@@ -295,11 +295,11 @@ The source `&lt;` is four literal characters in SML, not XML entity syntax. The 
 
 After the syntactic separator, there are exactly three value modes:
 
-1. **Raw:** All characters from the first to the last non-space/tab character are literal, with no backslash escapes or entity decoding. A raw value never begins or ends with a space or tab (§4). This mode applies unless the value begins with `"` or `|`. In every position, including inline attributes, `@pi`, and `@ns`, a raw value cannot begin with `"` or `|`. A value beginning with `|` is an error; to represent one, quote it, e.g. `"|"` or `"|x"`.
+1. **Raw:** All characters from the first to the last non-space/tab character are literal, with no backslash escapes or entity decoding. A raw value never begins or ends with a space or tab (§4). This mode applies unless the value begins with `"`. In every position, including inline attributes, `@pi`, and `@ns`, a raw value cannot begin with `"`.
 2. **Quoted:** If the first value character is `"` and the value is not a block marker, the **entire** value MUST be a correctly terminated double-quoted token with no characters after the closing quote. (Trailing spaces/tabs on the line were already removed by §4 and are permitted.) Quoted values support `\\`, `\"`, `\n`, `\r`, `\t`, and `\u{H…}`. In `\u{H…}`, `H…` is 1 to 6 hexadecimal digits in either case, naming a Unicode scalar value: not above U+10FFFF and not a surrogate code point (U+D800–U+DFFF). Any other escape, any surrogate, and any character that is not a valid XML 1.0 `Char` (such as `\u{0}`) is an error. A quoted value may continue on following lines (§6.5).
 3. **Block:** A value that consists of three or more quotation marks and nothing else (`"""`, `""""`, …) starts a multiline block (§7). The space before the marker is optional: `.d"""`, `="""`, `name ="""`, `@comment"""`, and `alias"""` mean the same as `.d """`, `= """`, `name = """`, `@comment """`, and `alias """`. Two quotation marks are a quoted value, the empty string; anything after a run of three or more is an error.
 
-No quoted/raw fallback is attempted for a malformed leading quotation mark; it is an error. A serializer MUST quote any value that begins or ends with a space or tab, or begins with `"` or `|`; written raw, such a value would be trimmed or reinterpreted.
+No quoted/raw fallback is attempted for a malformed leading quotation mark; it is an error. A serializer MUST quote any value that begins or ends with a space or tab, or begins with `"`; written raw, such a value would be trimmed or reinterpreted.
 
 For SVG information preservation, a value containing LF or CR cannot be raw: a writer MUST use quoted escapes or, where §7 permits, a block. XML output MUST encode U+000D in text and U+0009/U+000A/U+000D in attribute values as character references where required to survive XML parsing unchanged.
 
@@ -310,7 +310,7 @@ The compact opener syntax is `QName(` *attributes* `)` with no whitespace betwee
 A raw inline value runs to the next `,` or `)` that is **not inside balanced parentheses**. Each `(` in the value opens a group that a later `)` closes, and a `,` inside a group is data. So `transform=translate(10,20)` and `fill=url(#grad)` need no quotes. A raw inline value:
 
 - has its leading and trailing spaces/tabs removed;
-- cannot begin with `"` or `|`;
+- cannot begin with `"`;
 - cannot contain an unbalanced parenthesis.
 
 Values that need any of these use a quoted inline string or a vertical `.attribute`. `#` is an ordinary character and needs no quoting.
@@ -497,8 +497,6 @@ is `<desc>first line` LF `second line</desc>`, with no whitespace at the edges. 
 ### 6.5 Long values: quoted continuation lines
 
 A quoted value may be split across lines. A line whose first character (after trimming) is `"` is a **continuation line**. It MUST consist of exactly one quoted string, which is appended, with nothing in between, to the value of the statement on the immediately preceding line. That statement MUST be an `.attribute`, `=`, inline-text, `@comment`, or `@pi` statement whose value is quoted, or another continuation line. No blank line or `#` comment may come between them. Continuation lines are not available for inline attributes, `@ns`, or `@doctype`.
-
-A delimiter name starts with an ASCII letter or `_`, continues with ASCII letters, digits, or `_`, and is case-sensitive. A value consisting of `|`, an optional sign, and such a name is therefore a block marker, not raw text; quote it to represent it literally (`.cmd "|grep"`).
 
 ```sml
 image
@@ -977,7 +975,7 @@ Notes on the grammar:
 - `QName`, `NCName`, and `XMLName` use the XML/Namespaces productions. `Digit` is `0`–`9`, `LF` is U+000A, and `AnyChar` is any character except LF.
 - `AliasName` is an `NCName` that must name an active, matching block alias in the containing element's still-open declaration section; otherwise the statement is an error.
 - `HSpace` is one or more spaces or tabs, and `HSpaceOpt` is zero or more. `IndentWidth` is a decimal integer from 0 to 16 without leading zeros.
-- `Raw`, `RawToken` (a raw value containing no spaces or tabs), `Quoted`, `InlineValue`, and `BlockLine` are defined by the deterministic scanner in §§6–9. `Raw`, `RawToken`, and `InlineValue` never begin with `"` or `|` (§6.2).
+- `Raw`, `RawToken` (a raw value containing no spaces or tabs), `Quoted`, `InlineValue`, and `BlockLine` are defined by the deterministic scanner in §§6–9. `Raw`, `RawToken`, and `InlineValue` never begin with `"` (§6.2).
 - A `Block` consumes its closing marker **instead of** an additional statement EOL; this prevents a double-terminator ambiguity. A `QuotedValue` never consists of three or more quotation marks alone; such a value is a `Marker`. Namespace, PI, and DOCTYPE operands have no block form.
 - For `@ns`, an optional `NCName` prefix is recognized only when **two** operands are present (§10).
 - `EOL` may be EOF where no open construct remains.
@@ -993,7 +991,7 @@ SML readers MUST reject, among other malformed syntax:
 - **Names and structure:** unbound prefixes anywhere; invalid names or characters; use of the reserved name `end` in ordinary element forms; mismatched `end QName`; document content outside the root; unclosed elements or blocks.
 - **Attributes and namespaces:** duplicate expanded attributes (including aliased duplicates); `.xmlns` attributes; namespace declarations that break §10 (repeated, reserved, or raw-relative URIs, or the wrong number of `@ns` operands); `@ns` after another declaration statement; attribute, namespace, or block declarations after content.
 - **Aliases:** unbound prefixes in `@block` declarations; conflicting aliases within a lexical scope; declarations whose operands are not an element QName, a dot-prefixed attribute QName, and an alias, in that order; alias invocations with no matching active alias or after the declaration section has closed; element aliases that are prefixed or `end`, declared twice in one scope, or declared after the root or after an element's content has begun (§8.7).
-- **Values:** malformed escapes; raw values beginning with `"` or `|`; anything after a block marker on its line; misplaced continuation lines; unbalanced parentheses in inline raw values.
+- **Values:** malformed escapes; raw values beginning with `"`; anything after a block marker on its line; misplaced continuation lines; unbalanced parentheses in inline raw values.
 - **Comments and PIs:** invalid comments or PIs, including PI targets containing colons and PI data beginning with whitespace; `@comments` without a block, or with a blank payload line.
 - **Headers:** text statements in a laid-out element (§6.4); repeated or misplaced `@sml`, `@indent`, `@noindent`, or `@doctype`; an `@indent` step in a declaration section without the `@indent` header (§6.4); unknown draft versions; malformed `@doctype` identifiers.
 - **Extensions:** unknown directives, and required extensions the reader does not implement.
@@ -1028,7 +1026,7 @@ SML writers SHOULD emit:
   2. **A block** when the value contains LF and something else, and §7 reproduces it exactly, with a longer marker if a payload line is `"""`. A value of line breaks only is clearer quoted (`"\n"`) than as a block of blank lines.
   3. **Quoted** otherwise, split with continuation lines (§6.5) when long.
 
-  Quoting is **required** (§6.2) for values that begin or end with a space or tab, or begin with `"` or `|`.
+  Quoting is **required** (§6.2) for values that begin or end with a space or tab, or begin with `"`.
 - All namespace declarations explicitly at their original scopes, with lexical prefixes retained, under the strict profile.
 - `@block` declarations preceding their uses, and alias invocations written with a space before the marker (`alias """`). Use a normal `.attribute` when a value cannot be represented faithfully as a block.
 - `@node` element aliases, if any, declared before the root or on an ancestor of the elements that use them, and `@element` for an element named like an element alias in scope (§8.7).
@@ -1139,7 +1137,7 @@ The following fixtures are mandatory in addition to the baseline corpus:
 | SV-69 | External-ID DOCTYPE with an undeclared entity reference such as `&nbsp;` | Strict import rejects; no skipped-entity loss |
 | SV-70 | `@doctype` with a non-normalized public ID, or a system ID containing both quote kinds or CR | SML reader rejects |
 | SV-71 | `data"""`, `.d"""`, `="""`, `name ="""`, `@comment"""` | Parsed identically to the spaced forms; canonical writer emits the space |
-| SV-72 | `.d \|`, `.d\|`, `.d \|x y`, `= \|`; a name followed by `\|` (`x \|`) | All rejected: a raw value cannot begin with `\|`, and nothing but an inline list, `/`, or `= value` may follow an element name |
+| SV-72 | Raw values beginning with `\|`: `g(a=\|x)`, `.c \|x y`, `@comment \|c`, `@pi t \|p`, `= \|`; `.d\|x` without a space; a name followed by `\|` (`x \|`) | The raw values are read as written, and the canonical writer writes them raw; the last two rejected |
 | SV-73 | `]]>` in text, including text from CDATA sections | Escaped correctly on export; exact round trip |
 | SV-74 | `xmlns=""` on the root element | Preserved as `@ns ""` |
 | SV-75 | Explicit `xmlns:xml="http://www.w3.org/XML/1998/namespace"` | Preserved |
@@ -1172,7 +1170,7 @@ Reject—not drop—unsupported input. Rendering comparisons are useful suppleme
 | CP-7 | `end g` matching, `end g` mismatching, `end g h` | Accepted, rejected, rejected |
 | CP-8 | Block payload lines `end path` and `end` | Payload, not element ends |
 | CP-9 | `""""` with a `"""` payload line; `""""` closed only by `"""`; `"""x`; `""` | Exact value; rejected (unterminated); rejected; the empty string |
-| CP-10 | Raw value beginning with `\|` or `"` in an inline list, `@pi`, and `@ns` | Rejected; quoted forms accepted |
+| CP-10 | Values beginning with `\|` in an inline list, `@pi`, and `@ns`, raw and quoted | Accepted, with the same value either way |
 | CP-11 | `a( x = 1 , y=2 )` | Accepted |
 | CP-12 | `transform=translate(10,20)`, `fill=url(#a)`; `a=(x`; `a=x)y` | First two accepted with exact values; last two rejected |
 | CP-13 | Continuation lines after `.attr`, `=`, inline text, `@comment`, and `@pi` with quoted values; after a raw value; after a blank or `#` line; after `@ns` | Joined exactly; rejected; rejected; rejected |

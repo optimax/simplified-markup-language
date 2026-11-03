@@ -392,7 +392,7 @@ class SmlReader:
             return 'empty', ''
         if rest[0] in ' \t':
             v = rest.lstrip(' \t')
-        elif BLOCK_MARKER_RE.fullmatch(rest) or rest[0] == '|':
+        elif BLOCK_MARKER_RE.fullmatch(rest):
             v = rest        # the space before a block marker is optional (§6.2)
         else:
             raise SmlError('expected a space before the value', ln)
@@ -402,8 +402,6 @@ class SmlReader:
             return 'block', v
         if v[0] == '"':
             return 'quoted', self.parse_quoted_whole(v, ln)
-        if v[0] == '|':
-            raise SmlError("a raw value cannot begin with '|'; quote it", ln)
         return 'raw', check_chars(v, ln)
 
     def read_block(self, marker: str, ln: int) -> str:
@@ -432,8 +430,6 @@ class SmlReader:
             if rest[i] == '"':
                 value, i = self.parse_quoted(rest, i, ln)
                 out.append((value, True))
-            elif rest[i] == '|':
-                raise SmlError("an operand cannot begin with '|'; quote it", ln)
             else:
                 j = i
                 while j < n and rest[j] not in ' \t':
@@ -640,8 +636,6 @@ class SmlReader:
                 value, i = self.parse_quoted(s, i, ln)
                 quoted = True
             else:
-                if i < n and s[i] == '|':
-                    raise SmlError("an inline value cannot begin with '|'; quote it", ln)
                 start, depth = i, 0
                 while i < n:
                     c = s[i]
@@ -983,7 +977,7 @@ def quote(value: str) -> str:
 
 def raw_ok(value: str) -> bool:
     """A non-empty value that can be written raw (§6.2) under canonical rule 7."""
-    if not value or value[0] in '"| \t' or value[-1] in ' \t':
+    if not value or value[0] in '" \t' or value[-1] in ' \t':
         return False
     return not any(c in '\t\r\n' or needs_escape(c) for c in value)
 

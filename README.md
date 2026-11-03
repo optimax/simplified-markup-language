@@ -57,7 +57,6 @@ SML also has vertical attributes, multiline literal blocks for long paths, CSS, 
 |---|---|
 | [`Documents/SML-Language-Specification.md`](Documents/SML-Language-Specification.md) | The specification, revision 1.0-SVG-4 |
 | [`Documents/sml-vs-kdl-vs-ndl.md`](Documents/sml-vs-kdl-vs-ndl.md) | Design study comparing SML with KDL and NDL for hand-editable SVG |
-| [`Documents/SML-Spec-Review-Claude.md`](Documents/SML-Spec-Review-Claude.md) | Review of the previous revision, 1.0-SVG-2 |
 | [`Source/Sml/`](Source/Sml/) | C# library: SML reader, canonical writer, XML importer and exporter |
 | [`Source/SmlXml/`](Source/SmlXml/) | `smlxml`, the command-line converter |
 | [`Source/Sml.Tests/`](Source/Sml.Tests/) | xUnit tests for the library and the command line |
