@@ -36,6 +36,7 @@ Provide `smlxml`, a two-way SML ↔ XML/SVG command-line converter in C# on .NET
   - Its `README.md` describes the selection and the expected results.
 - **`README.md`** at the root introduces the project on GitHub. It assumes a public repository under the MIT license.
 - Solution-wide environment, conventions, decisions, and traps are in `implementation.md`.
+- `convert-corpus-tmp.bat` (the user's, Windows) mirrors the corpus's SVG files into `D:\PROJECTS\SML\TMP` with `robocopy … *.svg /MIR`, so that SVG files and folders removed from the corpus disappear from `TMP` too, and then cleans them all with the published `smlxml`.
 
 ## Files changed in the last task (indentation: exact writer and `--clean`)
 
