@@ -197,10 +197,44 @@ def check_comment(data: str, line: int | None, error=SmlError) -> None:
         raise error('an XML comment cannot contain CR (U+000D)', line)
 
 
-def comment_data(data: str, line: int | None, error=SmlError) -> str:
-    """A comment's data (§9): checked, then trimmed of spaces, tabs, and line breaks at both ends."""
+def shared_indentation(lines) -> str:
+    """The leading spaces and tabs that all lines with a character other than space and tab share."""
+    prefix = None
+    for ln in lines:
+        body = ln.lstrip(' \t')
+        if not body:
+            continue
+        lead = ln[:len(ln) - len(body)]
+        if prefix is None:
+            prefix = lead
+        else:
+            k = 0
+            while k < len(prefix) and k < len(lead) and prefix[k] == lead[k]:
+                k += 1
+            prefix = prefix[:k]
+    return prefix or ''
+
+
+def comment_text(data: str, own_line: bool = False) -> str:
+    """A comment's normalized data (§9). The spaces, tabs, and line breaks at its end go. If its text starts on its own
+    line (always so for SML, own_line), the blank lines before it go, and so does the indentation all its lines share;
+    otherwise the first line loses its leading spaces and tabs, and the other lines the indentation they share. A
+    line of spaces and tabs only that does not begin with the shared indentation becomes empty."""
+    lines = data.rstrip(COMMENT_TRIM).split('\n')
+    first = []
+    if own_line or not lines[0].strip(' \t'):
+        while lines and not lines[0].strip(' \t'):
+            lines.pop(0)
+    else:
+        first = [lines.pop(0).lstrip(' \t')]
+    shared = shared_indentation(lines)
+    return '\n'.join(first + [ln[len(shared):] if ln.startswith(shared) else '' for ln in lines])
+
+
+def comment_data(data: str, line: int | None, error=SmlError, own_line: bool = True) -> str:
+    """A comment's data (§9): checked, then normalized by comment_text."""
     check_comment(data, line, error)
-    return data.strip(COMMENT_TRIM)
+    return comment_text(data, own_line)
 
 
 def check_pi(target: str, data: str, line: int | None, error=SmlError) -> None:
@@ -1425,7 +1459,7 @@ def read_xml(data) -> Document:
             kids.append(Text(data))
 
     def comment(data):
-        place(Comment(comment_data(data, line(), XmlInputError)))
+        place(Comment(comment_data(data, line(), XmlInputError, own_line=False)))
 
     def pi(target, data):
         check_pi(target, data, line(), XmlInputError)
@@ -1465,9 +1499,27 @@ def _esc_attr(s: str) -> str:
             .replace('\t', '&#9;').replace('\n', '&#10;').replace('\r', '&#13;'))
 
 
+def _tail_indentation(node) -> str | None:
+    """The spaces and tabs after the last line break of a text node, if nothing else follows it there."""
+    if isinstance(node, Text) and '\n' in node.data:
+        tail = node.data[node.data.rindex('\n') + 1:]
+        if not tail.strip(' \t'):
+            return tail
+    return None
+
+
+def _comment_xml(data: str, indentation: str = '', step: str = '  ') -> str:
+    """A comment as XML (§11): <!-- data --> on one line, or a multi-line comment as pretty-printers write it, its
+    lines one step deeper than the comment and --> at the comment's indentation."""
+    if '\n' not in data:
+        return f'<!-- {data} -->' if data else '<!---->'
+    inner = indentation + step
+    return '<!--\n' + '\n'.join(inner + ln if ln else '' for ln in data.split('\n')) + '\n' + indentation + '-->'
+
+
 def _misc_xml(item) -> str:
     if isinstance(item, Comment):
-        return f'<!-- {item.data} -->' if item.data else '<!---->'
+        return _comment_xml(item.data)
     if isinstance(item, PI):
         return f'<?{item.target} {item.data}?>' if item.data else f'<?{item.target}?>'
     s = '<!DOCTYPE ' + item.name
@@ -1481,7 +1533,9 @@ def _misc_xml(item) -> str:
     return s + '>'
 
 
-def _element_xml(el: Element, out: list[str]) -> None:
+def _element_xml(el: Element, out: list[str], indentation: str = '') -> None:
+    """Writes an element; indentation is the spaces and tabs before it on its line, as far as its preceding text
+    shows them (§11), else its parent's."""
     out.append('<' + el.qname)
     for p, u in el.ns_decls.items():
         out.append(f' {"xmlns" if p is None else "xmlns:" + p}="{_esc_attr(u)}"')
@@ -1491,13 +1545,20 @@ def _element_xml(el: Element, out: list[str]) -> None:
         out.append('/>')
         return
     out.append('>')
+    previous = None
     for ch in el.children:
+        own = _tail_indentation(previous)
+        at = indentation if own is None else own
         if isinstance(ch, Element):
-            _element_xml(ch, out)
+            _element_xml(ch, out, at)
         elif isinstance(ch, Text):
             out.append(_esc_text(ch.data))
+        elif isinstance(ch, Comment):
+            deeper = len(at) > len(indentation) and at.startswith(indentation)
+            out.append(_comment_xml(ch.data, at, at[len(indentation):] if deeper else '  '))
         else:
             out.append(_misc_xml(ch))
+        previous = ch
     out.append(f'</{el.qname}>')
 
 

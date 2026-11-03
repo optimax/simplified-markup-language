@@ -634,11 +634,12 @@
     "seed": 1,
     "documents": 300,
     "sml_mutants": 1200,
-    "sml_mutants_accepted": 270,
+    "sml_mutants_accepted": 269,
     "xml_mutants": 1200,
-    "xml_mutants_both_accepted": 315,
+    "xml_mutants_both_accepted": 339,
     "known_divergences": {
-      "libxml2 rejects namespace names that are not URI references; expat and the prototype accept them": 13
+      "libxml2 rejects namespace names that are not URI references; expat and the prototype accept them": 17,
+      "libxml2 accepts a malformed XML version number with only a warning; expat rejects it": 1
     },
     "findings": []
   }

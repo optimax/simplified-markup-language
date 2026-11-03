@@ -327,28 +327,38 @@ public class ReaderTests
     }
 
     [Fact]
-    public void SV78_CommentsAreTrimmed()
+    public void SV78_CommentsAreNormalized()
     {
-        // A comment's data loses the spaces, tabs, and line breaks at its ends, from XML and from SML alike (§9).
-        SmlDocument doc = XmlImporter.Read(Encoding.UTF8.GetBytes("<!--\n  top\n-->\n<g>\n  <!--\n    a\n\n    b\n  -->\n"
-            + "  <h>\n    <!-- deep -->\n  </h>\n  <!--   ends with a dash -   -->\n  <!--\t-->\n</g>"));
+        // A comment loses the whitespace at its ends, and a multi-line one the indentation its lines share (§9), from
+        // XML and from SML alike.
+        SmlDocument doc = XmlImporter.Read(Encoding.UTF8.GetBytes("<!--\n  top\n-->\n<g>\n  <!--\n    Usage:\n      a\n\n      b\n  -->\n"
+            + "  <h>\n    <!-- deep -->\n  </h>\n  <!-- Starts at once\n       and goes on -->\n  <!--   ends with a dash -   -->\n  <!--\t-->\n</g>"));
         Assert.Equal("top", ((CommentNode)doc.Prolog[0]).Data);
-        Assert.Equal(["a\n\n    b", "ends with a dash -", ""], Comments(doc.Root));
+        Assert.Equal(["Usage:\n  a\n\n  b", "Starts at once\nand goes on", "ends with a dash -", ""], Comments(doc.Root));
         string sml = SmlWriter.Write(doc);
-        Assert.Equal("@sml 1.0-SVG-1\n@rem top\ng\n  @rem \"\"\"\n    a\n\n        b\n    \"\"\"\n  h\n    @rem deep\n  end\n"
-            + "  @rem ends with a dash -\n  @rem\nend\n", sml);
+        Assert.Equal("@sml 1.0-SVG-1\n@rem top\ng\n  @rem \"\"\"\n    Usage:\n      a\n\n      b\n    \"\"\"\n  h\n    @rem deep\n"
+            + "  end\n  @rem \"\"\"\n    Starts at once\n    and goes on\n    \"\"\"\n  @rem ends with a dash -\n  @rem\nend\n", sml);
         Assert.Null(DocumentComparer.FirstDifference(doc, SmlReader.Read(sml)));
 
-        // XML output separates the data from the delimiters by one space.
+        // XML output: a one-line comment has a space on each side, and a multi-line one is pretty-printed, its lines one
+        // step deeper than the comment.
         string xml = XmlExporter.Write(doc);
-        foreach (string fragment in new[] { "<!-- top -->", "<!-- a\n\n    b -->", "<!-- deep -->", "<!-- ends with a dash - -->", "<!---->" })
-            Assert.Contains(fragment, xml);
+        Assert.Equal("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!-- top -->\n<g>\n  <!--\n    Usage:\n      a\n\n      b\n  -->\n"
+            + "  <h>\n    <!-- deep -->\n  </h>\n  <!--\n    Starts at once\n    and goes on\n  -->\n"
+            + "  <!-- ends with a dash - -->\n  <!---->\n</g>\n", xml);
         Assert.Null(DocumentComparer.FirstDifference(doc, XmlImporter.Read(Encoding.UTF8.GetBytes(xml))));
 
-        // SML is trimmed too; a block is literal wherever it is, also in a laid-out position.
+        // The step is the document's: four spaces, a tab.
+        foreach (string unit in new[] { "    ", "\t" })
+        {
+            string source = $"<g>\n{unit}<h>\n{unit}{unit}<!--\n{unit}{unit}{unit}a\n{unit}{unit}{unit}  b\n{unit}{unit}-->\n{unit}</h>\n</g>";
+            Assert.Equal("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n" + source + "\n", XmlExporter.Write(XmlImporter.Read(Encoding.UTF8.GetBytes(source))));
+        }
+
+        // In SML every line takes part, whatever the value's form; a block is literal wherever it is.
         ElementNode g = Root("g\n  @rem \" x \"\n  @rem \"\\n  y\\n\"\n  @comment \"\"\"\n\n    z\n\n    \"\"\"\n"
-            + "  @rem \"\"\"\n    a\n      b\n    \"\"\"\n  @rem \"\\t\"\nend\n");
-        Assert.Equal(["x", "y", "z", "a\n  b", ""], Comments(g));
+            + "  @rem \"\"\"\n      a\n        b\n    \"\"\"\n  @rem \"\\t\"\n  @rem \" p\\n q\"\nend\n");
+        Assert.Equal(["x", "y", "z", "a\n  b", "", "p\nq"], Comments(g));
         Assert.Equal(["a"], Comments(Root("@indent none\ng\n  @rem \"\"\"\n    a\n    \"\"\"\nend\n")));
         Assert.Equal(["x-"], Comments(Root("g\n  @rem \"x-\"\nend\n")));
         Rejects("g\n  @rem \"a--b\"\nend\n", "'--'");

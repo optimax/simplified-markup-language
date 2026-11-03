@@ -205,7 +205,7 @@ def lxml_signature(node):
     """RT-1 element-tree signature computed by lxml, independently of the prototype. A comment's data is trimmed
     (§9)."""
     if isinstance(node, etree._Comment):
-        return ['comment', (node.text or '').strip(' \t\n')]
+        return ['comment', S.comment_text(node.text or '')]
     if isinstance(node, etree._ProcessingInstruction):
         return ['pi', node.target, node.text or '']
     attrs = sorted([str(k), v] for k, v in node.attrib.items())

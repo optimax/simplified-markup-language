@@ -35,7 +35,7 @@ end
 - An element is its name followed by its attributes.
 - `/` ends an element with no content, and `end` closes one that has content.
 - `= text` gives an element's text.
-- `@rem` is an XML comment. Its text is trimmed, and XML output separates it from `<!--` and `-->` by one space.
+- `@rem` is an XML comment. Its text is trimmed, and XML output separates it from `<!--` and `-->` by one space. A multi-line comment is a `@rem """` block, written back pretty-printed.
 - SML assumes indentation by two spaces, as the original has. The SML therefore leaves out the indentation whitespace, and converting back restores it exactly. Other indentation is declared with `@indent`, such as `@indent 4` or `@indent tab`.
 
 Converting this SML to XML gives the original document again. Only attribute order changes, which XML does not treat as information.

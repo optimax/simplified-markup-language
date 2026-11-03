@@ -162,12 +162,53 @@ public static class XmlRules
             throw new SmlException("an XML comment cannot contain CR (U+000D)", line);
     }
 
-    /// <summary>A comment's data (§9): checked, then trimmed of spaces, tabs, and line breaks at both ends.</summary>
-    public static string CommentData(string data, int? line)
+    /// <summary>A comment's data (§9): checked, then normalized by <see cref="CommentText"/>. SML comments always start
+    /// on their own line.</summary>
+    public static string CommentData(string data, int? line, bool ownLine = true)
     {
         CheckComment(data, line);
-        return data.Trim(' ', '\t', '\n');
+        return CommentText(data, ownLine);
     }
+
+    /// <summary>A comment's normalized data (§9). The spaces, tabs, and line breaks at its end go. If its text starts on
+    /// its own line (always so for SML, <paramref name="ownLine"/>), the blank lines before it go, and so does the
+    /// indentation all its lines share; otherwise the first line loses its leading spaces and tabs, and the other
+    /// lines the indentation they share. A line of spaces and tabs only that does not begin with the shared
+    /// indentation becomes empty.</summary>
+    public static string CommentText(string data, bool ownLine = false)
+    {
+        var lines = data.TrimEnd(' ', '\t', '\n').Split('\n').ToList();
+        var first = new List<string>();
+        if (ownLine || IsBlank(lines[0]))
+        {
+            while (lines.Count > 0 && IsBlank(lines[0]))
+                lines.RemoveAt(0);
+        }
+        else
+        {
+            first.Add(lines[0].TrimStart(' ', '\t'));
+            lines.RemoveAt(0);
+        }
+        string shared = SharedIndentation(lines);
+        return string.Join('\n', first.Concat(lines.Select(l => l.StartsWith(shared, StringComparison.Ordinal) ? l[shared.Length..] : "")));
+    }
+
+    /// <summary>The leading spaces and tabs that all lines with a character other than space and tab share.</summary>
+    public static string SharedIndentation(IEnumerable<string> lines)
+    {
+        string? prefix = null;
+        foreach (string line in lines.Where(l => !IsBlank(l)))
+        {
+            string lead = line[..(line.Length - line.TrimStart(' ', '\t').Length)];
+            int k = 0;
+            while (prefix is not null && k < prefix.Length && k < lead.Length && prefix[k] == lead[k])
+                k++;
+            prefix = prefix is null ? lead : prefix[..k];
+        }
+        return prefix ?? "";
+    }
+
+    private static bool IsBlank(string line) => line.TrimStart(' ', '\t').Length == 0;
 
     public static void CheckProcessingInstruction(string target, string data, int? line)
     {

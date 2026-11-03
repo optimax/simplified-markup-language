@@ -100,7 +100,7 @@ class Generator:
         data = self.value().replace('\r', '')
         while '--' in data:
             data = data.replace('--', '-x')
-        return S.Comment(data.strip(S.COMMENT_TRIM))
+        return S.Comment(S.comment_text(data, own_line=True))
 
     def laid_out_lines(self) -> str:
         return '\n'.join(self.r.choice(['Created with an editor', 'http://example.org/', 'end', '"""', '', '  indented',
@@ -108,7 +108,7 @@ class Generator:
 
     def multi_line_comment(self) -> S.Comment:
         """A multi-line comment, as pretty-printers write them; its data is trimmed (§9)."""
-        return S.Comment(self.laid_out_lines().strip(S.COMMENT_TRIM))
+        return S.Comment(S.comment_text(self.laid_out_lines(), own_line=True))
 
     def pi(self) -> S.PI:
         data = self.value().replace('\r', '').replace('?>', '? >').lstrip(S.XML_WS)
@@ -204,7 +204,7 @@ class Generator:
 
 def lxml_signature(node):
     if isinstance(node, etree._Comment):
-        return ['comment', (node.text or '').strip(S.COMMENT_TRIM)]
+        return ['comment', S.comment_text(node.text or '')]
     if isinstance(node, etree._ProcessingInstruction):
         return ['pi', node.target, node.text or '']
     attrs = sorted([str(k), v] for k, v in node.attrib.items())
@@ -226,7 +226,7 @@ def lxml_signature(node):
 
 def _misc(node):
     if isinstance(node, etree._Comment):
-        return ('comment', (node.text or '').strip(S.COMMENT_TRIM))
+        return ('comment', S.comment_text(node.text or ''))
     return ('pi', node.target, node.text or '')
 
 
@@ -493,10 +493,14 @@ class VariantWriter:
 
     def misc(self, item, ind: str) -> None:
         if isinstance(item, S.Comment):
-            # A reader trims a comment's data (§9), so whitespace around it is optional.
-            pad = self.r.choice(['', '', '', ' ', '\t', '\n', ' \n  '])
-            data = pad + item.data + self.r.choice(['', '', ' ', '\n']) if item.data or pad else item.data
-            self.value(ind + self.r.choice(['@rem', '@comment']), data, ind)
+            # A reader trims a comment's data and removes the indentation all its lines share (§9), so blank lines
+            # around it and indentation added to every line are optional.
+            r, data = self.r, item.data
+            if r.random() < 0.3:
+                extra = r.choice([' ', '\t', '    '])
+                data = '\n'.join(extra + ln if ln else r.choice(['', extra]) for ln in data.split('\n'))
+            data = r.choice(['', '', '\n', ' \n\t\n']) + data + r.choice(['', '', ' ', '\n', '\n  '])
+            self.value(ind + r.choice(['@rem', '@comment']), data, ind)
         elif isinstance(item, S.PI):
             self.value(ind + '@pi ' + item.target, item.data, ind, block=False)
         else:

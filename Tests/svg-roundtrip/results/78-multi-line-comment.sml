@@ -3,9 +3,9 @@
 svg(xmlns=http://www.w3.org/2000/svg)
   @rem """
     Created with an editor
-        second line
+    second line
 
-        after an empty line
+    after an empty line
     """
   g
     @rem deeper comment
@@ -13,7 +13,7 @@ svg(xmlns=http://www.w3.org/2000/svg)
   end
   @rem """
     Starts at once
-           and goes on
+    and goes on
     """
   @rem ends with a dash -
   text

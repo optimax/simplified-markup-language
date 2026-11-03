@@ -357,14 +357,16 @@ public class ProfileTests
     }
 
     [Fact]
-    public void TidiesComments()
+    public void NormalizesComments()
     {
-        // Comment data is trimmed (§9), so only the lines after the first can share indentation.
-        Assert.Equal("Title\n\nbody\n  more", SmlWriter.TidyComment("Title  \n\n\n    body\n      more"));
-        Assert.Equal("a\nb\n\tc", SmlWriter.TidyComment("a\n\tb\n\t\tc"));
-        Assert.Equal("a\n  b\nc", SmlWriter.TidyComment("a\n  b\nc"));
-        Assert.Null(SmlWriter.TidyComment("one line"));
-        Assert.Null(SmlWriter.TidyComment("a\r\nb"));
+        // §9: text on its own line loses the indentation all lines share; text on the <!-- line, its leading
+        // whitespace and the indentation the other lines share.
+        Assert.Equal("Usage:\n  a\n\n  b", XmlRules.CommentText("\n    Usage:\n      a\n\n      b\n  "));
+        Assert.Equal("Title\nbody\n  more", XmlRules.CommentText(" Title\n    body\n      more "));
+        Assert.Equal("a\n\nb", XmlRules.CommentText(" \t\n  a\n \n  b"));
+        Assert.Equal("a\n  b", XmlRules.CommentText("  a\n    b", ownLine: true));
+        Assert.Equal("", XmlRules.CommentText(" \n\t"));
+        Assert.Equal("x", XmlRules.CommentText(" x "));
     }
 
     [Fact]
@@ -530,7 +532,7 @@ public class ProfileTests
     private static void Normalize(SmlDocument doc)
     {
         foreach (CommentNode comment in doc.Prolog.Concat(doc.Epilog).OfType<CommentNode>())
-            comment.Data = SmlWriter.TidyComment(comment.Data) ?? comment.Data;
+            comment.Data = SmlWriter.TidyText(comment.Data) ?? comment.Data;
         Normalize(doc.Root, inText: false, foreign: false, preserve: false);
     }
 
@@ -584,7 +586,7 @@ public class ProfileTests
             }
         }
         foreach (CommentNode comment in element.Children.OfType<CommentNode>())
-            comment.Data = SmlWriter.TidyComment(comment.Data) ?? comment.Data;
+            comment.Data = SmlWriter.TidyText(comment.Data) ?? comment.Data;
         foreach (ElementNode child in element.Children.OfType<ElementNode>())
             Normalize(child, inText || textContent, foreign, preserve);
     }

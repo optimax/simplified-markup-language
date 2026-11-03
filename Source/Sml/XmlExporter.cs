@@ -14,7 +14,7 @@ public static class XmlExporter
         var parts = new List<string> { declaration.ToString() };
         parts.AddRange(doc.Prolog.Select(Misc));
         var body = new StringBuilder();
-        Element(doc.Root, body);
+        Element(doc.Root, body, "");
         parts.Add(body.ToString());
         parts.AddRange(doc.Epilog.Select(Misc));
         return string.Join('\n', parts) + "\n";
@@ -32,7 +32,7 @@ public static class XmlExporter
         switch (item)
         {
             case CommentNode comment:
-                return comment.Data.Length > 0 ? $"<!-- {comment.Data} -->" : "<!---->";
+                return Comment(comment.Data, "", "  ");
             case ProcessingInstructionNode pi:
                 return pi.Data.Length > 0 ? $"<?{pi.Target} {pi.Data}?>" : $"<?{pi.Target}?>";
             case DoctypeNode dt:
@@ -49,7 +49,29 @@ public static class XmlExporter
         }
     }
 
-    private static void Element(ElementNode element, StringBuilder output)
+    /// <summary>A comment as XML (§11): <c>&lt;!-- data --&gt;</c> on one line, or a multi-line comment as
+    /// pretty-printers write it, its lines one step deeper than the comment and <c>--&gt;</c> at the comment's
+    /// indentation.</summary>
+    private static string Comment(string data, string indentation, string step)
+    {
+        if (!data.Contains('\n'))
+            return data.Length > 0 ? $"<!-- {data} -->" : "<!---->";
+        string inner = indentation + step;
+        return "<!--\n" + string.Join('\n', data.Split('\n').Select(l => l.Length == 0 ? "" : inner + l)) + "\n" + indentation + "-->";
+    }
+
+    /// <summary>The spaces and tabs after the last line break of a text node, if nothing else follows it there.</summary>
+    private static string? TailIndentation(SmlNode? node)
+    {
+        if (node is not TextNode { Data: var text } || !text.Contains('\n'))
+            return null;
+        string tail = text[(text.LastIndexOf('\n') + 1)..];
+        return tail.TrimStart(' ', '\t').Length == 0 ? tail : null;
+    }
+
+    /// <summary>Writes an element; indentation is the spaces and tabs before it on its line, as far as its preceding
+    /// text shows them (§11), else its parent's.</summary>
+    private static void Element(ElementNode element, StringBuilder output, string indentation)
     {
         output.Append('<').Append(element.QualifiedName);
         foreach (var (prefix, uri) in element.NamespaceDeclarations)
@@ -62,20 +84,27 @@ public static class XmlExporter
             return;
         }
         output.Append('>');
+        SmlNode? previous = null;
         foreach (SmlNode child in element.Children)
         {
+            string at = TailIndentation(previous) ?? indentation;
             switch (child)
             {
                 case ElementNode e:
-                    Element(e, output);
+                    Element(e, output, at);
                     break;
                 case TextNode t:
                     output.Append(EscapeText(t.Data));
+                    break;
+                case CommentNode comment:
+                    bool deeper = at.Length > indentation.Length && at.StartsWith(indentation, StringComparison.Ordinal);
+                    output.Append(Comment(comment.Data, at, deeper ? at[indentation.Length..] : "  "));
                     break;
                 default:
                     output.Append(Misc(child));
                     break;
             }
+            previous = child;
         }
         output.Append("</").Append(element.QualifiedName).Append('>');
     }

@@ -408,24 +408,33 @@ class SmlSideFixtures(Base):
         self.assertIn('  @comments """"\n    a\n    b\n    c\n    d\n    """\n    """"\n', out)
         self.assertEqual(S.signature(read(out)), S.signature(doc))
 
-    def test_SV78_comments_are_trimmed(self):
-        # A comment's data loses the spaces, tabs, and line breaks at its ends, from XML and from SML alike (§9).
-        doc = S.read_xml(b'<!--\n  top\n-->\n<g>\n  <!--\n    a\n\n    b\n  -->\n  <h>\n    <!-- deep -->\n  </h>\n'
-                         b'  <!--   ends with a dash -   -->\n  <!--\t-->\n</g>')
+    def test_SV78_comments_are_normalized(self):
+        # A comment loses the whitespace at its ends, and a multi-line one the indentation its lines share (§9), from
+        # XML and from SML alike.
+        doc = S.read_xml(b'<!--\n  top\n-->\n<g>\n  <!--\n    Usage:\n      a\n\n      b\n  -->\n  <h>\n    <!-- deep -->\n  </h>\n'
+                         b'  <!-- Starts at once\n       and goes on -->\n  <!--   ends with a dash -   -->\n  <!--\t-->\n</g>')
         self.assertEqual(doc.prolog[0].data, 'top')
-        self.assertEqual([c.data for c in kids(doc.root, S.Comment)], ['a\n\n    b', 'ends with a dash -', ''])
+        self.assertEqual([c.data for c in kids(doc.root, S.Comment)],
+                         ['Usage:\n  a\n\n  b', 'Starts at once\nand goes on', 'ends with a dash -', ''])
         out = S.write_sml(doc)
-        self.assertEqual(out, '@sml 1.0-SVG-1\n@rem top\ng\n  @rem """\n    a\n\n        b\n    """\n  h\n    @rem deep\n  end\n'
-                              '  @rem ends with a dash -\n  @rem\nend\n')
+        self.assertEqual(out, '@sml 1.0-SVG-1\n@rem top\ng\n  @rem """\n    Usage:\n      a\n\n      b\n    """\n  h\n    @rem deep\n'
+                              '  end\n  @rem """\n    Starts at once\n    and goes on\n    """\n  @rem ends with a dash -\n  @rem\nend\n')
         self.assertEqual(S.signature(read(out)), S.signature(doc))
-        # XML output separates the data from the delimiters by one space.
+        # XML output: a one-line comment has a space on each side, and a multi-line one is pretty-printed, its lines one
+        # step deeper than the comment.
         xml = S.write_xml(doc)
-        for fragment in ('<!-- top -->', '<!-- a\n\n    b -->', '<!-- deep -->', '<!-- ends with a dash - -->', '<!---->'):
-            self.assertIn(fragment, xml)
+        self.assertEqual(xml, '<?xml version="1.0" encoding="UTF-8"?>\n<!-- top -->\n<g>\n  <!--\n    Usage:\n      a\n\n      b\n  -->\n'
+                              '  <h>\n    <!-- deep -->\n  </h>\n  <!--\n    Starts at once\n    and goes on\n  -->\n'
+                              '  <!-- ends with a dash - -->\n  <!---->\n</g>\n')
         self.assertEqual(S.signature(S.read_xml(xml.encode())), S.signature(doc))
-        # SML is trimmed too; a block is literal wherever it is, also in a laid-out position.
-        g = root('g\n  @rem " x "\n  @rem "\\n  y\\n"\n  @comment """\n\n    z\n\n    """\n  @rem """\n    a\n      b\n    """\n  @rem "\\t"\nend\n')
-        self.assertEqual([c.data for c in kids(g, S.Comment)], ['x', 'y', 'z', 'a\n  b', ''])
+        # The step is the document's: four spaces, a tab.
+        for unit in ('    ', '\t'):
+            src = f'<g>\n{unit}<h>\n{unit * 2}<!--\n{unit * 3}a\n{unit * 3}  b\n{unit * 2}-->\n{unit}</h>\n</g>'
+            self.assertEqual(S.write_xml(S.read_xml(src.encode())), '<?xml version="1.0" encoding="UTF-8"?>\n' + src + '\n')
+        # In SML every line takes part, whatever the value's form; a block is literal wherever it is.
+        g = root('g\n  @rem " x "\n  @rem "\\n  y\\n"\n  @comment """\n\n    z\n\n    """\n  @rem """\n      a\n        b\n    """\n'
+                 '  @rem "\\t"\n  @rem " p\\n q"\nend\n')
+        self.assertEqual([c.data for c in kids(g, S.Comment)], ['x', 'y', 'z', 'a\n  b', '', 'p\nq'])
         self.assertEqual([c.data for c in kids(root('@indent none\ng\n  @rem """\n    a\n    """\nend\n'), S.Comment)], ['a'])
         self.assertEqual(kids(root('g\n  @rem "x-"\nend\n'), S.Comment)[0].data, 'x-')
         self.rejects('g\n  @rem "a--b"\nend\n', "'--'")

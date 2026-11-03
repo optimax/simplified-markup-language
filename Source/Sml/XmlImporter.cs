@@ -60,7 +60,7 @@ public static class XmlImporter
                         break;
                     case XmlNodeType.Comment:
                         string comment = reader.Value;
-                        Rethrow(() => comment = XmlRules.CommentData(comment, line));
+                        Rethrow(() => comment = XmlRules.CommentData(comment, line, ownLine: false));
                         Place(doc, stack, new CommentNode(comment));
                         break;
                     case XmlNodeType.ProcessingInstruction:

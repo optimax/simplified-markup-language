@@ -171,36 +171,8 @@ public sealed class SmlWriter
         while (lines[^1].Length == 0)
             lines.RemoveAt(lines.Count - 1);
         lines = lines.Where((l, i) => l.Length > 0 || lines[i - 1].Length > 0).ToList();
-        string prefix = SharedIndentation(lines);
+        string prefix = XmlRules.SharedIndentation(lines);
         return string.Join('\n', lines.Select(l => l.Length == 0 ? "" : l[prefix.Length..]));
-    }
-
-    /// <summary>A multi-line comment tidied (§3.2) like text. Its data is trimmed (§9), so its first line has no
-    /// indentation, and the indentation removed is the one that the other lines share. Null for a comment without
-    /// LF or with a CR.</summary>
-    public static string? TidyComment(string data)
-    {
-        if (!data.Contains('\n') || data.Contains('\r'))
-            return null;
-        var lines = data.Split('\n').Select(l => l.TrimEnd(' ', '\t')).ToList();
-        lines = lines.Where((l, i) => i == 0 || l.Length > 0 || lines[i - 1].Length > 0).ToList();
-        string prefix = SharedIndentation(lines.Skip(1));
-        return string.Join('\n', lines.Select((l, i) => i == 0 || l.Length == 0 ? l : l[prefix.Length..]));
-    }
-
-    /// <summary>The leading spaces and tabs that all non-empty lines share.</summary>
-    private static string SharedIndentation(IEnumerable<string> lines)
-    {
-        string? prefix = null;
-        foreach (string line in lines.Where(l => l.Length > 0))
-        {
-            string lead = line[..(line.Length - line.TrimStart(' ', '\t').Length)];
-            int k = 0;
-            while (prefix is not null && k < prefix.Length && k < lead.Length && prefix[k] == lead[k])
-                k++;
-            prefix = prefix is null ? lead : prefix[..k];
-        }
-        return prefix ?? "";
     }
 
     /// <summary>Whether a profile writes the value quoted with a continuation line per item.</summary>
@@ -686,7 +658,7 @@ public sealed class SmlWriter
                 case ElementNode child:
                     Element(child, depth, indentation, laidOut);
                     break;
-                case CommentNode comment when _profile is not null && TidyComment(comment.Data) is { } tidy:
+                case CommentNode comment when _profile is not null && TidyText(comment.Data) is { } tidy:
                     // Cleaning: a multi-line comment is tidied (§3.2).
                     Comment(tidy, depth);
                     break;
