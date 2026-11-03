@@ -1,0 +1,63 @@
+<svg x="0" y="0" width="12in" height="9in" viewbox="12000 9000" xmlns="http://www.w3.org/2000/svg" xmlns:imagen="imagen">
+	<defs>
+		<style>
+		  .cls-1 {	    
+			stroke: #EC008C;
+			stroke-width: 1px;
+			fill: #ffffff;
+		  }
+		  .cls-2 {
+			fill: #fff;
+			stroke: #231F20;
+		  }
+		  .cls-3 {        
+			font-family: Helvetica-Bold, Helvetica;
+			font-size: 1in;
+			font-weight: 700;		
+		  }	  
+		  .cls-4 {
+			fill: #00529e;
+			stroke-width: 0px;
+		  }
+		  
+		  .cls-6 {
+			stroke: green;
+			stroke-width: 4px;
+			fill: none;
+			opacity: 0.25;
+		  }
+		</style>
+	</defs>
+	<g imagen:layer="background" id="background">
+		<rect id="rounded-back" class="cls-1" width="12in" height="9in" rx="0.5in" ry="0.5in"/>
+	</g>
+	<g imagen:layer="fixed" id="notice-head" transform="scale(1.33, 1.33)">
+		<path class="cls-4" d="M678.172,84.962h100.844v24.327h-72.71v28.769h66.796v24.327h-66.796v35.327h75.968v24.327h-104.103V84.962ZM641.669,97.95h0c8.918,8.902,13.818,19.512,14.714,31.841h-28.659c-1.904-6.744-4.265-11.711-7.073-14.892-5.094-5.855-12.862-8.783-23.303-8.783-11.973,0-20.96,5.288-26.941,15.857-4.713,8.411-7.066,19.115-7.066,32.094,0,12.878,2.353,23.379,7.066,31.528,5.982,10.196,14.968,15.289,26.941,15.289,16.686,0,26.806-8.605,30.376-25.833h28.659c-3.063,16.035-9.713,28.482-19.961,37.315-10.255,8.852-23.464,13.268-39.634,13.268-20.629,0-36.478-6.989-47.554-20.993-10.061-12.844-15.087-29.827-15.087-50.955,0-20.984,5.153-37.967,15.468-50.947,11.203-14.249,27.051-21.374,47.554-21.374,18.717,0,33.558,5.534,44.499,16.585h0ZM485.071,84.962h28.558v137.077h-28.558V84.962ZM470.188,109.289h-41.529v112.75h-28.558v-112.75h-41.462v-24.327h111.548v24.327ZM252.549,120.737h0c-5.483,8.385-8.225,19.301-8.225,32.763s2.742,24.378,8.225,32.763c6.642,10.036,16.339,15.045,29.108,15.045s22.465-5.009,29.099-15.045c5.491-8.385,8.241-19.3,8.241-32.763s-2.75-24.378-8.241-32.763c-6.634-10.027-16.331-15.044-29.099-15.044s-22.465,5.017-29.108,15.044h0ZM241.921,213.611h0c-17.439-12.21-26.154-32.239-26.154-60.111s8.715-47.901,26.154-60.111c11.465-8.013,24.708-12.024,39.727-12.024s28.27,4.011,39.735,12.024c17.447,12.21,26.171,32.247,26.171,60.111s-8.724,47.901-26.171,60.111c-11.466,8.013-24.708,12.024-39.735,12.024s-28.262-4.011-39.727-12.024h0ZM167.764,180.408l.008-95.446h26.654v137.077h-28.101l-56.573-98.001-.373.22v97.782h-26.654V84.962h30.182l54.856,95.446ZM828.5,252.5V54.5H36.5v198h792Z"/>
+	</g>
+	<g imagen:layer="layout" id="text" text-anchor="middle">
+		<text x="50%" y="8in" id="text-with-content" class="cls-3" text-anchor="middle">BEWARE! THIS IS VERY SERIOUS!</text>
+		<text id="text-with-spans" class="cls-3" text-anchor="middle" 
+		imagen:width="10.75in" imagen:line-height="0.9in" imagen:align="center-top">
+			<tspan x="50%" y="5in">THERE EXISTS AN EXTRAORDINARILY HIGH RISK OF CONTRACTING</tspan>
+			<tspan x="50%" y="5.9in">SUPERCALIFRAGILISTICEXPIALIDOCIOUS</tspan>
+			<tspan x="50%" y="6.8in">ACUTE PNEUMONOULTRAMICROSCOPICSILICOVOLCANOCONIOSIS</tspan>
+		</text>
+	</g>
+	<g imagen:layer="fixed" id="holes">
+		<circle class="cls-2" cx="0.5in" cy="8.5in" r="0.1095in" imagen:align="bottom-left" imagen:margin="0.5in"/>
+		<circle class="cls-2" cx="0.5in" cy="0.5in" r="0.1095in" imagen:align="top-left" imagen:margin="0.5in"/>
+		<circle class="cls-2" cx="11.5in" cy="8.5in" r="0.1095in" imagen:align="bottom-right" imagen:margin="0.5in"/>
+		<circle class="cls-2" cx="11.5in" cy="0.5in" r="0.1095in" imagen:align="top-right" imagen:margin="0.5in"/>
+	</g>
+	<g imagen:layer="fixed" id="grids">
+		<image href="12w9h-grid.svg" x="0" y="0" width="12in" height="9in"/>
+		<rect class="cls-6" x="50" y="384" width="1052" height="288"/>
+	</g>
+</svg>
+<!--
+transform="scale(1.33, 1.33)"
+transform="translate(37.183 358.678) scale(.7 1)
+ scale(0.53, 1)
+ 
+ transform="translate(1086, 672)
+-->

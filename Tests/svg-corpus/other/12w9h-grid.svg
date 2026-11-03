@@ -1,0 +1,60 @@
+<svg  width="12in" height="9in" xmlns="http://www.w3.org/2000/svg" xmlns:imagen="https://www.bradyid.com/">
+<defs>
+	<style>
+	.cls-5 {
+		stroke: red;
+		opacity: 0.25;
+		stroke-width: 1px;
+	  }
+	.cls-5a {
+		stroke: red;
+		opacity: 0.25;
+		stroke-width: 2px;
+	  }	  
+	</style>
+</defs>
+<g imagen:layer="layer-grid">
+	<!-- horizontal -->
+	<line class="cls-5" x1="0.5in" y1="0.5in" x2="11.5in" y2="0.5in"/>
+	<line class="cls-5" x1="0.5in" y1="1in" x2="11.5in" y2="1in"/>
+	<line class="cls-5" x1="0.5in" y1="1.5in" x2="11.5in" y2="1.5in"/>
+	<line class="cls-5" x1="0.5in" y1="2in" x2="11.5in" y2="2in"/>
+	<line class="cls-5" x1="0.5in" y1="2.5in" x2="11.5in" y2="2.5in"/>
+	<line class="cls-5" x1="0.5in" y1="3in" x2="11.5in" y2="3in"/>
+	<line class="cls-5" x1="0.5in" y1="3.5in" x2="11.5in" y2="3.5in"/>
+	<line class="cls-5" x1="0.5in" y1="4in" x2="11.5in" y2="4in"/>
+	<line class="cls-5a" x1="0.25in" y1="4.5in" x2="11.75in" y2="4.5in"/>
+	<line class="cls-5" x1="0.5in" y1="5in" x2="11.5in" y2="5in"/>
+	<line class="cls-5" x1="0.5in" y1="5.5in" x2="11.5in" y2="5.5in"/>
+	<line class="cls-5" x1="0.5in" y1="6in" x2="11.5in" y2="6in"/>
+	<line class="cls-5" x1="0.5in" y1="6.5in" x2="11.5in" y2="6.5in"/>
+	<line class="cls-5" x1="0.5in" y1="7in" x2="11.5in" y2="7in"/>
+	<line class="cls-5" x1="0.5in" y1="7.5in" x2="11.5in" y2="7.5in"/>
+	<line class="cls-5" x1="0.5in" y1="8in" x2="11.5in" y2="8in"/>
+	<line class="cls-5" x1="0.5in" y1="8.5in" x2="11.5in" y2="8.5in"/>		
+	<!-- vertical -->
+	<line class="cls-5" x1="0.5in" y1="0.5in" x2="0.5in" y2="8.5in"/>
+	<line class="cls-5" x1="1in" y1="0.5in" x2="1in" y2="8.5in"/>
+	<line class="cls-5" x1="1.5in" y1="0.5in" x2="1.5in" y2="8.5in"/>
+	<line class="cls-5" x1="2in" y1="0.5in" x2="2in" y2="8.5in"/>
+	<line class="cls-5" x1="2.5in" y1="0.5in" x2="2.5in" y2="8.5in"/>
+	<line class="cls-5" x1="3in" y1="0.5in" x2="3in" y2="8.5in"/>
+	<line class="cls-5" x1="3.5in" y1="0.5in" x2="3.5in" y2="8.5in"/>
+	<line class="cls-5" x1="4in" y1="0.5in" x2="4in" y2="8.5in"/>
+	<line class="cls-5" x1="4.5in" y1="0.5in" x2="4.5in" y2="8.5in"/>
+	<line class="cls-5" x1="5in" y1="0.5in" x2="5in" y2="8.5in"/>
+	<line class="cls-5" x1="5.5in" y1="0.5in" x2="5.5in" y2="8.5in"/>
+	<line class="cls-5a" x1="6in" y1="0.25in" x2="6in" y2="8.75in"/>
+	<line class="cls-5" x1="6.5in" y1="0.5in" x2="6.5in" y2="8.5in"/>
+	<line class="cls-5" x1="7in" y1="0.5in" x2="7in" y2="8.5in"/>
+	<line class="cls-5" x1="7.5in" y1="0.5in" x2="7.5in" y2="8.5in"/>
+	<line class="cls-5" x1="8in" y1="0.5in" x2="8in" y2="8.5in"/>
+	<line class="cls-5" x1="8.5in" y1="0.5in" x2="8.5in" y2="8.5in"/>
+	<line class="cls-5" x1="9in" y1="0.5in" x2="9in" y2="8.5in"/>
+	<line class="cls-5" x1="9.5in" y1="0.5in" x2="9.5in" y2="8.5in"/>
+	<line class="cls-5" x1="10in" y1="0.5in" x2="10in" y2="8.5in"/>
+	<line class="cls-5" x1="10.5in" y1="0.5in" x2="10.5in" y2="8.5in"/>
+	<line class="cls-5" x1="11in" y1="0.5in" x2="11in" y2="8.5in"/>
+	<line class="cls-5" x1="11.5in" y1="0.5in" x2="11.5in" y2="8.5in"/>					
+	</g>	
+</svg>

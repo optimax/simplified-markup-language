@@ -1,0 +1,63 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<svg version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:xml="http://www.w3.org/XML/1998/namespace" xmlns:imagen="imagen" x="0" y="0" width="12in" height="9in" viewbox="12000 9000">
+  <defs>
+    <style>
+		  :root {
+			--color-cut-through: #EC008C;
+			--color-safety-blue: #00529e;
+			--color-hole: #231F20;       				
+		  }
+		  .cls-1 {	    
+			stroke: var(--color-cut-through);
+			stroke: #EC008C;
+			stroke-width: 1px;
+			fill: white;
+		  }
+		  .cls-2 {
+			fill: #fff;
+			stroke: var(--color-hole);
+			stroke: #231F20;
+		  }
+		  .cls-3 {        
+			font-family: Helvetica-Bold, Helvetica;
+			font-size: 1in;
+			font-weight: 700;		
+		  }	  
+		  .cls-4 {
+			fill: var(--color-safety-blue);
+			fill: #00529e;
+			stroke-width: 0px;
+		  }
+		  
+		  .cls-6 {
+			stroke: green;
+			stroke-width: 4px;
+			fill: none;
+			opacity: 0.25;
+		  }
+		</style>
+  </defs>
+  <g imagen:layer="layer-background">
+    <rect width="12in" height="9in" rx="0.5in" ry="0.5in" stroke-width="1px" class="cls-1" style="fill:white;stroke:#EC008C;" />
+  </g>
+  <g transform="scale(1.33)" imagen:layer="layer-notice-head">
+    <path d="M678.172 84.962 h100.844 v24.327 h-72.71 v28.769 h66.796 v24.327 h-66.796 v35.327 h75.968 v24.327 h-104.103 V84.962 Z M641.669 97.95 h0 c8.918 8.902 13.818 19.512 14.714 31.841 h-28.659 c-1.904 -6.744 -4.265 -11.711 -7.073 -14.892 c-5.094 -5.855 -12.862 -8.783 -23.303 -8.783 c-11.973 0 -20.96 5.288 -26.941 15.857 c-4.713 8.411 -7.066 19.115 -7.066 32.094 c0 12.878 2.353 23.379 7.066 31.528 c5.982 10.196 14.968 15.289 26.941 15.289 c16.686 0 26.806 -8.605 30.376 -25.833 h28.659 c-3.063 16.035 -9.713 28.482 -19.961 37.315 c-10.255 8.852 -23.464 13.268 -39.634 13.268 c-20.629 0 -36.478 -6.989 -47.554 -20.993 c-10.061 -12.844 -15.087 -29.827 -15.087 -50.955 c0 -20.984 5.153 -37.967 15.468 -50.947 c11.203 -14.249 27.051 -21.374 47.554 -21.374 c18.717 0 33.558 5.534 44.499 16.585 h0 Z M485.071 84.962 h28.558 v137.077 h-28.558 V84.962 Z M470.188 109.289 h-41.529 v112.75 h-28.558 v-112.75 h-41.462 v-24.327 h111.548 v24.327 Z M252.549 120.737 h0 c-5.483 8.385 -8.225 19.301 -8.225 32.763 s2.742 24.378 8.225 32.763 c6.642 10.036 16.339 15.045 29.108 15.045 s22.465 -5.009 29.099 -15.045 c5.491 -8.385 8.241 -19.3 8.241 -32.763 s-2.75 -24.378 -8.241 -32.763 c-6.634 -10.027 -16.331 -15.044 -29.099 -15.044 s-22.465 5.017 -29.108 15.044 h0 Z M241.921 213.611 h0 c-17.439 -12.21 -26.154 -32.239 -26.154 -60.111 s8.715 -47.901 26.154 -60.111 c11.465 -8.013 24.708 -12.024 39.727 -12.024 s28.27 4.011 39.735 12.024 c17.447 12.21 26.171 32.247 26.171 60.111 s-8.724 47.901 -26.171 60.111 c-11.466 8.013 -24.708 12.024 -39.735 12.024 s-28.262 -4.011 -39.727 -12.024 h0 Z M167.764 180.408 l0.008 -95.446 h26.654 v137.077 h-28.101 l-56.573 -98.001 l-0.373 0.22 v97.782 h-26.654 V84.962 h30.182 l54.856 95.446 Z M828.5 252.5 V54.5 H36.5 v198 h792 Z" stroke-width="0px" class="cls-4" style="fill:#00529E;" />
+  </g>
+  <g imagen:layer="layer-text">
+    <text transform="translate(0, 384) scale(0.9, 1)" text-anchor="middle" font-family="Helvetica-Bold, Helvetica" font-size="1in" font-weight="700" class="cls-3">
+      <tspan x="6.7in" y="1in">HEIGHT MEASUREMENT</tspan>
+      <tspan x="6.7in" y="2in">POLE STORAGE</tspan>
+    </text>
+    <text text-anchor="middle" font-family="Helvetica-Bold, Helvetica" font-size="1in" font-weight="700" class="cls-3" imagen:margin-top="7in" imagen:margin-left="1in" imagen:margin-right="1in" imagen:align="center-top">
+      <tspan>SUPERCALIFRAGILISTICEXPIALIDOCIOUS</tspan>
+    </text>
+  </g>
+  <g imagen:layer="layer-holes" imagen:scale="no">
+    <circle cx="0.5in" cy="8.5in" r="0.1095in" class="cls-2" imagen:align="bottom-left" imagen:margin="0.5in" style="fill:white;stroke:#231F20;" />
+    <circle cx="0.5in" cy="0.5in" r="0.1095in" class="cls-2" imagen:align="top-left" imagen:margin="0.5in" style="fill:white;stroke:#231F20;" />
+    <circle cx="11.5in" cy="8.5in" r="0.1095in" class="cls-2" imagen:align="bottom-right" imagen:margin="0.5in" style="fill:white;stroke:#231F20;" />
+    <circle cx="11.5in" cy="0.5in" r="0.1095in" class="cls-2" imagen:align="top-right" imagen:margin="0.5in" style="fill:white;stroke:#231F20;" />
+  </g>
+  <image x="0" y="0" width="12in" height="9in" xlink:href="12w9h-grid.svg" />
+  <rect x="50" y="384" width="1052" height="288" stroke-width="4px" opacity="0.25" class="cls-6" style="fill:none;stroke:green;" />
+</svg>
