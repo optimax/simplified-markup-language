@@ -58,7 +58,8 @@ public sealed class SmlWriter
 
     /// <summary>Finds the elements whose formatting whitespace cleaning replaces with the prediction of @indent 2,
     /// and those whose text it may tidy (§3.1). Whitespace is replaced in content of elements, comments, or PIs
-    /// separated only by whitespace, outside foreignObject and xml:space="preserve". In SVG text content it is replaced
+    /// separated only by whitespace, outside foreignObject. Under xml:space="preserve" it is replaced only in SVG
+    /// elements outside text content, because SVG applies xml:space to text only. In SVG text content it is replaced
     /// only where that cannot change the rendered text: where every gap between the children, and for an element
     /// nested in text also each edge, already has a space or tab.</summary>
     private void FindNormalized(ElementNode element, bool inText, bool foreign, bool preserve)
@@ -71,9 +72,10 @@ public sealed class SmlWriter
             if (element.AttributeNames[name] == new ExpandedName(XmlRules.XmlNamespace, "space"))
                 preserve = value == "preserve";
         }
-        if (!foreign && !preserve)
+        bool rendered = inText || textContent;   // SVG renders this element's character data
+        if (!foreign && (!preserve || svg && !rendered))
         {
-            if (!inText && !textContent)
+            if (!preserve && !rendered)
                 _tidyable.Add(element);
             List<SmlNode> nodes = ContentNodes(element);
             if (nodes.Any(n => n is not TextNode) && nodes.OfType<TextNode>().All(t => IsWhitespace(t.Data))

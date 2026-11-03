@@ -291,15 +291,20 @@ public class ProfileTests
 
             """.ReplaceLineEndings("\n"), XmlExporter.Write(SmlReader.Read(sml)));
 
-        // Whitespace that can change rendering stays: mixed text, xml:space="preserve", and foreignObject content.
+        // Whitespace that can change rendering stays: mixed text, text and other vocabularies under
+        // xml:space="preserve", and foreignObject content. SVG applies xml:space to text only, so other SVG elements
+        // under preserve are cleaned.
         SmlDocument kept = Xml("<svg xmlns='http://www.w3.org/2000/svg'><g><text>A <tspan>B</tspan> </text>"
-            + "<g xml:space='preserve'> <rect/> </g><foreignObject><p xmlns='http://www.w3.org/1999/xhtml'><b>a</b> <i>b</i></p>"
-            + "</foreignObject></g></svg>");
+            + "<g xml:space='preserve'> <rect/> <text> <tspan>B</tspan> </text> <m:x xmlns:m='urn:m'> <m:y/> </m:x> </g>"
+            + "<foreignObject><p xmlns='http://www.w3.org/1999/xhtml'><b>a</b> <i>b</i></p></foreignObject></g></svg>");
         SmlDocument back = SmlReader.Read(SmlWriter.Write(kept, Svg));
         ElementNode g = back.Root.Children.OfType<ElementNode>().Single();
         List<ElementNode> kids = g.Children.OfType<ElementNode>().ToList();
         Assert.Equal(["A ", " "], kids[0].Children.OfType<TextNode>().Select(t => t.Data));
-        Assert.Equal([" ", " "], kids[1].Children.OfType<TextNode>().Select(t => t.Data));
+        Assert.Equal(["\n      ", "\n      ", "\n      ", "\n    "], kids[1].Children.OfType<TextNode>().Select(t => t.Data));
+        List<ElementNode> preserved = kids[1].Children.OfType<ElementNode>().ToList();
+        Assert.Equal([" ", " "], preserved[1].Children.OfType<TextNode>().Select(t => t.Data));
+        Assert.Equal([" ", " "], preserved[2].Children.OfType<TextNode>().Select(t => t.Data));
         Assert.Equal([" "], kids[2].Children.OfType<ElementNode>().Single().Children.OfType<TextNode>().Select(t => t.Data));
         Assert.Equal(["\n    ", "\n    ", "\n    ", "\n  "], g.Children.OfType<TextNode>().Select(t => t.Data));
     }
@@ -557,7 +562,8 @@ public class ProfileTests
         }
         element.Children.Clear();
         element.Children.AddRange(children);
-        if (!foreign && !preserve)
+        // SVG applies xml:space to text only, so outside text content an SVG element is cleaned under preserve too.
+        if (!foreign && (!preserve || svg && !inText && !textContent))
         {
             bool elementOnly = children.Any(c => c is not TextNode)
                 && children.OfType<TextNode>().All(t => t.Data.All(c => c is ' ' or '\t' or '\n' or '\r'));
@@ -580,7 +586,7 @@ public class ProfileTests
                         element.Children.RemoveAt(element.Children.Count - 1);
                 }
             }
-            else if (!inText && !textContent && children is [TextNode only])
+            else if (!preserve && !inText && !textContent && children is [TextNode only])
             {
                 only.Data = SmlWriter.TidyText(only.Data) ?? only.Data;
             }
