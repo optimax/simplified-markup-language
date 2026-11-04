@@ -641,10 +641,26 @@ svg
       Z
       """
   end
+  s:polyline
+    points """
+      0,0
+      10,20
+      20,0
+      """
+  end
 end
 ```
 
-`path` and `s:polyline` both resolve to SVG element expanded names. The target attributes `d` and `points` are unqualified strings. The parser has no knowledge of what these values mean.
+is the XML
+
+```xml
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:s="http://www.w3.org/2000/svg">
+  <path d="M 10 10&#10;C 20 30 40 30 50 10&#10;Z"/>
+  <s:polyline points="0,0&#10;10,20&#10;20,0"/>
+</svg>
+```
+
+`path` resolves through the default namespace and `s:polyline` through the prefix `s`, so both name SVG elements. An alias matches the resolved expanded name, not the spelling (§8.4), so an unprefixed `polyline` here could use `points` too, because it names the same element. The target attributes `d` and `points` are unqualified strings. The parser has no knowledge of what these values mean.
 
 ### 8.3 Invocation and value semantics
 
