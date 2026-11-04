@@ -10,6 +10,58 @@
 
 The capitalized words **MUST**, **MUST NOT**, **SHOULD**, and **MAY** have their ordinary normative meanings.
 
+<!-- toc -->
+## Contents
+
+- [1. Core design](#1-core-design)
+  - [1.1 Example](#11-example)
+  - [1.2 Conformance classes and profiles](#12-conformance-classes-and-profiles)
+- [2. Core information model](#2-core-information-model)
+- [3. Supported SVG/XML subset and round-trip promise](#3-supported-svgxml-subset-and-round-trip-promise)
+  - [3.1 Readable (lossy) import profile](#31-readable-lossy-import-profile)
+  - [3.2 Readable cleanup: reflow and tidy text](#32-readable-cleanup-reflow-and-tidy-text)
+- [4. Encoding, lines, names, and structural model](#4-encoding-lines-names-and-structural-model)
+- [5. Statements and elements](#5-statements-and-elements)
+  - [5.1 Declaration section](#51-declaration-section)
+  - [5.2 Explicit element opener (`@element`)](#52-explicit-element-opener-element)
+  - [5.3 Checked end (`end QName`)](#53-checked-end-end-qname)
+- [6. Attributes, text, and scalar values](#6-attributes-text-and-scalar-values)
+  - [6.1 Vertical attributes and text](#61-vertical-attributes-and-text)
+  - [6.2 Values: exact interpretation rule](#62-values-exact-interpretation-rule)
+  - [6.3 Inline attributes](#63-inline-attributes)
+  - [6.4 Formatting whitespace model (`@indent`, `@noindent`)](#64-formatting-whitespace-model-indent-noindent)
+  - [6.5 Long values: quoted continuation lines](#65-long-values-quoted-continuation-lines)
+- [7. Multiline literal blocks — one form only](#7-multiline-literal-blocks--one-form-only)
+- [8. Named attribute blocks (`@block`) and element aliases (`@node`) — SML Core](#8-named-attribute-blocks-block-and-element-aliases-node--sml-core)
+  - [8.1 Declaration syntax and examples](#81-declaration-syntax-and-examples)
+  - [8.2 Namespace resolution](#82-namespace-resolution)
+  - [8.3 Invocation and value semantics](#83-invocation-and-value-semantics)
+  - [8.4 Scope, collision, and duplicate rules](#84-scope-collision-and-duplicate-rules)
+  - [8.5 XML-to-SML writer requirements](#85-xml-to-sml-writer-requirements)
+  - [8.6 Invalid and ambiguous cases](#86-invalid-and-ambiguous-cases)
+  - [8.7 Element aliases (`@node`)](#87-element-aliases-node)
+  - [8.8 Redefining aliases](#88-redefining-aliases)
+- [9. XML comments, PIs and source comments](#9-xml-comments-pis-and-source-comments)
+- [10. Namespace declarations and SVG safety](#10-namespace-declarations-and-svg-safety)
+- [11. Document metadata and external XML content](#11-document-metadata-and-external-xml-content)
+  - [11.1 Document type declarations (`@doctype`)](#111-document-type-declarations-doctype)
+- [12. Normative parsing procedure and compact grammar](#12-normative-parsing-procedure-and-compact-grammar)
+  - [12.1 Statement recognition, in order](#121-statement-recognition-in-order)
+  - [12.2 Statement grammar (lexically parameterized EBNF)](#122-statement-grammar-lexically-parameterized-ebnf)
+  - [12.3 Error behavior](#123-error-behavior)
+- [13. Extensions and implementation contracts](#13-extensions-and-implementation-contracts)
+- [14. Writer rules and canonical form](#14-writer-rules-and-canonical-form)
+  - [14.1 General writer rules](#141-general-writer-rules)
+  - [14.2 Canonical form](#142-canonical-form)
+  - [14.3 XML output](#143-xml-output)
+- [15. Conformance tests and acceptance gates](#15-conformance-tests-and-acceptance-gates)
+  - [15.1 Core parser and writer fixtures (CP)](#151-core-parser-and-writer-fixtures-cp)
+- [16. Worked edge cases](#16-worked-edge-cases)
+- [17. Remaining limitations and open engineering tasks](#17-remaining-limitations-and-open-engineering-tasks)
+- [18. Standards references](#18-standards-references)
+
+<!-- /toc -->
+
 ## 1. Core design
 
 SML is an alternate *serialization* of an XML-compatible document tree, **not** an SVG drawing language, a schema, a template system, or a geometry engine. SVG properties such as `d`, `viewBox`, `transform`, `points`, `style`, `href`, `xml:space` and CSS source are opaque Unicode strings to the converter. A renderer or editor may interpret them later; import/export MUST NOT normalize numbers, paths, styles, IDs, references, or geometry.
