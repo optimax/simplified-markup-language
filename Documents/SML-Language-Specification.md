@@ -1,4 +1,4 @@
-# Simplified Markup Language (SML) 1.0 — SVG-first revised specification
+# Simplified Markup Language (SML) 1.0
 
 **Status:** Proposed normative revision (design baseline, not yet reference-parser certified)  
 **Revision:** 1.0-SVG-1 · 2026-11-03  
