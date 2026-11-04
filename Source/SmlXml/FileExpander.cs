@@ -1,3 +1,7 @@
+// Created by Andrew Wozniewicz with Claude
+// Copyright (C) 2026 Optimax Technologies, Inc.
+// Distributed under MIT License.
+//
 namespace SmlXml;
 
 /// <summary>Expands wildcard arguments. Windows shells pass patterns such as *.svg to programs unexpanded, so

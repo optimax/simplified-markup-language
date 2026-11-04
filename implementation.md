@@ -34,6 +34,14 @@ The publish profile writes two framework-dependent single-file executables, each
 - **Two implementations, one behavior.** The Python prototype and the C# library implement the same specification. Their canonical SML must be byte-identical: `CorpusTests` compares C# output with `Tests/svg-roundtrip/results/*.sml`, and `crosscheck_csharp.py` compares both on random documents and mutants. A change to the specification's syntax or canonical form must be made in both, followed by both test suites and the cross-check. Writer options (`SmlWriterOptions`: cleaning with a profile, `SmlProfile` and `ValueLayout`, as in §3.2, and vertical attributes) exist only in C#. They change neither syntax nor the canonical form, and their output is ordinary SML that the Python reader must read the same way.
 - **Code points, not UTF-16 units.** The canonical form measures lines in code points and orders names by code point. In C#, use `XmlRules.CodePointLength` and `XmlRules.CompareCodePoints`, never `string.Length` or ordinal comparison, for those rules.
 - **Warnings are errors** in all C# projects.
+- **File header.** Every C# file starts with these four lines, the user's preamble:
+
+  ```csharp
+  // Created by Andrew Wozniewicz with Claude
+  // Copyright (C) 2026 Optimax Technologies, Inc.
+  // Distributed under MIT License.
+  //
+  ```
 - **Calculation separate from presentation.** `OptimaxTools.SMLReadWrite` has no console or file-system code: it converts bytes and strings. `Source/SmlXml/CommandLine.cs` owns arguments, wildcards, files, and messages, and calls `SmlConverter` for each file.
 
 ## Decisions

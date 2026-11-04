@@ -1,3 +1,7 @@
+// Created by Andrew Wozniewicz with Claude
+// Copyright (C) 2026 Optimax Technologies, Inc.
+// Distributed under MIT License.
+//
 namespace OptimaxTools.SMLReadWrite;
 
 /// <summary>How <see cref="SmlWriter"/> departs from the canonical form (§14.2). The default options give the

@@ -1,3 +1,7 @@
+// Created by Andrew Wozniewicz with Claude
+// Copyright (C) 2026 Optimax Technologies, Inc.
+// Distributed under MIT License.
+//
 namespace OptimaxTools.SMLReadWrite;
 
 /// <summary>An SML profile: the aliases and layouts with which an SML writer cleans the SML it writes from XML (see

@@ -1,3 +1,7 @@
+// Created by Andrew Wozniewicz with Claude
+// Copyright (C) 2026 Optimax Technologies, Inc.
+// Distributed under MIT License.
+//
 namespace OptimaxTools.SMLReadWrite;
 
 /// <summary>A document is malformed or cannot be represented.</summary>

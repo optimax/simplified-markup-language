@@ -1,3 +1,7 @@
+// Created by Andrew Wozniewicz with Claude
+// Copyright (C) 2026 Optimax Technologies, Inc.
+// Distributed under MIT License.
+//
 namespace OptimaxTools.SMLReadWrite;
 
 /// <summary>The kinds of structured attribute value that a layout divides into items (specification §3.2).</summary>
