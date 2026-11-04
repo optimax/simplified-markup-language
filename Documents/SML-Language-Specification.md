@@ -609,19 +609,19 @@ body
   @block div .style style
   div
     style """
-      margin: 10 0 10 0;
-      padding: 0 5 0 5;
+      margin: 10px 0 10px 0;
+      padding: 0 5px 0 5px;
       font-weight: bold;
       """
   end
 end
 ```
 
-`body`, `div`, and the target `style` attribute have no namespace. This is valid **SML** regardless of whether the CSS value itself is valid; SML treats the content as opaque text and does not validate CSS lengths or units. The `style` attribute value is exactly `margin: 10 0 10 0;\npadding: 0 5 0 5;\nfont-weight: bold;`, where each `\n` denotes an actual LF. The equivalent XML is:
+`body`, `div`, and the target `style` attribute have no namespace. SML treats the CSS as opaque text: it neither checks nor changes it, so invalid CSS would be valid SML just the same. The `style` attribute value is exactly `margin: 10px 0 10px 0;\npadding: 0 5px 0 5px;\nfont-weight: bold;`, where each `\n` denotes an actual LF. The equivalent XML is:
 
 ```xml
 <body>
-  <div style="margin: 10 0 10 0;&#10;padding: 0 5 0 5;&#10;font-weight: bold;"/>
+  <div style="margin: 10px 0 10px 0;&#10;padding: 0 5px 0 5px;&#10;font-weight: bold;"/>
 </body>
 ```
 
