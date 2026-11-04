@@ -42,6 +42,91 @@ Converting this SML to XML gives the original document again. Attributes keep th
 
 SML also has vertical attributes, multiline literal blocks for long paths, CSS, and scripts, reusable attribute blocks, and element aliases such as `@node g group`. See the [specification](Documents/SML-Language-Specification.md) for the full language.
 
+## Readable, vertical SML
+
+For editing by hand, `smlxml --tidy svg --verbose` writes SML that is cleaned with the built-in `svg` profile and has every attribute on its own line. Take an SVG file as a drawing program might export it, with a path and a text label:
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="120" height="80" viewBox="0 0 120 80">
+<style>.label{font-family:sans-serif;font-size:12px;fill:#333}</style>
+<g transform="translate(10,10) scale(0.9)">
+<path d="M10,50C10,20 50,20 50,50S90,80 90,50" fill="none" stroke="#4477cc" stroke-width="3"/>
+<text class="label" x="50" y="70" text-anchor="middle">A smooth curve</text>
+</g>
+</svg>
+```
+
+`smlxml --tidy svg --verbose curve.svg` writes `curve.sml`:
+
+```text
+@sml 1.0-SVG-1 tidy
+@node g group
+@block path .d data
+svg
+  @ns http://www.w3.org/2000/svg
+  .width 120
+  .height 80
+  .viewBox 0 0 120 80
+  style = """
+    .label {
+      font-family:sans-serif;
+      font-size:12px;
+      fill:#333
+    }
+    """
+  group
+    .transform """
+      translate(10,10)
+      scale(0.9)
+      """
+    path
+      data """
+        M 10, 50
+        C 10, 20 50, 20 50, 50
+        S 90, 80 90, 50
+        """
+      .fill none
+      .stroke #4477cc
+      .stroke-width 3
+    end
+    text
+      .class label
+      .x 50
+      .y 70
+      .text-anchor middle
+      = A smooth curve
+    end
+  end
+end
+```
+
+- `@sml 1.0-SVG-1 tidy` says that the file was cleaned, so converting it back gives SVG that renders the same but is not byte for byte the original.
+- The lines after it declare aliases from the profile: `g` elements are written `group`, and a `path`'s `d` attribute is written `data`. The file reads without the profile.
+- `--verbose` puts each namespace declaration (`@ns`) and attribute (`.name value`) on its own line, and `end` closes each element.
+- The path data has one command per line, with a space after each command letter and comma. The transform has one function per line, and the style sheet one declaration per line.
+- The text is the `text` element's content, `= A smooth curve`.
+- The input had no indentation; the SML uses two spaces per level, as always when cleaning.
+
+Converting `curve.sml` back with `smlxml curve.sml` gives indented SVG. In the path data and the transform, the line breaks become `&#10;`, which SVG reads as spaces:
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="120" height="80" viewBox="0 0 120 80">
+  <style>
+    .label {
+      font-family:sans-serif;
+      font-size:12px;
+      fill:#333
+    }
+  </style>
+  <g transform="translate(10,10)&#10;scale(0.9)">
+    <path d="M 10, 50&#10;C 10, 20 50, 20 50, 50&#10;S 90, 80 90, 50" fill="none" stroke="#4477cc" stroke-width="3"/>
+    <text class="label" x="50" y="70" text-anchor="middle">A smooth curve</text>
+  </g>
+</svg>
+```
+
 ## Design
 
 - **Lossless within a defined subset.** For every document in the supported SVG/XML subset (§3 of the specification), XML → SML → XML and SML → XML → SML give the same document. The comparison covers elements, attributes, exact text including whitespace, comments (without the whitespace at their ends), processing instructions, namespace prefixes and declarations, and DOCTYPE identifiers.
